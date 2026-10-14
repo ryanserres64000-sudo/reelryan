@@ -8,7 +8,7 @@ import { handleGenerate, readJson } from "./lib/claude.js";
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "public");
 const PORT = Number(process.env.PORT) || 3000;
-const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css", ".json": "application/json", ".png": "image/png", ".svg": "image/svg+xml", ".ico": "image/x-icon" };
+const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css", ".json": "application/json", ".png": "image/png", ".svg": "image/svg+xml", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json" };
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");

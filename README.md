@@ -9,12 +9,14 @@
 - `api/generate.js` : fonction serveur (Vercel) qui appelle l'API Claude. La clé API reste sur le serveur, jamais dans le navigateur.
 - `server.js` : le même serveur pour un hébergement Node classique (Render, Railway, VPS) ou pour tester en local.
 
+Sur mobile, MaDA peut s'ajouter à l'écran d'accueil comme une app (Partager → « Sur l'écran d'accueil » sur iPhone).
+
 Les marques, créations et images sont enregistrées dans le navigateur de chaque visiteur. Le bouton « Exporter mes données » de la page Compte permet d'en garder une copie.
 
 ## Mise en ligne sur Vercel
 
 1. Crée une clé API sur https://console.anthropic.com/settings/keys (et ajoute du crédit sur le compte).
-2. Va sur https://vercel.com/new, connecte ton GitHub et importe ce dépôt. Aucun réglage de build n'est nécessaire.
+2. Ouvre https://vercel.com/new/import?s=https://github.com/ryanserres64000-sudo/reelryan, connecte ton GitHub si on te le demande, et clique sur **Deploy**. Aucun réglage de build n'est nécessaire.
 3. Dans **Settings → Environment Variables**, ajoute :
    - `ANTHROPIC_API_KEY` : ta clé API (obligatoire)
    - `APP_PASSWORD` : un code d'accès que l'app demandera avant d'utiliser l'IA. Fortement conseillé : sans lui, n'importe qui ayant le lien peut consommer ton crédit API.

@@ -1,5 +1,5 @@
 <!doctype html><html><head><script>window.__RR_STANDALONE=true</script><script src="/shim.js"></script><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
-<title>RyanREEL Studio</title>
+<title>MaDA</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Archivo+Black&family=Bebas+Neue&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Caveat:wght@700&family=Cormorant+Garamond:ital,wght@0,400;0,600;0,700;1,400;1,600&family=DM+Mono:wght@500&family=DM+Sans:wght@400;500;600;700&family=DM+Serif+Display:ital@0;1&family=Fraunces:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Instrument+Serif:ital@0;1&family=Manrope:wght@400;600;800&family=Monoton&family=Permanent+Marker&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400;1,700&family=Space+Grotesk:wght@400;500;700&family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&family=Unbounded:wght@400;600;900&display=swap">
@@ -438,7 +438,7 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
 </style>
 <div class="shell">
   <nav class="side" aria-label="Navigation principale">
-    <div class="logo">Ryan<b>REEL</b><small>Studio</small></div>
+    <div class="logo">Ma<b>DA</b><small>Studio</small></div>
     <button class="ws-switch" id="wsBtn" aria-haspopup="true"><span class="ws-dot" id="wsDot"></span><span><b id="wsName">…</b><small id="wsType"></small></span><span class="chev">▾</span></button>
     <div class="ws-menu" id="wsMenu" hidden></div>
     <div class="navlist" id="navlist"></div>
@@ -520,7 +520,7 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
       <div>
         <h1>Importe tout. <em>L'IA monte ta vidéo.</em></h1>
       </div>
-      <p class="sub">Dépose tes photos et vidéos, dis ce que tu veux en une phrase. RyanREEL choisit les meilleurs moments, le rythme, les effets, les textes et la légende. Ensuite, tu demandes des retouches comme à un monteur.</p>
+      <p class="sub">Dépose tes photos et vidéos, dis ce que tu veux en une phrase. MaDA choisit les meilleurs moments, le rythme, les effets, les textes et la légende. Ensuite, tu demandes des retouches comme à un monteur.</p>
 
       <div class="step">
         <div class="step-h"><span>1</span>Tes photos et vidéos</div>
@@ -1269,7 +1269,7 @@ async function aiCreate(b, o = {}) {
   const ids = [...(b.assets || [])]; if (WS.cur.logo && b.useLogo !== false && Assets.get(WS.cur.logo)) ids.push(WS.cur.logo);
   const { map } = aliasFor(ids);
   const imgs = AI.imgMax ? await assetImages(map, AI.imgMax) : { blobs: [], labels: [] };
-  const prompt = `Tu es le directeur artistique et graphiste senior de RyanREEL Studio. Tu conçois des visuels de niveau agence : modernes, originaux, maîtrisés.
+  const prompt = `Tu es MaDA, directrice artistique et graphiste senior. Tu conçois des visuels de niveau agence : modernes, originaux, maîtrisés.
 ${briefTxt(b)}
 FORMAT : ${F.w} × ${F.h} px (${F.label}). ${safeZone(b.format)}
 ${o.variant ? `CONSIGNE DE VARIANTE : ${o.variant}` : ""}
@@ -1322,7 +1322,7 @@ async function aiEdit(doc, request, o = {}) {
   const extra = AI.imgMax > 1 ? await assetImages(map, Math.min(6, AI.imgMax - 1)) : { blobs: [], labels: [] };
   const W = o.fmt ? FORMATS[o.fmt].w : d.w, H = o.fmt ? FORMATS[o.fmt].h : d.h;
   const hist = (doc.chat || []).filter(m => m.role === "user").slice(-5).map(m => "- " + m.text).join("\n");
-  const prompt = `Tu es le directeur artistique de RyanREEL Studio. L'image jointe n°1 est le rendu actuel du visuel.${extra.labels.length ? ` Les images suivantes sont les photos disponibles : ${extra.labels.join(", ")}.` : ""}
+  const prompt = `Tu es MaDA, directrice artistique. L'image jointe n°1 est le rendu actuel du visuel.${extra.labels.length ? ` Les images suivantes sont les photos disponibles : ${extra.labels.join(", ")}.` : ""}
 ${briefTxt(doc.brief || {})}
 ${brandContext()}
 IMAGES DISPONIBLES : ${assetLines(map) || "aucune"}
@@ -2273,7 +2273,7 @@ function renderHome() {
   $("#v-dropTitle").textContent = n ? `${n - nv} photo${n - nv > 1 ? "s" : ""} et ${nv} vidéo${nv > 1 ? "s" : ""}` : "Glisse tout ici";
   $("#v-homeImport").textContent = n ? "Ajouter d'autres fichiers" : "Choisir des fichiers";
   $("#v-homeGo").disabled = !n || !!aiCtl;
-  $("#v-homeHint").textContent = !n ? "Ajoute au moins une photo ou une vidéo." : aiAvailable() ? "" : "L'IA n'est pas disponible dans cette vue : RyanREEL fera un montage automatique simple.";
+  $("#v-homeHint").textContent = !n ? "Ajoute au moins une photo ou une vidéo." : aiAvailable() ? "" : "L'IA n'est pas disponible dans cette vue : MaDA fera un montage automatique simple.";
 }
 $("#v-ideas").innerHTML = IDEAS.map(i => `<button class="idea">${esc(i)}</button>`).join("");
 $("#v-ideas").onclick = e => { const b = e.target.closest(".idea"); if (b) { $("#v-homeAsk").value = b.textContent; $("#v-homeAsk").focus(); } };
@@ -2358,7 +2358,7 @@ function musicLine() {
 }
 function buildPrompt(request, frames, isEdit) {
   const dur = state.targetDur === "auto" ? "à toi de choisir selon la demande (souvent 12 à 30 s)" : `${state.targetDur} s (±10 %)`;
-  const base = `Tu es RyanREEL, monteur vidéo professionnel spécialiste des Reels Instagram et TikTok. Tu travailles en français.
+  const base = `Tu es MaDA, monteuse vidéo professionnelle spécialiste des Reels Instagram et TikTok. Tu travailles en français.
 ${RR.brandContext()}
 SOURCES IMPORTÉES (index : description) :
 ${state.sources.map(srcInfo).join("\n")}
@@ -2485,7 +2485,7 @@ async function runAI(request, isEdit, retry) {
   if (!retry) addAIMsg({ role: "user", text: request || "Crée ma vidéo" });
   pause();
   if (!aiAvailable()) {
-    if (isEdit) { addAIMsg({ role: "ai", err: true, text: "L'IA n'est pas disponible dans cette vue, je ne peux pas faire de retouche. Utilise « Ajuster à la main », ou ouvre RyanREEL dans Claude connecté à ton compte." }); return; }
+    if (isEdit) { addAIMsg({ role: "ai", err: true, text: "L'IA n'est pas disponible dans cette vue, je ne peux pas faire de retouche. Utilise « Ajuster à la main », ou réessaie dans un instant." }); return; }
     pushUndo(); const s = applyPlan(localPlan(request), false); showView("studio"); afterChange(true);
     addAIMsg({ role: "ai", text: s, actions: ["undo"] }); return;
   }
@@ -2547,7 +2547,7 @@ const pickMime = () => ["video/mp4;codecs=avc1.42E01E,mp4a.40.2", "video/mp4;cod
 function showExport(html) { $("#v-exportModal").innerHTML = html; $("#v-exportOv").hidden = false; }
 $("#v-exportBtn").onclick = () => {
   if (!state.clips.length) return vtoast("Le montage est vide.");
-  if (!window.MediaRecorder || !cv.captureStream) return showExport(`<h2>Export impossible ici</h2><p class="note">Ce navigateur ne sait pas enregistrer une vidéo. Ouvre RyanREEL dans Chrome, Edge ou un Safari récent.</p><button class="btn" id="v-expClose">Fermer</button>`);
+  if (!window.MediaRecorder || !cv.captureStream) return showExport(`<h2>Export impossible ici</h2><p class="note">Ce navigateur ne sait pas enregistrer une vidéo. Ouvre MaDA dans Chrome, Edge ou un Safari récent.</p><button class="btn" id="v-expClose">Fermer</button>`);
   const [w, h] = ASPECTS[state.aspect];
   showExport(`<h2>Exporter la vidéo</h2><p class="note">${state.aspect} · ${w}×${h} · ${fmt(total())}. La vidéo est rejouée pendant l'enregistrement : <b style="color:var(--fg)">garde cet onglet ouvert et visible</b> jusqu'à la fin.</p><div class="row"><button class="btn primary" id="v-expGo">Lancer l'export</button><button class="btn ghost" id="v-expClose">Annuler</button></div>`);
 };
@@ -2583,7 +2583,7 @@ function exportDone() {
 }
 async function saveExport() {
   if (!lastExport || !downloads) return;
-  try { await downloads.save({ filename: `ryanreel-${new Date().toISOString().slice(0, 10)}.${lastExport.ext}`, data: lastExport.blob }); vtoast("Vidéo enregistrée"); }
+  try { await downloads.save({ filename: `mada-${new Date().toISOString().slice(0, 10)}.${lastExport.ext}`, data: lastExport.blob }); vtoast("Vidéo enregistrée"); }
   catch (e) { vtoast(e && e.code === "declined" ? "Enregistrement annulé." : e && e.code === "too_large" ? "Fichier trop lourd pour cette vue." : "Impossible d'enregistrer ici."); }
 }
 
@@ -3004,7 +3004,7 @@ const Account = {
       </div>
       <div class="card"><div class="sec-h"><h2>Mes données</h2></div><p class="note">Télécharge une copie de tes marques, créations et idées (sans les images).</p><div class="row"><button class="btn" id="acExp">Exporter mes données (JSON)</button></div></div></div>`;
     $("#acBrand").onclick = () => App.go("brand", { force: true }); $("#acNew").onclick = newSpaceModal;
-    $("#acExp").onclick = async () => { const data = { exportedAt: new Date().toISOString(), brands: await Store.all("brand"), designs: (await Store.all("design")).map(d => ({ ...d, thumb: undefined })), ideas: await Store.all("ideas") }; saveFile("ryanreel-donnees.json", JSON.stringify(data, null, 2)); };
+    $("#acExp").onclick = async () => { const data = { exportedAt: new Date().toISOString(), brands: await Store.all("brand"), designs: (await Store.all("design")).map(d => ({ ...d, thumb: undefined })), ideas: await Store.all("ideas") }; saveFile("mada-donnees.json", JSON.stringify(data, null, 2)); };
   }
 };
 

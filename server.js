@@ -30,4 +30,4 @@ http.createServer(async (req, res) => {
     res.setHeader("content-type", TYPES[path.extname(file)] || "application/octet-stream");
     res.end(data);
   } catch { res.statusCode = 404; res.end("Introuvable"); }
-}).listen(PORT, () => console.log(`RyanREEL Studio sur http://localhost:${PORT}`));
+}).listen(PORT, () => console.log(`MaDA sur http://localhost:${PORT}`));

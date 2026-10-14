@@ -1,6 +1,6 @@
-# RyanREEL Studio
+# MaDA
 
-Studio créatif IA pour créer des visuels et des vidéos de marque (posts, stories, flyers, reels), avec espaces de marque, éditeur, sous-titres, idées et analyse Instagram.
+« Ma DA », ta directrice artistique : l'IA qui crée tes posts, vidéos et stories à ta place, avec espaces de marque, éditeur, sous-titres, idées et analyse Instagram.
 
 ## Comment ça marche
 

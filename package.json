@@ -2,7 +2,7 @@
   "name": "reelryan",
   "version": "1.0.0",
   "private": true,
-  "description": "RyanREEL Studio : studio créatif IA pour visuels et vidéos de marque",
+  "description": "MaDA : ta directrice artistique IA pour posts, vidéos et stories",
   "type": "module",
   "engines": { "node": ">=20" },
   "scripts": {

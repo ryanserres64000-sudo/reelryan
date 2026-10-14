@@ -1,4 +1,4 @@
-/* RyanREEL Studio — standalone runtime.
+/* MaDA — standalone runtime.
    Provides the small window.claude API the app expects when it runs inside Claude:
    - "sample": AI calls, sent to this app's own server (/api/generate)
    - "downloads": saving files via a normal browser download
@@ -52,7 +52,7 @@
       throw { code: e && e.name === "AbortError" ? "cancelled" : "network" };
     }
     if (res.status === 401 && !retried) {
-      const v = window.prompt("Code d'accès de RyanREEL Studio :", "");
+      const v = window.prompt("Code d'accès de MaDA :", "");
       if (v === null) throw { code: "cancelled" };
       setAccess(v.trim());
       return call(prompt, o, true);

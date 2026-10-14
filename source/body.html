@@ -1,0 +1,75 @@
+<div class="shell">
+  <nav class="side" aria-label="Navigation principale">
+    <div class="logo">Ma<b>DA</b><small>Studio</small></div>
+    <button class="ws-switch" id="wsBtn" aria-haspopup="true"><span class="ws-dot" id="wsDot"></span><span><b id="wsName">…</b><small id="wsType"></small></span><span class="chev">▾</span></button>
+    <div class="ws-menu" id="wsMenu" hidden></div>
+    <div class="navlist" id="navlist"></div>
+    <div class="me" id="meBox"></div>
+  </nav>
+  <main class="views">
+    <div class="mobile-ws" id="mobileWs"></div>
+    <section class="view" id="view-dash"></section>
+    <section class="view" id="view-create" hidden>
+      <div id="briefScreen"></div>
+      <div class="editor" id="editor" hidden>
+        <div class="ed-bar">
+          <button class="btn sm ghost" id="edBack">← Créations</button>
+          <input class="title" id="edTitle" aria-label="Nom de la création">
+          <span class="pill" id="edFmt"></span>
+          <span class="sp"></span>
+          <button class="btn sm ghost" id="edUndo" title="Annuler (Ctrl+Z)" disabled>↶</button>
+          <button class="btn sm ghost" id="edRedo" title="Rétablir (Ctrl+Maj+Z)" disabled>↷</button>
+          <button class="btn sm" id="edAddText">+ Texte</button>
+          <button class="btn sm" id="edAddShape">+ Forme</button>
+          <button class="btn sm" id="edAddImg">+ Image</button>
+          <button class="btn sm ai" id="edVariants">✦ 3 variantes</button>
+          <button class="btn sm primary" id="edExport">Exporter</button>
+        </div>
+        <div class="ed-main">
+          <aside class="ed-left">
+            <div class="stabs" role="tablist">
+              <button class="stab" data-etab="ai" aria-selected="true">✦ Directeur IA</button>
+              <button class="stab" data-etab="layers" aria-selected="false">Calques</button>
+              <button class="stab" data-etab="media" aria-selected="false">Médias</button>
+            </div>
+            <div class="spane" data-epane="ai">
+              <div class="chatlog" id="edChat"></div>
+            </div>
+            <div class="composer" data-epane="ai">
+              <div class="qk" id="edQuick"></div>
+              <div class="inrow">
+                <textarea class="inp" id="edAsk" rows="1" aria-label="Demande une modification au directeur artistique" placeholder="Ex : titre plus massif, palette plus chaude, ajoute un badge -20 %…"></textarea>
+                <button class="send" id="edSend" aria-label="Envoyer">↑</button>
+              </div>
+              <div class="row">
+                <button class="btn sm" id="edCritique">✦ Relire et améliorer</button>
+                <select class="sel" id="edAdapt" aria-label="Adapter au format" style="width:auto;padding:5px 8px;font-size:12.5px"></select>
+              </div>
+            </div>
+            <div class="spane" data-epane="layers" hidden><div class="layers" id="edLayers"></div></div>
+            <div class="spane" data-epane="media" hidden>
+              <p class="note">Touche une image pour l'ajouter. Si une image est sélectionnée sur le visuel, elle est remplacée.</p>
+              <div class="assets" id="edAssets"></div>
+            </div>
+          </aside>
+          <div class="ed-stage" id="edStage">
+            <div class="ed-wrap" id="edWrap"><canvas id="edCv"></canvas><canvas id="edOv"></canvas></div>
+            <div class="ed-busy" id="edBusy" hidden></div>
+          </div>
+          <aside class="ed-right" id="edProps"></aside>
+        </div>
+      </div>
+    </section>
+    <section class="view full" id="view-video" hidden>
+<!--VIDEO-->
+    </section>
+    <section class="view" id="view-ideas" hidden></section>
+    <section class="view" id="view-insta" hidden></section>
+    <section class="view" id="view-brand" hidden></section>
+    <section class="view" id="view-gallery" hidden></section>
+    <section class="view" id="view-account" hidden></section>
+  </main>
+</div>
+<input type="file" id="assetIn" accept="image/*" multiple hidden>
+<div class="modal-bg" id="modal" hidden><div class="modal-card" id="modalCard" role="dialog" aria-modal="true"></div></div>
+<div class="toast" id="toast" hidden></div>

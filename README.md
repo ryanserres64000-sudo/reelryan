@@ -4,7 +4,7 @@
 
 ## Comment ça marche
 
-- `public/index.html` : l'application (une seule page).
+- `public/index.html` : l'application (une seule page, générée depuis `source/`).
 - `public/shim.js` : relie l'application au serveur IA et gère l'enregistrement des fichiers.
 - `api/generate.js` : fonction serveur (Vercel) qui appelle l'API Claude. La clé API reste sur le serveur, jamais dans le navigateur.
 - `server.js` : le même serveur pour un hébergement Node classique (Render, Railway, VPS) ou pour tester en local.
@@ -22,7 +22,9 @@ Les marques, créations et images sont enregistrées dans le navigateur de chaqu
    - `APP_PASSWORD` : un code d'accès que l'app demandera avant d'utiliser l'IA. Fortement conseillé : sans lui, n'importe qui ayant le lien peut consommer ton crédit API.
 4. Clique sur **Redeploy**. L'app est en ligne sur l'adresse donnée par Vercel ; tu peux y relier ton propre nom de domaine dans **Settings → Domains**.
 
-Réglages optionnels : `RR_MODEL` (modèle Claude, par défaut `claude-opus-5-5`) et `RR_EFFORT` (`low`, `medium` par défaut, `high`).
+Réglages optionnels : `RR_MODEL` (modèle Claude, par défaut `claude-opus-5-5`), `RR_EFFORT` (`low`, `medium` par défaut, `high`) et `MAX_PER_HOUR` (demandes IA maximum par visiteur et par heure, 60 par défaut).
+
+Conseil : fixe aussi un plafond de dépenses mensuel dans la console Anthropic (*Limits*).
 
 ## Tester en local
 
@@ -31,6 +33,16 @@ npm install
 cp .env.example .env   # puis remplis ANTHROPIC_API_KEY
 npm run dev            # http://localhost:3000
 ```
+
+## Modifier l'application
+
+Le code de l'app est découpé en modules dans `source/` (voir `CLAUDE.md` et `source/MISSION.md`). Après une modification, reconstruis la page :
+
+```bash
+cd source && python3 build.py && node --check all.js
+```
+
+Cela met à jour `public/index.html` (site web) et `source/mada-studio.html` (version Claude).
 
 ## Autres hébergeurs
 

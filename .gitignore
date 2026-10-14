@@ -1,3 +1,7 @@
 node_modules/
 .env
 .vercel/
+source/all.js
+source/video.css
+source/video.html
+source/video.js

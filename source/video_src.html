@@ -1,0 +1,1177 @@
+<title>MaDA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Caveat:wght@700&family=Cormorant+Garamond:wght@600&family=DM+Mono:wght@500&family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,600&display=swap">
+<style>
+/* Layout: AI-first studio — home screen (import + request) → studio: [manual tools, hidden] | preview | AI assistant; timeline under. Stacks on phones: preview, assistant, timeline. */
+:root{
+  --bg:#110F15; --panel:#1A171F; --panel-2:#241F2B; --line:#332C3B; --fg:#EFEAF4; --muted:#9D94A9;
+  --accent:#E8C27A; --accent-ink:#1C1509; --ai:#B9A6F0; --danger:#E5847A;
+  --f-display:"Bricolage Grotesque","Avenir Next",system-ui,sans-serif;
+  --f-body:"DM Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"DM Mono",ui-monospace,Menlo,monospace;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:14px;overflow:hidden}
+*{box-sizing:border-box}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.app{height:100%;display:grid;grid-template-rows:auto 1fr}
+
+header{display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+.brand{font-family:var(--f-display);font-weight:800;font-size:21px;letter-spacing:-.03em;margin-right:auto;display:flex;align-items:baseline}
+.brand b{color:var(--accent);font-weight:800}
+.btn{border:1px solid var(--line);background:var(--panel-2);border-radius:10px;padding:7px 12px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover:not(:disabled){border-color:#4B4356}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:700}
+.btn.ghost{background:transparent}
+.btn.small{padding:5px 9px;font-size:12.5px}
+.btn.danger{color:var(--danger)}
+.btn[aria-pressed=true]{border-color:var(--accent);color:var(--accent)}
+select.sel,input.inp,textarea.inp{background:var(--panel-2);border:1px solid var(--line);border-radius:9px;padding:8px 10px;width:100%}
+textarea.inp{resize:vertical;min-height:64px;line-height:1.45}
+input[type=range]{width:100%;accent-color:var(--accent)}
+input[type=color]{width:38px;height:32px;border:1px solid var(--line);border-radius:8px;background:var(--panel-2);padding:2px}
+.note{font-size:12.5px;color:var(--muted);line-height:1.45;margin:0}
+.lbl{font-size:12px;color:var(--muted)}
+
+/* ---- Home ---- */
+#home{overflow:auto;padding-block:clamp(20px,5vh,56px);padding-inline:16px}
+.home-in{max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:22px}
+.home-in h1{font-family:var(--f-display);font-weight:800;font-size:clamp(30px,5.5vw,52px);letter-spacing:-.035em;line-height:1;margin:0;text-wrap:balance}
+.home-in h1 em{font-style:normal;color:var(--accent)}
+.home-in .sub{font-size:16px;color:var(--muted);margin:0;max-width:56ch;line-height:1.5}
+.step{display:flex;flex-direction:column;gap:10px}
+.step-h{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15px}
+.step-h span{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:var(--panel-2);border:1px solid var(--line);font-size:13px;font-family:var(--f-mono)}
+.drop{border:1.5px dashed #4A4255;border-radius:16px;padding:22px 16px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;background:var(--panel)}
+.drop.over{border-color:var(--accent);background:#E8C27A0F}
+.drop b{font-size:16px}
+.thumbs{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.thumbs div{width:52px;height:52px;border-radius:8px;background-size:cover;background-position:center;position:relative;border:1px solid var(--line)}
+.thumbs div i{position:absolute;right:3px;bottom:2px;font-size:10px;font-style:normal;background:#000a;border-radius:4px;padding:0 3px}
+.ask{border:1px solid var(--line);border-radius:16px;background:var(--panel);padding:12px;display:flex;flex-direction:column;gap:10px}
+.ask textarea{border:0;background:transparent;resize:none;min-height:84px;font-size:16px;padding:4px;width:100%;line-height:1.45}
+.ask textarea:focus{outline:none}
+.ideas{display:flex;flex-wrap:wrap;gap:6px}
+.idea{border:1px solid var(--line);background:var(--panel-2);border-radius:999px;padding:6px 11px;font-size:12.5px}
+.idea:hover{border-color:var(--ai)}
+.opts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.opts select{width:auto}
+.go{font-size:16px;padding:12px 20px;border-radius:12px}
+
+/* ---- Studio ---- */
+#studio{min-height:0;display:grid;grid-template-columns:0 minmax(0,1fr) 370px;grid-template-rows:minmax(0,1fr) 200px;grid-template-areas:"left stage ai" "tl tl ai"}
+#studio.manual{grid-template-columns:290px minmax(0,1fr) 370px}
+#left{grid-area:left;border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0;overflow:hidden}
+#studio:not(.manual) #left{display:none}
+#stageWrap{grid-area:stage;display:flex;flex-direction:column;min-height:0;min-width:0;padding:14px 16px 10px;gap:10px}
+#stageBox{flex:1;min-height:0;display:flex;align-items:center;justify-content:center}
+#cv{background:#000;border-radius:12px;box-shadow:0 20px 60px #0009;touch-action:none}
+.transport{display:flex;align-items:center;gap:10px;justify-content:center;flex-wrap:wrap}
+.playbtn{width:46px;height:46px;border-radius:50%;border:0;background:var(--fg);color:var(--bg);display:grid;place-items:center;font-size:15px}
+.time{font-family:var(--f-mono);font-variant-numeric:tabular-nums;font-size:13px;color:var(--muted);min-width:118px;text-align:center}
+.time b{color:var(--fg);font-weight:500}
+
+/* AI panel */
+#ai{grid-area:ai;border-left:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
+.ai-head{padding:14px 16px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}
+.orb{width:26px;height:26px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff 0,var(--ai) 35%,#5B47A8 100%);flex:none}
+.orb.work{animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{50%{transform:scale(.82);opacity:.7}}
+.ai-head b{font-family:var(--f-display);font-size:16px;letter-spacing:-.01em}
+.ai-head .note{margin-left:auto}
+#chat{flex:1;overflow:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-height:120px}
+.msg{max-width:92%;padding:9px 12px;border-radius:14px;line-height:1.45;font-size:13.5px;white-space:pre-wrap;overflow-wrap:anywhere}
+.msg.user{align-self:flex-end;background:var(--panel-2);border:1px solid var(--line);border-bottom-right-radius:4px}
+.msg.ai{align-self:flex-start;background:#B9A6F014;border:1px solid #B9A6F033;border-bottom-left-radius:4px}
+.msg.ai .acts{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.msg.err{border-color:#E5847A66;background:#E5847A12}
+.progress{display:flex;flex-direction:column;gap:6px;font-size:12.5px;color:var(--muted)}
+.progress .st{display:flex;gap:8px;align-items:center}
+.progress .st::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--line);flex:none}
+.progress .st.done::before{background:var(--ai)}
+.progress .st.now{color:var(--fg)}
+.progress .st.now::before{background:var(--accent);animation:pulse 1s infinite}
+.composer{border-top:1px solid var(--line);padding:10px 12px 12px;display:flex;flex-direction:column;gap:8px}
+.quick{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px}
+.quick button{flex:none}
+.inrow{display:flex;gap:8px;align-items:flex-end}
+.inrow textarea{min-height:44px;max-height:140px;resize:none}
+.send{width:44px;height:44px;border-radius:12px;border:0;background:var(--accent);color:var(--accent-ink);font-weight:800;flex:none;font-size:17px}
+.send:disabled{opacity:.4}
+details.more{border:1px solid var(--line);border-radius:12px;background:var(--panel-2)}
+details.more summary{padding:9px 12px;cursor:pointer;font-weight:600;font-size:13px;list-style:none;display:flex;justify-content:space-between}
+details.more summary::after{content:"+";color:var(--muted)}
+details.more[open] summary::after{content:"–"}
+details.more .in{padding:0 12px 12px;display:flex;flex-direction:column;gap:8px}
+.extras{padding:0 16px 12px;display:flex;flex-direction:column;gap:8px;max-height:40%;overflow:auto}
+
+/* Timeline */
+#tl{grid-area:tl;border-top:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
+.tl-bar{display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--line);flex:none}
+.tl-bar .lbl{margin-right:auto}
+.tl-body{flex:1;min-height:0;display:flex}
+.tl-heads{width:80px;flex:none;border-right:1px solid var(--line);display:flex;flex-direction:column;padding-top:22px}
+.tl-heads div{font-size:11px;color:var(--muted);display:flex;align-items:center;padding-left:12px;border-bottom:1px solid #ffffff08}
+#tlScroll{flex:1;overflow:auto;position:relative}
+#tlInner{position:relative;min-height:100%}
+.ruler{height:22px;position:sticky;top:0;background:var(--panel);z-index:3;border-bottom:1px solid var(--line)}
+.ruler span{position:absolute;top:4px;font-family:var(--f-mono);font-size:10px;color:var(--muted);transform:translateX(3px)}
+.ruler i{position:absolute;bottom:0;width:1px;height:6px;background:var(--line)}
+.ruler .beat{height:4px;background:#C77F6E88}
+.track{position:relative;border-bottom:1px solid #ffffff08}
+.tl-clip{position:absolute;top:5px;bottom:5px;border-radius:7px;background-color:#2D2735;background-size:auto 100%;background-repeat:repeat-x;border:1.5px solid #ffffff22;overflow:hidden;cursor:grab}
+.tl-clip .cap{position:absolute;left:0;right:0;bottom:0;padding:2px 6px;font-size:10.5px;background:linear-gradient(transparent,#000c);white-space:nowrap;overflow:hidden;font-variant-numeric:tabular-nums}
+.tl-clip.sel,.tl-item.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.tl-item{position:absolute;height:22px;border-radius:6px;font-size:11px;padding:0 9px;display:flex;align-items:center;white-space:nowrap;overflow:hidden;cursor:grab;border:1.5px solid transparent;color:#fff}
+.tl-item.text{background:#8E7CC3CC}.tl-item.sub{background:#4E8F88D9}.tl-item.music{background:#C77F6EB3;cursor:default}
+.edge{position:absolute;top:0;bottom:0;width:9px;cursor:ew-resize;z-index:2}
+.edge.l{left:0}.edge.r{right:0}
+.edge::after{content:"";position:absolute;top:28%;bottom:28%;left:3px;width:2px;border-radius:2px;background:#fff9}
+.tr-mark{position:absolute;top:50%;width:11px;height:11px;transform:translate(-50%,-50%) rotate(45deg);background:var(--accent);border-radius:2px;z-index:2;pointer-events:none;box-shadow:0 0 0 2px var(--panel)}
+#playhead{position:absolute;top:0;bottom:0;width:2px;background:var(--accent);z-index:4;pointer-events:none}
+#playhead::before{content:"";position:absolute;top:0;left:-6px;border:7px solid transparent;border-top:9px solid var(--accent)}
+
+/* Manual panel */
+.tabs{display:flex;gap:2px;padding:8px 8px 0;overflow-x:auto;border-bottom:1px solid var(--line);flex:none}
+.tab{background:none;border:0;padding:8px 9px;color:var(--muted);font-weight:600;font-size:12.5px;white-space:nowrap;border-bottom:2px solid transparent}
+.tab[aria-selected=true]{color:var(--fg);border-bottom-color:var(--accent)}
+.pane{padding:14px;overflow:auto;flex:1;display:flex;flex-direction:column;gap:13px;min-height:0}
+.pane h3{margin:0;font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);font-weight:600}
+.field{display:flex;flex-direction:column;gap:5px}
+.field label{font-size:12px;color:var(--muted)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.row{display:flex;gap:8px;align-items:center}
+.row>*{min-width:0}
+.btnrow{display:flex;flex-wrap:wrap;gap:6px}
+.chips{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.chip{border:1px solid var(--line);background:var(--panel-2);border-radius:10px;padding:10px 8px;min-height:52px;line-height:1.1}
+.chip:hover{border-color:var(--accent)}
+.lib{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.lib button{aspect-ratio:1;border-radius:8px;border:1px solid var(--line);background-size:cover;background-position:center;position:relative;padding:0}
+.lib button i{position:absolute;right:4px;bottom:3px;font-style:normal;font-size:11px;background:#000b;border-radius:5px;padding:0 4px}
+.lib button span{position:absolute;left:4px;top:3px;font-size:10px;background:#000b;border-radius:5px;padding:0 4px;font-family:var(--f-mono)}
+.list{display:flex;flex-direction:column;gap:6px}
+.li{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:9px;padding:7px 9px;background:var(--panel-2);text-align:left;width:100%}
+.li .tm{font-family:var(--f-mono);font-size:11.5px;color:var(--muted);flex:none}
+.li .tx{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.themes{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.theme{border:1px solid var(--line);background:var(--panel-2);border-radius:12px;padding:9px;text-align:left;display:flex;flex-direction:column;gap:6px}
+.theme:hover{border-color:var(--accent)}
+.theme .sw{height:30px;border-radius:7px;display:grid;place-items:center;font-size:16px;color:#fff}
+.theme span{font-size:11.5px;color:var(--muted)}
+.segs{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.segs button{flex:1;background:var(--panel-2);border:0;padding:6px 4px;font-size:12px;border-right:1px solid var(--line)}
+.segs button:last-child{border-right:0}
+.segs button[aria-pressed=true]{background:#E8C27A26;color:var(--accent)}
+.rangeval{font-family:var(--f-mono);font-size:11.5px;color:var(--muted);min-width:46px;text-align:right}
+
+.overlay{position:fixed;inset:0;background:#0b090ecc;backdrop-filter:blur(6px);display:grid;place-items:center;z-index:50;padding:16px}
+.modal{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;width:min(440px,100%);display:flex;flex-direction:column;gap:14px;max-height:100%;overflow:auto}
+.modal h2{margin:0;font-family:var(--f-display);font-size:22px;letter-spacing:-.02em}
+.bar{height:8px;border-radius:5px;background:var(--panel-2);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);width:0}
+.modal video{width:100%;max-height:46vh;border-radius:10px;background:#000}
+#toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:10px;font-weight:600;font-size:13px;z-index:60;max-width:calc(100% - 32px);text-align:center}
+
+@media (max-width:1000px){
+  body{overflow:auto}
+  .app{height:auto;min-height:100%}
+  #studio,#studio.manual{grid-template-columns:minmax(0,1fr);grid-template-rows:auto;grid-template-areas:"stage" "ai" "tl" "left"}
+  #stageBox{height:min(58vh,620px);flex:none}
+  #ai{border-left:0;border-top:1px solid var(--line)}
+  #chat{max-height:46vh}
+  #tl{height:190px}
+  #left{border-right:0;border-top:1px solid var(--line)}
+  .pane{overflow:visible}
+}
+@media (prefers-reduced-motion:reduce){.orb.work,.progress .st.now::before{animation:none}}
+</style>
+
+<div class="app">
+  <header>
+    <div class="brand">Ma<b>DA</b></div>
+    <button class="btn ghost" id="addBtn" hidden>+ Médias</button>
+    <button class="btn ghost" id="manualBtn" aria-pressed="false" hidden>Ajuster à la main</button>
+    <button class="btn ghost" id="undoBtn" title="Annuler (Ctrl+Z)" disabled>↶</button>
+    <button class="btn ghost" id="redoBtn" title="Rétablir" disabled>↷</button>
+    <button class="btn ghost" id="newBtn" hidden>Nouvelle vidéo</button>
+    <button class="btn primary" id="exportBtn" hidden>Exporter</button>
+  </header>
+  <input type="file" id="fileIn" accept="image/*,video/*,audio/*" multiple hidden>
+  <input type="file" id="musicIn" accept="audio/*" hidden>
+
+  <!-- HOME -->
+  <section id="home">
+    <div class="home-in">
+      <div>
+        <h1>Importe tout. <em>L'IA monte ta vidéo.</em></h1>
+      </div>
+      <p class="sub">Dépose tes photos et vidéos, dis ce que tu veux en une phrase. MaDA choisit les meilleurs moments, le rythme, les effets, les textes et la légende. Ensuite, tu demandes des retouches comme à un monteur.</p>
+
+      <div class="step">
+        <div class="step-h"><span>1</span>Tes photos et vidéos</div>
+        <div class="drop" id="drop">
+          <b id="dropTitle">Glisse tout ici</b>
+          <div class="thumbs" id="homeThumbs"></div>
+          <div class="row" style="justify-content:center;flex-wrap:wrap">
+            <button class="btn primary" id="homeImport">Choisir des fichiers</button>
+            <button class="btn" id="homeMusic">+ Musique (optionnel)</button>
+          </div>
+          <p class="note" id="homeMusicName"></p>
+        </div>
+      </div>
+
+      <div class="step">
+        <div class="step-h"><span>2</span>Ce que tu veux</div>
+        <div class="ask">
+          <textarea id="homeAsk" aria-label="Ta demande à l'IA" placeholder="Ex : Un Reel chic de 20 secondes sur le brunch du dimanche au palace, commence par le plat signature, textes élégants dorés, rythme posé."></textarea>
+          <div class="ideas" id="ideas"></div>
+          <div class="opts">
+            <select class="sel" id="homeDur" aria-label="Durée"><option value="auto">Durée : l'IA décide</option><option value="15">15 secondes</option><option value="30">30 secondes</option><option value="60">60 secondes</option></select>
+            <select class="sel" id="homeAspect" aria-label="Format"><option value="9:16">Reel / Story 9:16</option><option value="4:5">Post 4:5</option><option value="1:1">Carré 1:1</option><option value="16:9">Paysage 16:9</option></select>
+          </div>
+          <details class="more">
+            <summary>Ce qui est dit dans tes vidéos (pour les sous-titres)</summary>
+            <div class="in">
+              <p class="note">L'IA ne peut pas écouter le son. Dicte ou colle ici les paroles (le micro du clavier de ton téléphone marche très bien) : elle les découpe et les cale en sous-titres.</p>
+              <textarea class="inp" id="homeSpeech" placeholder="Bienvenue au Grand Café, aujourd'hui je vous fais découvrir…"></textarea>
+            </div>
+          </details>
+        </div>
+      </div>
+      <div class="row" style="flex-wrap:wrap">
+        <button class="btn primary go" id="homeGo" disabled>✦ Créer ma vidéo</button>
+        <p class="note" id="homeHint">Ajoute au moins une photo ou une vidéo.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- STUDIO -->
+  <section id="studio" hidden>
+    <section id="left">
+      <div class="tabs" role="tablist">
+        <button class="tab" data-tab="sel" aria-selected="true">Sélection</button>
+        <button class="tab" data-tab="lib" aria-selected="false">Médias</button>
+        <button class="tab" data-tab="text" aria-selected="false">Texte</button>
+        <button class="tab" data-tab="subs" aria-selected="false">Sous-titres</button>
+        <button class="tab" data-tab="styles" aria-selected="false">Styles</button>
+        <button class="tab" data-tab="audio" aria-selected="false">Musique</button>
+      </div>
+      <div class="pane" data-pane="sel" id="insp"></div>
+      <div class="pane" data-pane="lib" hidden>
+        <p class="note">Tous tes médias importés. Touche-en un pour l'ajouter à la fin du montage.</p>
+        <div class="lib" id="lib"></div>
+      </div>
+      <div class="pane" data-pane="text" hidden>
+        <h3>Ajouter un texte au temps actuel</h3>
+        <div class="chips" id="textPresets"></div>
+        <p class="note">Sur l'aperçu, fais glisser un texte pour le placer.</p>
+      </div>
+      <div class="pane" data-pane="subs" hidden>
+        <h3>Style des sous-titres</h3>
+        <div class="two">
+          <div class="field"><label for="ssFont">Police</label><select class="sel" id="ssFont"></select></div>
+          <div class="field"><label for="ssBg">Fond</label><select class="sel" id="ssBg"><option value="box">Bandeau</option><option value="shadow">Ombre</option><option value="outline">Contour</option><option value="none">Aucun</option></select></div>
+        </div>
+        <div class="row"><span class="lbl" style="width:52px">Taille</span><input type="range" id="ssSize" min="24" max="90"><input type="color" id="ssColor" aria-label="Couleur"></div>
+        <div class="row"><span class="lbl" style="width:52px">Hauteur</span><input type="range" id="ssY" min="0.1" max="0.95" step="0.01"></div>
+        <div class="row"><h3 style="margin-right:auto">Liste</h3><button class="btn small" id="subAdd">+ Ajouter</button></div>
+        <div class="list" id="subList"></div>
+      </div>
+      <div class="pane" data-pane="styles" hidden>
+        <p class="note">Applique un style à tout le montage.</p>
+        <div class="themes" id="themes"></div>
+      </div>
+      <div class="pane" data-pane="audio" hidden>
+        <div id="musicBox"></div>
+        <button class="btn" id="musicBtn">+ Importer une musique</button>
+        <div class="row"><span class="lbl" style="width:76px">Musique</span><input type="range" id="volMusic" min="0" max="1" step="0.05"></div>
+        <div class="row"><span class="lbl" style="width:76px">Son vidéos</span><input type="range" id="volClips" min="0" max="1" step="0.05"></div>
+        <div class="field"><label for="aspectSel">Format</label><select class="sel" id="aspectSel"><option value="9:16">9:16</option><option value="4:5">4:5</option><option value="1:1">1:1</option><option value="16:9">16:9</option></select></div>
+      </div>
+    </section>
+
+    <section id="stageWrap">
+      <div id="stageBox"><canvas id="cv" aria-label="Aperçu de la vidéo"></canvas></div>
+      <div class="transport">
+        <button class="btn small ghost" id="toStart" aria-label="Revenir au début">⏮</button>
+        <button class="playbtn" id="playBtn" aria-label="Lecture">▶</button>
+        <div class="time" id="timeLbl"><b>0:00.0</b> / 0:00.0</div>
+      </div>
+    </section>
+
+    <section id="ai">
+      <div class="ai-head"><div class="orb" id="orb"></div><b>Ton monteur IA</b><span class="note" id="aiState"></span></div>
+      <div id="chat"></div>
+      <div class="extras" id="extras"></div>
+      <div class="composer">
+        <div class="quick" id="quick"></div>
+        <div class="inrow">
+          <textarea class="inp" id="ask" rows="1" aria-label="Demande une modification" placeholder="Ex : plus rythmé, mets la vidéo du dessert au début…"></textarea>
+          <button class="send" id="sendBtn" aria-label="Envoyer">↑</button>
+        </div>
+        <button class="btn small ghost" id="stopBtn" hidden>Arrêter l'IA</button>
+      </div>
+    </section>
+
+    <section id="tl">
+      <div class="tl-bar"><span class="lbl" id="tlInfo"></span><button class="btn small ghost" id="zoomOut" aria-label="Dézoomer">−</button><button class="btn small ghost" id="zoomIn" aria-label="Zoomer">+</button></div>
+      <div class="tl-body"><div class="tl-heads" id="tlHeads"></div><div id="tlScroll"><div id="tlInner"></div></div></div>
+    </section>
+  </section>
+</div>
+
+<div class="overlay" id="exportOv" hidden><div class="modal" id="exportModal"></div></div>
+<div id="toast" hidden></div>
+
+<script>
+"use strict";
+const $ = (s, r = document) => r.querySelector(s);
+const uid = () => Math.random().toString(36).slice(2, 10);
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const r1 = v => Math.round(v * 10) / 10, r2 = v => Math.round(v * 100) / 100;
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const easeIO = p => p < .5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+const easeOut = p => 1 - Math.pow(1 - p, 3);
+const backOut = p => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(p - 1, 3) + c1 * Math.pow(p - 1, 2); };
+const fmt = s => { s = Math.max(0, s || 0); const m = Math.floor(s / 60), r = s - m * 60; return m + ":" + (r < 10 ? "0" : "") + r.toFixed(1); };
+
+const ASPECTS = { "9:16": [720, 1280], "4:5": [864, 1080], "1:1": [1080, 1080], "16:9": [1280, 720] };
+const ANIMS = [["none", "Fixe"], ["zoomin", "Zoom avant"], ["zoomout", "Zoom arrière"], ["panleft", "Panoramique ←"], ["panright", "Panoramique →"]];
+const FILTERS = {
+  none: { label: "Original", css: "none" },
+  warm: { label: "Chaud", css: "saturate(1.15) sepia(.18) brightness(1.03)", tint: "rgba(255,170,90,.08)" },
+  cool: { label: "Froid", css: "saturate(.95) hue-rotate(-10deg) brightness(1.02)", tint: "rgba(90,150,255,.08)" },
+  bw: { label: "Noir & blanc", css: "grayscale(1) contrast(1.12)" },
+  vintage: { label: "Vintage", css: "sepia(.35) contrast(.9) brightness(1.06) saturate(.8)", tint: "rgba(255,220,170,.07)" },
+  vivid: { label: "Éclatant", css: "saturate(1.45) contrast(1.1)" },
+  dream: { label: "Rêveur", css: "brightness(1.08) contrast(.9) saturate(1.1)", tint: "rgba(255,200,230,.08)" }
+};
+const TRANS = [["cut", "Coupe sèche"], ["fade", "Fondu"], ["slide", "Glissement"], ["zoom", "Zoom"], ["wipe", "Volet"], ["flash", "Flash"]];
+const TANIMS = [["none", "Aucune"], ["fade", "Fondu"], ["pop", "Pop"], ["slideup", "Monte"], ["typewriter", "Machine à écrire"]];
+const FONTS = [["Playfair Display", 600], ["Bebas Neue", 400], ["Caveat", 700], ["DM Sans", 700], ["DM Mono", 500], ["Cormorant Garamond", 600]];
+const BGS = [["none", "Aucun"], ["shadow", "Ombre"], ["box", "Bandeau"], ["outline", "Contour"]];
+const TPRESETS = {
+  impact: { label: "Gros impact", font: "Bebas Neue", weight: 400, italic: false, size: 120, color: "#ffffff", bg: "shadow", boxColor: "#000000", boxAlpha: .6, anim: "pop" },
+  elegant: { label: "Titre élégant", font: "Playfair Display", weight: 600, italic: true, size: 66, color: "#ffffff", bg: "shadow", boxColor: "#000000", boxAlpha: .6, anim: "fade" },
+  gold: { label: "Or palace", font: "Cormorant Garamond", weight: 600, italic: false, size: 80, color: "#E8C27A", bg: "shadow", boxColor: "#000000", boxAlpha: .6, anim: "fade" },
+  hand: { label: "Manuscrit", font: "Caveat", weight: 700, italic: false, size: 88, color: "#ffffff", bg: "shadow", boxColor: "#000000", boxAlpha: .6, anim: "slideup" },
+  label: { label: "Étiquette", font: "DM Sans", weight: 700, italic: false, size: 42, color: "#141218", bg: "box", boxColor: "#ffffff", boxAlpha: 1, anim: "slideup" },
+  type: { label: "Machine à écrire", font: "DM Mono", weight: 500, italic: false, size: 44, color: "#ffffff", bg: "box", boxColor: "#000000", boxAlpha: .62, anim: "typewriter" },
+  outline: { label: "Contour", font: "Bebas Neue", weight: 400, italic: false, size: 124, color: "#ffffff", bg: "outline", boxColor: "#111111", boxAlpha: 1, anim: "pop" }
+};
+const THEMES = {
+  palace: { name: "Palace", dur: 3.2, anim: "mixzoom", filter: "warm", trans: "fade", text: "gold", sw: "linear-gradient(120deg,#2a1f12,#8a6a3b,#e8c27a)", font: "Cormorant Garamond" },
+  soiree: { name: "Soirée", dur: 1.1, anim: "zoomin", filter: "vivid", trans: "flash", text: "impact", sw: "linear-gradient(120deg,#1b0b2e,#7a1fa2,#ff4fa3)", font: "Bebas Neue" },
+  food: { name: "Food", dur: 2.2, anim: "zoomin", filter: "warm", trans: "slide", text: "hand", sw: "linear-gradient(120deg,#5a2a12,#c9703a,#f4c27c)", font: "Caveat" },
+  voyage: { name: "Voyage", dur: 2.8, anim: "mixpan", filter: "vivid", trans: "wipe", text: "label", sw: "linear-gradient(120deg,#0f2c33,#2f7f7a,#e8d5a8)", font: "DM Sans" },
+  noir: { name: "Noir & blanc", dur: 2.6, anim: "zoomout", filter: "bw", trans: "fade", text: "type", sw: "linear-gradient(120deg,#0d0d0d,#555,#ddd)", font: "DM Mono" },
+  reve: { name: "Rêveur", dur: 3, anim: "mixzoom", filter: "dream", trans: "zoom", text: "elegant", sw: "linear-gradient(120deg,#3a1730,#b24a6e,#f7d9c4)", font: "Playfair Display" }
+};
+const IDEAS = ["Reel chic de 20 s, rythme posé, textes dorés", "Résumé de soirée ultra dynamique, coupes sur le rythme", "Recette food gourmande, gros plans en premier", "Visite d'hôtel élégante, de l'entrée à la chambre", "Vlog de journée naturel avec sous-titres"];
+const QUICK = ["Plus rythmé", "Plus calme", "Plus court", "Change les textes", "Sans texte", "Ambiance luxe", "Meilleure accroche", "Cale sur la musique"];
+
+/* ---------- State ---------- */
+const DEFAULT_SUB = { font: "DM Sans", weight: 700, italic: false, size: 46, color: "#ffffff", bg: "box", boxColor: "#000000", boxAlpha: .6, y: .8 };
+const freshState = () => ({ view: "home", aspect: "9:16", sources: [], clips: [], texts: [], subs: [], subStyle: { ...DEFAULT_SUB }, music: null, volMusic: .8, volClips: 1, chat: [], caption: "", speech: "", targetDur: "auto", beat: null });
+let state = freshState();
+const media = new Map();
+let sel = null, W = 720, H = 1280, pps = 50, t = 0, playing = false, playT0 = 0, exporting = false, textBounds = [];
+const TD = .45;
+const cv = $("#cv"), ctx = cv.getContext("2d"), filterOK = "filter" in ctx;
+
+/* ---------- Storage ---------- */
+const IDB = {
+  db: null,
+  open() { return new Promise(res => { try { const r = indexedDB.open("ryanreel", 1); r.onupgradeneeded = () => { r.result.createObjectStore("kv"); r.result.createObjectStore("media"); }; r.onsuccess = () => { this.db = r.result; res(); }; r.onerror = () => res(); } catch (e) { res(); } }); },
+  op(s, mode, fn) { return new Promise(res => { if (!this.db) return res(null); try { const tx = this.db.transaction(s, mode); const q = fn(tx.objectStore(s)); tx.oncomplete = () => res(q ? q.result : null); tx.onerror = () => res(null); } catch (e) { res(null); } }); },
+  put(s, k, v) { return this.op(s, "readwrite", st => st.put(v, k)); },
+  get(s, k) { return this.op(s, "readonly", st => st.get(k)); },
+  clear(s) { return this.op(s, "readwrite", st => st.clear()); }
+};
+let saveTimer = 0;
+function scheduleSave() { clearTimeout(saveTimer); saveTimer = setTimeout(() => IDB.put("kv", "project", JSON.stringify(state)), 600); }
+
+/* ---------- Undo ---------- */
+const undoStack = [], redoStack = [];
+const snap = () => JSON.stringify(state);
+function pushUndo(s = snap()) { undoStack.push(s); if (undoStack.length > 60) undoStack.shift(); redoStack.length = 0; updUndo(); }
+function updUndo() { $("#undoBtn").disabled = !undoStack.length; $("#redoBtn").disabled = !redoStack.length; }
+function restore(s) { const chat = state.chat; state = JSON.parse(s); state.chat = chat; afterChange(true); }
+function undo() { if (!undoStack.length) return; redoStack.push(snap()); restore(undoStack.pop()); updUndo(); }
+function redo() { if (!redoStack.length) return; undoStack.push(snap()); restore(redoStack.pop()); updUndo(); }
+
+/* ---------- Media ---------- */
+function waitEv(el, ev, ms) { return new Promise(res => { let d = false; const f = () => { if (!d) { d = true; res(); } }; el.addEventListener(ev, f, { once: true }); el.addEventListener("error", f, { once: true }); setTimeout(f, ms); }); }
+function makeThumb(el, w, h, tw = 160) { if (!w || !h) return ""; const c = document.createElement("canvas"); c.width = tw; c.height = Math.round(tw * h / w); try { c.getContext("2d").drawImage(el, 0, 0, c.width, c.height); return c.toDataURL("image/jpeg", .7); } catch (e) { return ""; } }
+async function addMedia(blob, name, kind, id = uid()) {
+  const url = URL.createObjectURL(blob);
+  const m = { id, kind, name, blob, url, el: null, thumb: "", duration: 0, w: 0, h: 0, src: null };
+  if (kind === "image") {
+    const img = new Image(); img.src = url;
+    try { await img.decode(); } catch (e) { await waitEv(img, "load", 5000); }
+    m.el = img; m.w = img.naturalWidth; m.h = img.naturalHeight;
+  } else if (kind === "video") {
+    const v = document.createElement("video"); v.src = url; v.playsInline = true; v.setAttribute("playsinline", ""); v.preload = "auto";
+    await waitEv(v, "loadeddata", 12000);
+    m.duration = isFinite(v.duration) && v.duration > 0 ? v.duration : 5;
+    v.currentTime = Math.min(.5, m.duration / 2); await waitEv(v, "seeked", 2500);
+    m.el = v; m.w = v.videoWidth; m.h = v.videoHeight;
+    v.addEventListener("seeked", () => { if (!playing) requestDraw(); });
+  } else {
+    const a = new Audio(); a.src = url; a.preload = "auto"; await waitEv(a, "loadedmetadata", 8000);
+    m.duration = isFinite(a.duration) ? a.duration : 0; m.el = a;
+  }
+  if (kind !== "audio") m.thumb = makeThumb(m.el, m.w, m.h);
+  media.set(id, m); connectAudio(m);
+  return m;
+}
+const kindOf = f => f.type.startsWith("image/") ? "image" : f.type.startsWith("video/") ? "video" : f.type.startsWith("audio/") ? "audio" : (/\.(heic|heif)$/i.test(f.name) ? "image" : null);
+async function importFiles(files) {
+  files = [...files].filter(f => kindOf(f));
+  if (!files.length) return toast("Aucun fichier photo, vidéo ou audio reconnu.");
+  toast(`Import de ${files.length} fichier${files.length > 1 ? "s" : ""}…`, 60000);
+  let n = 0, fails = 0;
+  for (const f of files) {
+    const kind = kindOf(f);
+    try {
+      const m = await addMedia(f, f.name, kind);
+      if (kind !== "audio" && !m.w) { fails++; media.delete(m.id); continue; }
+      IDB.put("media", m.id, { blob: f, name: f.name, kind });
+      if (kind === "audio") await setMusic(m);
+      else { state.sources.push({ mediaId: m.id, kind, name: f.name.replace(/\.[^.]+$/, "") }); n++; }
+    } catch (e) { fails++; }
+  }
+  toast(fails ? `${n} média${n > 1 ? "s" : ""} ajouté${n > 1 ? "s" : ""}, ${fails} illisible${fails > 1 ? "s" : ""} (format non pris en charge par ce navigateur)` : n ? `${n} média${n > 1 ? "s" : ""} ajouté${n > 1 ? "s" : ""}` : "Musique ajoutée", 3500);
+  if (state.view === "studio" && n) addAIMsg({ role: "ai", text: `${n} nouveau${n > 1 ? "x" : ""} média${n > 1 ? "s" : ""} importé${n > 1 ? "s" : ""}. Dis-moi comment les intégrer, ou touche « Refaire le montage » pour tout reprendre.`, actions: ["redo"] });
+  afterChange();
+}
+async function setMusic(m) {
+  if (state.music) { const old = media.get(state.music.mediaId); if (old) old.el.pause(); }
+  state.music = { mediaId: m.id, offset: 0, name: m.name };
+  state.beat = await analyzeBeat(m);
+  if (state.beat) state.music.offset = r2(state.beat.phase);
+}
+
+/* ---------- Beat detection ---------- */
+async function analyzeBeat(m) {
+  try {
+    const buf = await m.blob.arrayBuffer();
+    const Off = window.OfflineAudioContext || window.webkitOfflineAudioContext; if (!Off) return null;
+    const off = new Off(1, 44100, 44100);
+    const audio = await new Promise((res, rej) => { const p = off.decodeAudioData(buf, res, rej); if (p && p.then) p.then(res, rej); });
+    const sr = audio.sampleRate, d = audio.getChannelData(0), hop = 512, len = Math.min(d.length, sr * 60);
+    const env = []; for (let i = 0; i + hop < len; i += hop) { let s = 0; for (let k = i; k < i + hop; k++) s += d[k] * d[k]; env.push(Math.sqrt(s / hop)); }
+    const on = env.map((v, i) => i ? Math.max(0, v - env[i - 1]) : 0);
+    const fps = sr / hop; let best = 0, bestLag = 0;
+    for (let bpm = 70; bpm <= 175; bpm += .5) {
+      const lag = 60 / bpm * fps; let s = 0;
+      for (let i = 0; i + lag * 2 < on.length; i++) { const j = Math.round(i + lag), j2 = Math.round(i + 2 * lag); s += on[i] * (on[j] + .5 * on[j2]); }
+      if (s > best) { best = s; bestLag = lag; }
+    }
+    if (!bestLag) return null;
+    let bpm = 60 * fps / bestLag; while (bpm < 80) bpm *= 2; while (bpm > 165) bpm /= 2;
+    const lag = 60 / bpm * fps; let bp = 0, bphase = 0;
+    for (let ph = 0; ph < lag; ph++) { let s = 0; for (let x = ph; x < Math.min(on.length, fps * 20); x += lag) s += on[Math.round(x)] || 0; if (s > bp) { bp = s; bphase = ph; } }
+    return { bpm: Math.round(bpm), beat: 60 / bpm, phase: bphase / fps };
+  } catch (e) { return null; }
+}
+
+/* ---------- Audio ---------- */
+let actx = null, master, vGain, mGain, dest;
+function ensureAudio() {
+  if (!actx) {
+    try {
+      actx = new (window.AudioContext || window.webkitAudioContext)();
+      master = actx.createGain(); vGain = actx.createGain(); mGain = actx.createGain();
+      vGain.connect(master); mGain.connect(master); master.connect(actx.destination);
+      dest = actx.createMediaStreamDestination(); master.connect(dest);
+      media.forEach(connectAudio);
+    } catch (e) { actx = null; }
+  }
+  if (actx && actx.state === "suspended") actx.resume();
+  applyVolumes();
+}
+function connectAudio(m) { if (!actx || m.src || m.kind === "image" || !m.el) return; try { m.src = actx.createMediaElementSource(m.el); m.src.connect(m.kind === "audio" ? mGain : vGain); } catch (e) { } }
+function applyVolumes() { if (vGain) { vGain.gain.value = state.volClips; mGain.gain.value = state.volMusic; } else media.forEach(m => { if (m.el && m.kind !== "image") m.el.volume = m.kind === "audio" ? state.volMusic : state.volClips; }); }
+function unlockMedia() { media.forEach(m => { if (m.kind === "image" || !m.el || !m.el.paused) return; const p = m.el.play(); if (p && p.then) p.then(() => { if (!isActive(m.id)) m.el.pause(); }).catch(() => { }); }); }
+function isActive(id) { if (!playing) return false; const a = clipAt(t); return (a && a.c.mediaId === id) || (state.music && state.music.mediaId === id); }
+
+/* ---------- Timing ---------- */
+const total = () => state.clips.reduce((a, c) => a + c.dur, 0);
+function clipStart(i) { let s = 0; for (let k = 0; k < i; k++) s += state.clips[k].dur; return s; }
+function clipAt(time) { let s = 0; const cs = state.clips; for (let i = 0; i < cs.length; i++) { const c = cs[i]; if (time < s + c.dur || i === cs.length - 1) return { i, c, start: s, lt: clamp(time - s, 0, c.dur) }; s += c.dur; } return null; }
+
+/* ---------- Render ---------- */
+function setCanvasSize() { [W, H] = ASPECTS[state.aspect] || ASPECTS["9:16"]; if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; } fitCanvas(); }
+function fitCanvas() { const b = $("#stageBox").getBoundingClientRect(); if (!b.width || !b.height) return; const r = W / H; let w = b.width, h = w / r; if (h > b.height) { h = b.height; w = h * r; } cv.style.width = Math.floor(w) + "px"; cv.style.height = Math.floor(h) + "px"; }
+let drawQueued = false;
+function requestDraw() { if (playing || drawQueued) return; drawQueued = true; requestAnimationFrame(() => { drawQueued = false; render(t); }); }
+function drawClip(c, lt, alpha = 1, o = {}) {
+  const m = media.get(c.mediaId); if (!m || !m.el) return;
+  const el = m.el, iw = m.w || el.naturalWidth || el.videoWidth, ih = m.h || el.naturalHeight || el.videoHeight;
+  if (!iw || (m.kind === "video" && el.readyState < 2)) return;
+  const p = clamp(lt / c.dur, 0, 1); let s = 1, ox = 0;
+  if (c.anim === "zoomin") s = 1 + .14 * p; else if (c.anim === "zoomout") s = 1.14 - .14 * p; else if (c.anim === "panleft" || c.anim === "panright") s = 1.18;
+  const base = Math.max(W / iw, H / ih), dw = iw * base * s, dh = ih * base * s, maxOff = (dw - W) / 2;
+  if (c.anim === "panleft") ox = maxOff * (1 - 2 * p); else if (c.anim === "panright") ox = -maxOff * (1 - 2 * p);
+  ctx.save(); ctx.globalAlpha = alpha;
+  if (o.clipRect) { ctx.beginPath(); ctx.rect(...o.clipRect); ctx.clip(); }
+  ctx.translate(W / 2 + (o.dx || 0), H / 2); ctx.scale(o.scale || 1, o.scale || 1); ctx.translate(-W / 2, -H / 2);
+  const f = FILTERS[c.filter] || FILTERS.none;
+  if (filterOK) ctx.filter = f.css;
+  try { ctx.drawImage(el, (W - dw) / 2 + ox, (H - dh) / 2, dw, dh); } catch (e) { }
+  if (filterOK) ctx.filter = "none";
+  if (f.tint) { ctx.fillStyle = f.tint; ctx.fillRect(0, 0, W, H); }
+  ctx.restore();
+}
+function render(time) {
+  ctx.save(); ctx.fillStyle = "#000"; ctx.fillRect(0, 0, W, H);
+  const a = clipAt(time);
+  if (a) {
+    const { i, c, lt } = a, next = state.clips[i + 1];
+    const td = Math.min(TD, c.dur * .4, next ? next.dur * .4 : 9), rem = c.dur - lt;
+    if (next && c.trans !== "cut" && rem < td) {
+      const p = clamp(1 - rem / td, 0, 1), e = easeIO(p);
+      switch (c.trans) {
+        case "slide": drawClip(c, lt, 1, { dx: -W * e }); drawClip(next, 0, 1, { dx: W * (1 - e) }); break;
+        case "zoom": drawClip(next, 0, 1); drawClip(c, lt, 1 - e, { scale: 1 + .35 * e }); break;
+        case "wipe": drawClip(c, lt, 1); drawClip(next, 0, 1, { clipRect: [0, 0, W * e, H] }); break;
+        case "flash": if (p < .5) drawClip(c, lt, 1); else drawClip(next, 0, 1); ctx.fillStyle = `rgba(255,255,255,${1 - Math.abs(p - .5) * 2})`; ctx.fillRect(0, 0, W, H); break;
+        default: drawClip(c, lt, 1); drawClip(next, 0, e);
+      }
+    } else drawClip(c, lt, 1);
+  } else {
+    ctx.fillStyle = "#1A171F"; ctx.fillRect(0, 0, W, H); ctx.fillStyle = "#9D94A9";
+    ctx.font = `600 ${Math.min(W, H) / 26}px "DM Sans", sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.fillText("Demande un montage à l'IA →", W / 2, H / 2);
+  }
+  textBounds = [];
+  for (const tx of state.texts) if (time >= tx.start && time < tx.end) drawText(tx, time - tx.start, tx.end - tx.start, tx.anim);
+  for (const s of state.subs) if (time >= s.start && time < s.end) drawText({ ...state.subStyle, text: s.text, x: .5, id: null }, 1, 99, "none");
+  if (!exporting && sel && sel.type === "text") { const b = textBounds.find(b => b.id === sel.id); if (b) { ctx.setLineDash([10, 8]); ctx.strokeStyle = "#E8C27A"; ctx.lineWidth = 3; ctx.strokeRect(b.x, b.y, b.w, b.h); ctx.setLineDash([]); } }
+  ctx.restore();
+}
+function wrapLines(text, maxW) { const out = []; for (const para of String(text).split("\n")) { const w = para.split(/\s+/).filter(Boolean); if (!w.length) { out.push(""); continue; } let line = w[0]; for (let i = 1; i < w.length; i++) { const tl = line + " " + w[i]; if (ctx.measureText(tl).width > maxW) { out.push(line); line = w[i]; } else line = tl; } out.push(line); } return out; }
+function rrect(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+function hexA(hex, a) { const n = parseInt(String(hex).slice(1, 7), 16) || 0; return `rgba(${n >> 16 & 255},${n >> 8 & 255},${n & 255},${a})`; }
+function drawText(tx, lt, d, anim) {
+  const k = Math.min(W, H) / 720, size = tx.size * k;
+  ctx.save(); ctx.font = `${tx.italic ? "italic " : ""}${tx.weight} ${size}px "${tx.font}", sans-serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  const enter = clamp(lt / .5, 0, 1), exit = clamp((d - lt) / .3, 0, 1);
+  let alpha = 1, dy = 0, sc = 1, chars = Infinity;
+  if (anim === "fade") alpha = easeOut(enter) * exit;
+  else if (anim === "pop") { sc = .55 + .45 * backOut(enter); alpha = Math.min(1, enter * 3) * exit; }
+  else if (anim === "slideup") { dy = (1 - easeOut(enter)) * 50 * k; alpha = enter * exit; }
+  else if (anim === "typewriter") { chars = Math.floor(lt * 20); alpha = exit; }
+  const lines = wrapLines(tx.text || "", W * .84), lh = size * 1.12, blockH = lines.length * lh, pad = size * .28;
+  const cx = tx.x * W, cy = tx.y * H + dy;
+  let maxw = 0; lines.forEach(l => maxw = Math.max(maxw, ctx.measureText(l).width));
+  if (tx.id) textBounds.push({ id: tx.id, x: cx - maxw / 2 - pad, y: tx.y * H - blockH / 2 - pad * .6, w: maxw + pad * 2, h: blockH + pad * 1.2 });
+  ctx.globalAlpha = alpha; ctx.translate(cx, cy); ctx.scale(sc, sc);
+  let left = chars;
+  lines.forEach((ln, i) => {
+    if (left <= 0) return;
+    const show = left >= ln.length ? ln : ln.slice(0, left); left -= ln.length + 1;
+    const y = -blockH / 2 + lh * (i + .5), fullW = ctx.measureText(ln).width;
+    if (tx.bg === "box") {
+      const w = ctx.measureText(show).width; ctx.fillStyle = hexA(tx.boxColor, tx.boxAlpha ?? .6);
+      rrect(-fullW / 2 - pad, y - lh / 2 - pad * .15, w + pad * 2, lh + pad * .3, size * .18); ctx.fill();
+      ctx.save(); ctx.textAlign = "left"; ctx.fillStyle = tx.color; ctx.fillText(show, -fullW / 2, y); ctx.restore(); return;
+    }
+    if (tx.bg === "shadow") { ctx.shadowColor = "rgba(0,0,0,.6)"; ctx.shadowBlur = size * .35; ctx.shadowOffsetY = size * .05; }
+    const xs = show === ln ? 0 : -(fullW - ctx.measureText(show).width) / 2;
+    if (tx.bg === "outline") { ctx.lineWidth = size * .12; ctx.strokeStyle = tx.boxColor; ctx.lineJoin = "round"; ctx.strokeText(show, xs, y); }
+    ctx.fillStyle = tx.color; ctx.fillText(show, xs, y); ctx.shadowColor = "transparent";
+  });
+  ctx.restore();
+}
+
+/* ---------- Playback ---------- */
+function syncMedia(time, run) {
+  const a = clipAt(time), active = a && a.c.kind === "video" ? media.get(a.c.mediaId) : null;
+  const next = a ? state.clips[a.i + 1] : null, nextM = next && next.kind === "video" ? media.get(next.mediaId) : null;
+  media.forEach(m => { if (m.kind === "video" && m !== active && !m.el.paused) m.el.pause(); });
+  if (active) {
+    const v = active.el, target = a.c.trimStart + a.lt;
+    if (run) { if (v.paused) { v.currentTime = target; v.play().catch(() => { }); } else if (Math.abs(v.currentTime - target) > .3) v.currentTime = target; }
+    else if (Math.abs(v.currentTime - target) > .04) v.currentTime = target;
+  }
+  if (nextM && nextM !== active && nextM.el.paused && Math.abs(nextM.el.currentTime - next.trimStart) > .1) nextM.el.currentTime = next.trimStart;
+}
+function startMusic() { const mu = state.music && media.get(state.music.mediaId); if (!mu) return; const pos = (state.music.offset || 0) + t; if (pos < mu.duration) { mu.el.currentTime = pos; mu.el.play().catch(() => { }); } else mu.el.pause(); }
+function stopAll() { media.forEach(m => { if (m.kind !== "image" && m.el && !m.el.paused) m.el.pause(); }); }
+function play() {
+  if (!state.clips.length) return toast("Le montage est vide.");
+  ensureAudio(); unlockMedia(); if (t >= total() - .02) t = 0;
+  playing = true; playT0 = performance.now() - t * 1000; startMusic();
+  $("#playBtn").textContent = "❚❚"; $("#playBtn").setAttribute("aria-label", "Pause"); loop();
+}
+function pause() { playing = false; stopAll(); $("#playBtn").textContent = "▶"; $("#playBtn").setAttribute("aria-label", "Lecture"); syncMedia(t, false); requestDraw(); updPlayhead(); }
+function loop() {
+  if (!playing) return;
+  t = (performance.now() - playT0) / 1000; const T = total();
+  if (t >= T) { t = T; render(Math.max(0, T - .001)); pause(); if (exporting) finishExport(); return; }
+  syncMedia(t, true); render(t); updPlayhead();
+  if (exporting) { const b = $("#expBar"); if (b) b.style.width = (t / T * 100) + "%"; }
+  requestAnimationFrame(loop);
+}
+function setTime(nt) { t = clamp(nt, 0, total()); if (playing) { playT0 = performance.now() - t * 1000; startMusic(); } else { syncMedia(t, false); requestDraw(); } updPlayhead(); }
+
+/* ---------- Timeline ---------- */
+const tlScroll = $("#tlScroll"), tlInner = $("#tlInner");
+function lanesFor(items) { const ends = []; return items.map(it => { let l = ends.findIndex(e => e <= it.start + .001); if (l < 0) { l = ends.length; ends.push(0); } ends[l] = it.end; return l; }); }
+function renderTimeline() {
+  const T = total(), span = Math.max(T, 8) + 3;
+  const texts = [...state.texts].sort((a, b) => a.start - b.start), tl = lanesFor(texts), tLanes = Math.max(1, ...tl.map(l => l + 1));
+  const hClip = 60, hText = tLanes * 26 + 8, hSub = 34, hMus = 34;
+  $("#tlHeads").innerHTML = `<div style="height:${hClip}px">Plans</div><div style="height:${hText}px">Textes</div><div style="height:${hSub}px">Sous-titres</div><div style="height:${hMus}px">Musique</div>`;
+  let h = `<div class="ruler">`; const step = pps >= 40 ? 1 : pps >= 18 ? 2 : 5;
+  if (state.beat && state.music) { const b = state.beat.beat; for (let x = 0; x <= span; x += b) h += `<i class="beat" style="left:${x * pps}px"></i>`; }
+  for (let s = 0; s <= span; s += step) h += `<i style="left:${s * pps}px"></i><span style="left:${s * pps}px">${s}s</span>`;
+  h += `</div><div class="track" style="height:${hClip}px">`;
+  let st = 0;
+  state.clips.forEach((c, i) => {
+    const m = media.get(c.mediaId);
+    h += `<div class="tl-clip${sel && sel.id === c.id ? " sel" : ""}" data-kind="clip" data-id="${c.id}" style="left:${st * pps}px;width:${Math.max(6, c.dur * pps - 3)}px;background-image:url('${m ? m.thumb : ""}')"><div class="cap">${c.kind === "video" ? "▶ " : ""}${c.dur.toFixed(1)}s</div><div class="edge r" data-edge="r"></div></div>`;
+    st += c.dur; if (i < state.clips.length - 1 && c.trans !== "cut") h += `<div class="tr-mark" style="left:${st * pps - 1.5}px"></div>`;
+  });
+  h += `</div><div class="track" style="height:${hText}px">`;
+  texts.forEach((x, i) => { h += `<div class="tl-item text${sel && sel.id === x.id ? " sel" : ""}" data-kind="text" data-id="${x.id}" style="top:${4 + tl[i] * 26}px;left:${x.start * pps}px;width:${Math.max(14, (x.end - x.start) * pps)}px"><div class="edge l" data-edge="l"></div>${esc(x.text)}<div class="edge r" data-edge="r"></div></div>`; });
+  h += `</div><div class="track" style="height:${hSub}px">`;
+  state.subs.forEach(x => { h += `<div class="tl-item sub${sel && sel.id === x.id ? " sel" : ""}" data-kind="sub" data-id="${x.id}" style="top:6px;left:${x.start * pps}px;width:${Math.max(14, (x.end - x.start) * pps)}px"><div class="edge l" data-edge="l"></div>${esc(x.text)}<div class="edge r" data-edge="r"></div></div>`; });
+  h += `</div><div class="track" style="height:${hMus}px">`;
+  const mu = state.music && media.get(state.music.mediaId);
+  if (mu) { const len = Math.max(0, Math.min(T || mu.duration, mu.duration - (state.music.offset || 0))); h += `<div class="tl-item music" style="top:6px;left:0;width:${Math.max(30, len * pps)}px">♪ ${esc(mu.name)}${state.beat ? ` · ${state.beat.bpm} BPM` : ""}</div>`; }
+  h += `</div><div id="playhead"></div>`;
+  tlInner.innerHTML = h; tlInner.style.width = (span * pps) + "px";
+  $("#tlInfo").textContent = `${state.clips.length} plan${state.clips.length > 1 ? "s" : ""} · ${fmt(T)}`;
+  updPlayhead();
+}
+function updPlayhead() {
+  const ph = $("#playhead"); if (ph) ph.style.left = (t * pps) + "px";
+  $("#timeLbl").innerHTML = `<b>${fmt(t)}</b> / ${fmt(total())}`;
+  if (playing) { const x = t * pps; if (x > tlScroll.scrollLeft + tlScroll.clientWidth - 40) tlScroll.scrollLeft = x - 60; }
+}
+const findItem = (k, id) => (k === "clip" ? state.clips : k === "text" ? state.texts : state.subs).find(x => x.id === id);
+tlScroll.addEventListener("pointerdown", e => {
+  if (e.button > 0) return;
+  const item = e.target.closest("[data-kind]"), rect = tlInner.getBoundingClientRect();
+  const bind = (mv, up) => { const u = ev => { tlScroll.removeEventListener("pointermove", mv); tlScroll.removeEventListener("pointerup", u); tlScroll.removeEventListener("pointercancel", u); up && up(ev); }; tlScroll.addEventListener("pointermove", mv); tlScroll.addEventListener("pointerup", u); tlScroll.addEventListener("pointercancel", u); };
+  tlScroll.setPointerCapture(e.pointerId);
+  if (!item) { const seek = ev => setTime((ev.clientX - rect.left) / pps); seek(e); bind(seek); return; }
+  const kind = item.dataset.kind, id = item.dataset.id, edge = e.target.dataset.edge || "move", obj = findItem(kind, id); if (!obj) return;
+  const before = snap(), x0 = e.clientX, o = { start: obj.start, end: obj.end, dur: obj.dur }; let moved = false;
+  select(kind, id, false);
+  bind(ev => {
+    const dpx = ev.clientX - x0; if (!moved && Math.abs(dpx) < 4) return; moved = true; const dx = dpx / pps;
+    if (kind === "clip") { if (edge !== "r") return; const m = media.get(obj.mediaId); const max = obj.kind === "video" && m ? Math.max(.3, m.duration - obj.trimStart) : 30; obj.dur = r1(clamp(o.dur + dx, .3, max)); }
+    else if (edge === "move") { const len = o.end - o.start; obj.start = r1(Math.max(0, o.start + dx)); obj.end = obj.start + len; }
+    else if (edge === "l") obj.start = r1(clamp(o.start + dx, 0, o.end - .2)); else obj.end = r1(Math.max(o.start + .2, o.end + dx));
+    renderTimeline(); requestDraw();
+  }, () => {
+    if (moved) { pushUndo(before); scheduleSave(); renderInspector(); renderSubList(); }
+    else if (kind === "clip") { const i = state.clips.indexOf(obj), s = clipStart(i); if (t < s || t >= s + obj.dur) setTime(s + .01); }
+    else if (t < obj.start || t >= obj.end) setTime(obj.start + .01);
+  });
+});
+$("#zoomIn").onclick = () => { pps = Math.min(200, pps * 1.35); renderTimeline(); };
+$("#zoomOut").onclick = () => { pps = Math.max(8, pps / 1.35); renderTimeline(); };
+
+/* ---------- Canvas drag ---------- */
+cv.addEventListener("pointerdown", e => {
+  const r = cv.getBoundingClientRect(), px = (e.clientX - r.left) * W / r.width, py = (e.clientY - r.top) * H / r.height;
+  const hit = [...textBounds].reverse().find(b => px >= b.x && px <= b.x + b.w && py >= b.y && py <= b.y + b.h);
+  if (!hit) { if (!playing && state.clips.length && !$("#studio").classList.contains("manual")) play(); else if (playing) pause(); else { const a = clipAt(t); if (a) select("clip", a.c.id); } return; }
+  const tx = state.texts.find(x => x.id === hit.id); if (!tx) return;
+  select("text", tx.id); const before = snap(), ox = tx.x, oy = tx.y; let moved = false;
+  cv.setPointerCapture(e.pointerId);
+  const mv = ev => { const qx = (ev.clientX - r.left) * W / r.width, qy = (ev.clientY - r.top) * H / r.height; if (!moved && Math.hypot(qx - px, qy - py) < 6) return; moved = true; tx.x = clamp(ox + (qx - px) / W, .05, .95); tx.y = clamp(oy + (qy - py) / H, .04, .96); if (Math.abs(tx.x - .5) < .015) tx.x = .5; requestDraw(); };
+  const up = () => { cv.removeEventListener("pointermove", mv); cv.removeEventListener("pointerup", up); cv.removeEventListener("pointercancel", up); if (moved) { pushUndo(before); scheduleSave(); } };
+  cv.addEventListener("pointermove", mv); cv.addEventListener("pointerup", up); cv.addEventListener("pointercancel", up);
+});
+
+/* ---------- Inspector (manual mode) ---------- */
+function select(type, id, redraw = true) {
+  sel = type ? { type, id } : null; renderInspector(); renderTimeline(); renderSubList(); if (redraw) requestDraw();
+  if (sel && $("#studio").classList.contains("manual")) openTab("sel");
+}
+const opts = (list, v) => list.map(([k, l]) => `<option value="${k}"${k === v ? " selected" : ""}>${esc(l)}</option>`).join("");
+const fontOpts = v => FONTS.map(([f]) => `<option${f === v ? " selected" : ""}>${f}</option>`).join("");
+function renderInspector() {
+  const R = $("#insp");
+  if (sel && !findItem(sel.type, sel.id)) sel = null;
+  if (!sel) { R.innerHTML = `<p class="note">Touche un plan, un texte ou un sous-titre sur la timeline ou sur l'aperçu pour le régler ici. Espace : lecture. Suppr : effacer. Ctrl+Z : annuler.</p>`; return; }
+  const o = findItem(sel.type, sel.id);
+  if (sel.type === "clip") {
+    const i = state.clips.indexOf(o), m = media.get(o.mediaId), isV = o.kind === "video";
+    R.innerHTML = `<h3>${isV ? "Vidéo" : "Photo"} · plan ${i + 1}</h3>
+      <div class="field"><label for="i-dur">Durée</label><div class="row"><input type="range" id="i-dur" data-f="dur" data-num min="0.3" max="${isV && m ? Math.max(.3, m.duration - o.trimStart).toFixed(1) : 10}" step="0.1" value="${o.dur}"><span class="rangeval">${o.dur.toFixed(1)}s</span></div></div>
+      ${isV ? `<div class="field"><label for="i-trim">Début dans la vidéo (s)</label><input class="inp" type="number" id="i-trim" data-f="trimStart" data-num min="0" step="0.1" value="${o.trimStart}"></div>` : ""}
+      <div class="field"><label for="i-anim">Animation</label><select class="sel" id="i-anim" data-f="anim">${opts(ANIMS, o.anim)}</select></div>
+      <div class="field"><label for="i-filter">Filtre</label><select class="sel" id="i-filter" data-f="filter">${opts(Object.entries(FILTERS).map(([k, v]) => [k, v.label]), o.filter)}</select></div>
+      <div class="field"><label for="i-trans">Transition vers le suivant</label><select class="sel" id="i-trans" data-f="trans">${opts(TRANS, o.trans)}</select></div>
+      <div class="btnrow"><button class="btn small" data-act="left" ${i === 0 ? "disabled" : ""}>← Avancer</button><button class="btn small" data-act="right" ${i === state.clips.length - 1 ? "disabled" : ""}>Reculer →</button><button class="btn small" data-act="split">✂ Couper ici</button><button class="btn small" data-act="dup">Dupliquer</button><button class="btn small danger" data-act="del">Supprimer</button></div>`;
+  } else if (sel.type === "text") {
+    R.innerHTML = `<h3>Texte</h3>
+      <div class="field"><label for="i-text">Contenu</label><textarea class="inp" id="i-text" data-f="text">${esc(o.text)}</textarea></div>
+      <div class="two"><div class="field"><label for="i-start">Début (s)</label><input class="inp" type="number" id="i-start" data-f="start" data-num step="0.1" min="0" value="${o.start}"></div><div class="field"><label for="i-end">Fin (s)</label><input class="inp" type="number" id="i-end" data-f="end" data-num step="0.1" min="0" value="${o.end}"></div></div>
+      <div class="two"><div class="field"><label for="i-font">Police</label><select class="sel" id="i-font" data-f="font">${fontOpts(o.font)}</select></div><div class="field"><label for="i-tanim">Animation</label><select class="sel" id="i-tanim" data-f="anim">${opts(TANIMS, o.anim)}</select></div></div>
+      <div class="field"><label for="i-size">Taille et couleur</label><div class="row"><input type="range" id="i-size" data-f="size" data-num min="20" max="200" value="${o.size}"><input type="color" id="i-color" data-f="color" value="${o.color}" aria-label="Couleur"></div></div>
+      <div class="two"><div class="field"><label for="i-bg">Effet</label><select class="sel" id="i-bg" data-f="bg">${opts(BGS, o.bg)}</select></div><div class="field"><label for="i-box">Couleur de l'effet</label><input type="color" id="i-box" data-f="boxColor" value="${o.boxColor}" style="width:100%"></div></div>
+      <div class="segs">${[["Haut", .18], ["Centre", .5], ["Bas", .78]].map(([l, y]) => `<button data-pos="${y}" aria-pressed="${Math.abs(o.y - y) < .02}">${l}</button>`).join("")}</div>
+      <div class="btnrow"><button class="btn small" data-act="italic">${o.italic ? "Droit" : "Italique"}</button><button class="btn small" data-act="dup">Dupliquer</button><button class="btn small danger" data-act="del">Supprimer</button></div>`;
+  } else {
+    R.innerHTML = `<h3>Sous-titre</h3>
+      <div class="field"><label for="i-stext">Texte</label><textarea class="inp" id="i-stext" data-f="text">${esc(o.text)}</textarea></div>
+      <div class="two"><div class="field"><label for="i-ss">Début (s)</label><input class="inp" type="number" id="i-ss" data-f="start" data-num step="0.1" min="0" value="${o.start}"></div><div class="field"><label for="i-se">Fin (s)</label><input class="inp" type="number" id="i-se" data-f="end" data-num step="0.1" min="0" value="${o.end}"></div></div>
+      <div class="btnrow"><button class="btn small danger" data-act="del">Supprimer</button></div>`;
+  }
+}
+let pendingSnap = null;
+const insp = $("#insp");
+insp.addEventListener("focusin", () => pendingSnap = snap());
+insp.addEventListener("pointerdown", () => pendingSnap = snap());
+insp.addEventListener("input", e => {
+  const f = e.target.dataset.f; if (!f || !sel) return; const o = findItem(sel.type, sel.id); if (!o) return;
+  if (pendingSnap) { pushUndo(pendingSnap); pendingSnap = null; }
+  let v = e.target.value; if ("num" in e.target.dataset) { v = parseFloat(v); if (!isFinite(v)) return; }
+  if (f === "dur") { v = Math.max(.3, v); const rv = e.target.parentElement.querySelector(".rangeval"); if (rv) rv.textContent = v.toFixed(1) + "s"; }
+  if (f === "trimStart") { const m = media.get(o.mediaId); v = clamp(v, 0, m ? Math.max(0, m.duration - .3) : 0); o.dur = Math.min(o.dur, (m ? m.duration : 99) - v); }
+  o[f] = v;
+  if (f === "font") { o.weight = (FONTS.find(x => x[0] === v) || [0, 600])[1]; loadFont(o); }
+  if (sel.type !== "clip" && f === "start" && o.end <= v) o.end = v + 1;
+  renderTimeline(); renderSubList(); requestDraw(); scheduleSave();
+});
+insp.addEventListener("click", e => {
+  const b = e.target.closest("button"); if (!b || !sel) return; const o = findItem(sel.type, sel.id); if (!o) return;
+  if (b.dataset.pos) { pushUndo(); o.y = parseFloat(b.dataset.pos); afterChange(); return; }
+  const act = b.dataset.act; if (!act) return; pushUndo();
+  const arr = sel.type === "clip" ? state.clips : sel.type === "text" ? state.texts : state.subs, i = arr.indexOf(o);
+  if (act === "del") { arr.splice(i, 1); sel = null; }
+  else if (act === "dup") { const c = { ...o, id: uid() }; if (sel.type === "text") { c.start = o.end; c.end = o.end + (o.end - o.start); } arr.splice(i + 1, 0, c); sel = { type: sel.type, id: c.id }; }
+  else if (act === "left" && i > 0) [arr[i - 1], arr[i]] = [arr[i], arr[i - 1]];
+  else if (act === "right" && i < arr.length - 1) [arr[i + 1], arr[i]] = [arr[i], arr[i + 1]];
+  else if (act === "italic") o.italic = !o.italic;
+  else if (act === "split") { const s = clipStart(i), lt = t - s; if (lt < .3 || o.dur - lt < .3) { undoStack.pop(); updUndo(); return toast("Place la tête de lecture au milieu de ce plan pour le couper."); } const c2 = { ...o, id: uid(), dur: r1(o.dur - lt), trimStart: o.kind === "video" ? o.trimStart + lt : 0 }; o.dur = r1(lt); o.trans = "cut"; arr.splice(i + 1, 0, c2); }
+  afterChange();
+});
+
+/* ---------- Manual panels ---------- */
+function openTab(name) { document.querySelectorAll(".tab").forEach(x => x.setAttribute("aria-selected", x.dataset.tab === name)); document.querySelectorAll(".pane").forEach(p => p.hidden = p.dataset.pane !== name); }
+document.querySelectorAll(".tab").forEach(tb => tb.onclick = () => openTab(tb.dataset.tab));
+function renderLib() {
+  $("#lib").innerHTML = state.sources.map((s, i) => { const m = media.get(s.mediaId); return m ? `<button data-src="${i}" style="background-image:url('${m.thumb}')" aria-label="Ajouter ${esc(s.name)}"><span>${i + 1}</span>${s.kind === "video" ? `<i>${fmt(m.duration)}</i>` : ""}</button>` : ""; }).join("") || `<p class="note">Aucun média.</p>`;
+}
+$("#lib").onclick = e => { const b = e.target.closest("[data-src]"); if (!b) return; pushUndo(); const s = state.sources[+b.dataset.src], m = media.get(s.mediaId); state.clips.push({ id: uid(), mediaId: s.mediaId, kind: s.kind, name: s.name, dur: s.kind === "video" ? r1(Math.min(m.duration, 6)) : 2.5, trimStart: 0, anim: s.kind === "video" ? "none" : "zoomin", filter: state.clips[0]?.filter || "none", trans: "fade" }); afterChange(); toast("Ajouté à la fin"); };
+$("#textPresets").innerHTML = Object.entries(TPRESETS).map(([k, p]) => `<button class="chip" data-tp="${k}" style="font-family:'${p.font}';font-weight:${p.weight};font-style:${p.italic ? "italic" : "normal"};font-size:${Math.min(21, p.size / 4.4)}px">${p.label}</button>`).join("");
+$("#textPresets").onclick = e => { const b = e.target.closest("[data-tp]"); if (!b) return; pushUndo(); const tx = newText(b.dataset.tp, "Ton texte", t, t + 2.5, .4); state.texts.push(tx); select("text", tx.id); afterChange(); setTimeout(() => { const ta = $("#i-text"); if (ta) { ta.focus(); ta.select(); } }, 30); };
+function newText(preset, text, start, end, y) { const { label, ...st } = TPRESETS[preset] || TPRESETS.impact; const tx = { id: uid(), ...st, text, start: r1(start), end: r1(end), x: .5, y }; loadFont(tx); return tx; }
+$("#themes").innerHTML = Object.entries(THEMES).map(([k, th]) => `<button class="theme" data-th="${k}"><div class="sw" style="background:${th.sw};font-family:'${th.font}'">Aa</div><b>${th.name}</b></button>`).join("");
+$("#themes").onclick = e => { const b = e.target.closest("[data-th]"); if (b) { pushUndo(); applyTheme(THEMES[b.dataset.th]); toast(`Style ${THEMES[b.dataset.th].name} appliqué`); } };
+function applyTheme(th) {
+  const mz = ["zoomin", "zoomout"], mp = ["panleft", "panright", "zoomin"];
+  state.clips.forEach((c, i) => { if (c.kind === "image") { c.dur = th.dur; c.anim = th.anim === "mixzoom" ? mz[i % 2] : th.anim === "mixpan" ? mp[i % 3] : th.anim; } c.filter = th.filter; c.trans = th.trans; });
+  const p = TPRESETS[th.text]; if (p) state.texts.forEach(tx => { const { label, ...st } = p; Object.assign(tx, st); loadFont(tx); });
+  afterChange();
+}
+$("#ssFont").innerHTML = fontOpts(DEFAULT_SUB.font);
+function syncControls() { const ss = state.subStyle; $("#ssFont").value = ss.font; $("#ssBg").value = ss.bg; $("#ssSize").value = ss.size; $("#ssColor").value = ss.color; $("#ssY").value = ss.y; $("#volMusic").value = state.volMusic; $("#volClips").value = state.volClips; $("#aspectSel").value = state.aspect; }
+["ssFont", "ssBg", "ssSize", "ssColor", "ssY"].forEach(id => {
+  const el = $("#" + id); el.addEventListener("focus", () => pendingSnap = snap());
+  el.addEventListener("input", () => {
+    if (pendingSnap) { pushUndo(pendingSnap); pendingSnap = null; }
+    const ss = state.subStyle;
+    if (id === "ssFont") { ss.font = el.value; ss.weight = (FONTS.find(f => f[0] === el.value) || [0, 600])[1]; loadFont(ss); }
+    if (id === "ssBg") ss.bg = el.value; if (id === "ssSize") ss.size = +el.value; if (id === "ssColor") ss.color = el.value; if (id === "ssY") ss.y = +el.value;
+    requestDraw(); scheduleSave();
+  });
+});
+function renderSubList() { $("#subList").innerHTML = state.subs.length ? [...state.subs].sort((a, b) => a.start - b.start).map(s => `<button class="li" data-sub="${s.id}"><span class="tm">${fmt(s.start)}</span><span class="tx">${esc(s.text)}</span></button>`).join("") : `<p class="note">Aucun sous-titre. Demande-les à l'IA en lui donnant les paroles.</p>`; }
+$("#subList").onclick = e => { const b = e.target.closest("[data-sub]"); if (!b) return; const s = state.subs.find(x => x.id === b.dataset.sub); select("sub", s.id); setTime(s.start + .01); };
+$("#subAdd").onclick = () => { pushUndo(); const s = { id: uid(), start: r1(t), end: r1(t + 2), text: "Nouveau sous-titre" }; state.subs.push(s); select("sub", s.id); afterChange(); };
+function renderMusic() {
+  const B = $("#musicBox"), mu = state.music && media.get(state.music.mediaId);
+  $("#homeMusicName").textContent = mu ? `♪ ${mu.name}${state.beat ? ` · ${state.beat.bpm} BPM détectés` : ""}` : "";
+  if (!mu) { B.innerHTML = `<p class="note">Pas de musique. Importe un fichier que tu as le droit d'utiliser.</p>`; return; }
+  B.innerHTML = `<div class="li"><span class="tx" style="flex:1">♪ ${esc(mu.name)}</span><span class="tm">${state.beat ? state.beat.bpm + " BPM" : fmt(mu.duration)}</span></div>
+  <div class="field"><label for="musOff">Début de la musique (s)</label><input class="inp" type="number" id="musOff" min="0" step="0.1" value="${state.music.offset || 0}"></div>
+  <button class="btn small danger" id="musDel">Retirer la musique</button>`;
+  $("#musOff").onchange = e => { pushUndo(); state.music.offset = clamp(+e.target.value || 0, 0, mu.duration); afterChange(); };
+  $("#musDel").onclick = () => { pushUndo(); mu.el.pause(); state.music = null; state.beat = null; afterChange(); };
+}
+$("#musicBtn").onclick = () => $("#musicIn").click();
+$("#homeMusic").onclick = () => $("#musicIn").click();
+$("#musicIn").onchange = e => { importFiles(e.target.files); e.target.value = ""; };
+$("#volMusic").oninput = e => { state.volMusic = +e.target.value; applyVolumes(); scheduleSave(); };
+$("#volClips").oninput = e => { state.volClips = +e.target.value; applyVolumes(); scheduleSave(); };
+$("#aspectSel").onchange = e => { pushUndo(); state.aspect = e.target.value; afterChange(true); };
+
+/* ---------- Views ---------- */
+function showView(v) {
+  state.view = v; const studio = v === "studio";
+  $("#home").hidden = studio; $("#studio").hidden = !studio;
+  ["addBtn", "manualBtn", "newBtn", "exportBtn"].forEach(id => $("#" + id).hidden = !studio);
+  if (studio) { setCanvasSize(); requestAnimationFrame(fitCanvas); } else pause();
+  scheduleSave();
+}
+function renderHome() {
+  const n = state.sources.length, nv = state.sources.filter(s => s.kind === "video").length;
+  $("#homeThumbs").innerHTML = state.sources.slice(0, 24).map(s => { const m = media.get(s.mediaId); return m ? `<div style="background-image:url('${m.thumb}')">${s.kind === "video" ? `<i>${fmt(m.duration)}</i>` : ""}</div>` : ""; }).join("") + (n > 24 ? `<div style="display:grid;place-items:center;font-size:12px">+${n - 24}</div>` : "");
+  $("#dropTitle").textContent = n ? `${n - nv} photo${n - nv > 1 ? "s" : ""} et ${nv} vidéo${nv > 1 ? "s" : ""}` : "Glisse tout ici";
+  $("#homeImport").textContent = n ? "Ajouter d'autres fichiers" : "Choisir des fichiers";
+  $("#homeGo").disabled = !n || !!aiCtl;
+  $("#homeHint").textContent = !n ? "Ajoute au moins une photo ou une vidéo." : aiAvailable() ? "" : "L'IA n'est pas disponible dans cette vue : MaDA fera un montage automatique simple.";
+}
+$("#ideas").innerHTML = IDEAS.map(i => `<button class="idea">${esc(i)}</button>`).join("");
+$("#ideas").onclick = e => { const b = e.target.closest(".idea"); if (b) { $("#homeAsk").value = b.textContent; $("#homeAsk").focus(); } };
+$("#homeImport").onclick = $("#addBtn").onclick = () => $("#fileIn").click();
+$("#fileIn").onchange = e => { importFiles(e.target.files); e.target.value = ""; };
+const drop = $("#drop");
+window.addEventListener("dragover", e => { e.preventDefault(); drop.classList.add("over"); });
+window.addEventListener("dragleave", e => { if (!e.relatedTarget) drop.classList.remove("over"); });
+window.addEventListener("drop", e => { e.preventDefault(); drop.classList.remove("over"); if (e.dataTransfer && e.dataTransfer.files.length) importFiles(e.dataTransfer.files); });
+$("#manualBtn").onclick = () => { const on = !$("#studio").classList.contains("manual"); $("#studio").classList.toggle("manual", on); $("#manualBtn").setAttribute("aria-pressed", on); requestAnimationFrame(fitCanvas); };
+let newArmed = 0;
+$("#newBtn").onclick = async () => {
+  const b = $("#newBtn");
+  if (Date.now() - newArmed > 4000) { newArmed = Date.now(); b.textContent = "Tout effacer ?"; setTimeout(() => b.textContent = "Nouvelle vidéo", 4000); return; }
+  newArmed = 0; b.textContent = "Nouvelle vidéo"; pause();
+  media.forEach(m => { try { m.el && m.el.pause && m.el.pause(); URL.revokeObjectURL(m.url); } catch (e) { } }); media.clear();
+  await IDB.clear("media"); state = freshState(); undoStack.length = redoStack.length = 0; updUndo(); sel = null; t = 0;
+  $("#homeAsk").value = ""; $("#homeSpeech").value = ""; afterChange(true); showView("home");
+};
+
+function afterChange(full) {
+  if (sel && !findItem(sel.type, sel.id)) sel = null;
+  if (full) { setCanvasSize(); syncControls(); }
+  t = clamp(t, 0, total());
+  renderHome(); renderLib(); renderInspector(); renderTimeline(); renderSubList(); renderMusic(); renderChat(); renderExtras();
+  if (!playing) syncMedia(t, false);
+  requestDraw(); scheduleSave(); applyVolumes();
+}
+
+/* ---------- AI core ---------- */
+let sample = null, downloads = null, imgMax = 0, aiCtl = null, aiDisabled = false;
+const aiAvailable = () => !!sample && !aiDisabled;
+function aiErr(e) {
+  const c = e && e.code;
+  if (["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"].includes(c)) { aiDisabled = true; return "L'IA n'est pas autorisée pour cette page. Recharge la page et accepte quand Claude te le demande."; }
+  return ({ rate_limited: "Trop de demandes ou limite d'usage atteinte. Attends un peu, puis réessaie.", invalid_json: "Ma réponse est arrivée incomplète. Touche « Réessayer ».", refused: "Je ne peux pas faire cette demande. Reformule-la.", session_expired: "Ta session Claude a expiré : reconnecte-toi.", prompt_too_large: "Trop de médias en une fois. Retire-en quelques-uns ou demande un montage plus court.", image_rejected: "Une image n'a pas pu être analysée. Réessaie.", empty_completion: "Je n'ai rien produit. Précise ta demande." })[c] || "Je n'ai pas pu répondre. Touche « Réessayer » dans un instant.";
+}
+function srcInfo(s, i) {
+  const m = media.get(s.mediaId); if (!m) return `${i} : indisponible`;
+  const ori = m.w > m.h * 1.1 ? "paysage" : m.h > m.w * 1.1 ? "portrait" : "carré";
+  return `${i} : ${s.kind === "video" ? `vidéo de ${m.duration.toFixed(1)} s` : "photo"}, ${ori}, « ${s.name} »`;
+}
+async function grabFrame(m, time) {
+  const iw = m.w, ih = m.h; if (!iw) return null;
+  if (m.kind === "video") { m.el.currentTime = clamp(time, 0, Math.max(0, m.duration - .05)); await waitEv(m.el, "seeked", 2000); }
+  const s = 448 / Math.max(iw, ih), k = document.createElement("canvas"); k.width = Math.round(iw * s); k.height = Math.round(ih * s);
+  try { k.getContext("2d").drawImage(m.el, 0, 0, k.width, k.height); } catch (e) { return null; }
+  return new Promise(r => k.toBlob(r, "image/jpeg", .8));
+}
+async function gatherFrames(budget) {
+  const srcs = state.sources.map((s, i) => ({ s, i, m: media.get(s.mediaId) })).filter(x => x.m);
+  if (!budget) return { blobs: [], labels: [] };
+  let per = x => x.s.kind !== "video" ? [0] : x.m.duration < 4 ? [x.m.duration / 2] : x.m.duration < 15 ? [x.m.duration * .2, x.m.duration * .7] : [x.m.duration * .12, x.m.duration * .5, x.m.duration * .85];
+  let plan = srcs.map(x => ({ ...x, times: per(x) }));
+  const count = () => plan.reduce((a, x) => a + x.times.length, 0);
+  if (count() > budget) plan.forEach(x => { if (x.times.length > 1) x.times = [x.times[Math.floor(x.times.length / 2)]]; });
+  if (count() > budget) plan = plan.slice(0, budget);
+  const blobs = [], labels = [];
+  for (const x of plan) for (const tm of x.times) {
+    const b = await grabFrame(x.m, tm); if (!b) continue; blobs.push(b);
+    labels.push(`image ${blobs.length} = source ${x.i}${x.s.kind === "video" ? ` à ${tm.toFixed(1)} s` : ""}`);
+  }
+  if (!playing) syncMedia(t, false);
+  return { blobs, labels, seen: new Set(plan.map(x => x.i)) };
+}
+function planFromState() {
+  const idx = id => state.sources.findIndex(s => s.mediaId === id);
+  return {
+    aspect: state.aspect,
+    clips: state.clips.map(c => ({ src: idx(c.mediaId), start: r1(c.trimStart), dur: c.dur, anim: c.anim, filter: c.filter, trans: c.trans })),
+    texts: state.texts.map(x => ({ text: x.text, start: x.start, end: x.end, style: x.style || "impact", y: r2(x.y) })),
+    subtitles: state.subs.map(s => ({ start: s.start, end: s.end, text: s.text })),
+    caption: state.caption
+  };
+}
+const ALLOWED = `anim : none, zoomin, zoomout, panleft, panright (pour les vidéos, préfère none, zoomin léger possible) · filter : none, warm, cool, bw, vintage, vivid, dream · trans : cut, fade, slide, zoom, wipe, flash · style de texte : impact (gros titre percutant), elegant (serif italique), gold (serif doré luxe), hand (manuscrit), label (étiquette sur fond blanc), type (machine à écrire), outline (contour)`;
+const SCHEMA = `{"summary":"2 phrases maximum, en français, adressées à l'utilisateur : ce que tu as fait","clips":[{"src":0,"start":0,"dur":2.4,"anim":"zoomin","filter":"warm","trans":"fade"}],"texts":[{"text":"…","start":0,"end":2.4,"style":"impact","y":0.35}],"subtitles":[{"start":0,"end":1.2,"text":"…"}],"caption":"légende Instagram de 2 à 4 phrases avec un appel à l'action","hashtags":["sans le #"]}`;
+function musicLine() {
+  if (!state.music) return "Pas de musique.";
+  const mu = media.get(state.music.mediaId);
+  return state.beat ? `Musique « ${mu ? mu.name : ""} » à ${state.beat.bpm} BPM : un temps = ${state.beat.beat.toFixed(3)} s. Les durées des plans doivent être des multiples d'un temps (1, 2 ou 4 temps) pour que les coupes tombent sur le rythme.` : `Musique « ${mu ? mu.name : ""} » de ${mu ? mu.duration.toFixed(0) : "?"} s.`;
+}
+function buildPrompt(request, frames, isEdit) {
+  const dur = state.targetDur === "auto" ? "à toi de choisir selon la demande (souvent 12 à 30 s)" : `${state.targetDur} s (±10 %)`;
+  const base = `Tu es MaDA, monteuse vidéo professionnelle spécialiste des Reels Instagram et TikTok. Tu travailles en français.
+SOURCES IMPORTÉES (index : description) :
+${state.sources.map(srcInfo).join("\n")}
+${frames.blobs.length ? `IMAGES JOINTES (dans l'ordre) : ${frames.labels.join(" ; ")}.${frames.seen && frames.seen.size < state.sources.length ? " Les sources sans image : juge d'après leur nom." : ""}` : "Tu ne vois aucune image : juge d'après les noms et les durées."}
+Format : ${state.aspect}. Durée visée : ${dur}.
+${musicLine()}
+${state.speech ? `PAROLES DITES DANS LES VIDÉOS (pour les sous-titres) : """${state.speech.slice(0, 4000)}"""` : "Aucune parole fournie : subtitles = []."}
+Valeurs autorisées — ${ALLOWED}.`;
+  const rules = `Règles :
+- clips est dans l'ordre de lecture ; src = index de source. Pour une vidéo, start = seconde de début dans la source, start + dur ≤ durée de la source ; tu peux prendre plusieurs extraits d'une même vidéo, en choisissant ses meilleurs moments d'après les images. Pour une photo, start = 0 et dur entre 0.8 et 5.
+- N'utilise que les sources qui servent la demande ; écarte doublons, flous et hors-sujet. Si la demande ne précise rien, utilise presque tout.
+- Le premier plan accroche dans les 2 premières secondes ; termine sur un plan fort.
+- texts : 0 à 6 textes de 2 à 7 mots, sans emoji, start/end en secondes sur la vidéo finale, y entre 0.12 et 0.88 en évitant les visages et le sujet principal.
+- subtitles : découpe les paroles fournies en morceaux de 1 à 6 mots, répartis sur la durée des vidéos où l'on parle, sans chevauchement ; sinon [].
+- Un filtre cohérent sur tout le montage sauf demande contraire.
+- Réponds uniquement avec le JSON, sans aucun texte autour.`;
+  if (!isEdit) return `${base}
+DEMANDE DE L'UTILISATEUR : ${request || "Fais le meilleur Reel possible avec ces médias."}
+Construis le montage complet. Réponds avec ce JSON :
+${SCHEMA}
+${rules}`;
+  const hist = state.chat.filter(m => m.role === "user").slice(-6).map(m => "- " + m.text).join("\n");
+  return `${base}
+DEMANDES PRÉCÉDENTES :
+${hist || "(aucune)"}
+MONTAGE ACTUEL :
+${JSON.stringify(planFromState())}
+NOUVELLE DEMANDE : ${request}
+Applique cette demande au montage actuel et renvoie le montage COMPLET mis à jour, dans ce JSON :
+${SCHEMA}
+Garde tel quel tout ce que la demande ne touche pas (y compris les sous-titres et la légende). summary = ce que tu as changé.
+${rules}`;
+}
+const pick = (v, allowed, d) => allowed.includes(v) ? v : d;
+function applyPlan(p, isEdit) {
+  if (!p || typeof p !== "object" || !Array.isArray(p.clips)) throw { code: "invalid_json" };
+  const clips = [];
+  for (const c of p.clips.slice(0, 80)) {
+    const s = state.sources[Number(c.src)]; if (!s) continue; const m = media.get(s.mediaId); if (!m) continue;
+    let start = 0, dur = parseFloat(c.dur); if (!isFinite(dur)) dur = 2.5;
+    if (s.kind === "video") { start = clamp(parseFloat(c.start) || 0, 0, Math.max(0, m.duration - .4)); dur = clamp(dur, .4, m.duration - start); }
+    else dur = clamp(dur, .5, 8);
+    clips.push({ id: uid(), mediaId: s.mediaId, kind: s.kind, name: s.name, trimStart: r2(start), dur: r2(dur), anim: pick(c.anim, ANIMS.map(a => a[0]), s.kind === "video" ? "none" : "zoomin"), filter: pick(c.filter, Object.keys(FILTERS), "none"), trans: pick(c.trans, TRANS.map(a => a[0]), "fade") });
+  }
+  if (!clips.length) throw { code: "invalid_json" };
+  state.clips = clips;
+  if (state.beat && state.music) snapToBeat();
+  const T = total();
+  state.texts = (Array.isArray(p.texts) ? p.texts : []).slice(0, 8).map(x => {
+    const text = String(x.text || "").trim().slice(0, 90); if (!text) return null;
+    let s = clamp(parseFloat(x.start) || 0, 0, Math.max(0, T - .3)), e = clamp(parseFloat(x.end) || s + 2.5, s + .4, T);
+    const style = pick(x.style, Object.keys(TPRESETS), "impact");
+    const tx = newText(style, text, s, e, clamp(parseFloat(x.y) || .35, .1, .9)); tx.style = style;
+    if (/^#[0-9a-f]{6}$/i.test(x.color || "")) tx.color = x.color;
+    return tx;
+  }).filter(Boolean);
+  if (Array.isArray(p.subtitles) && (p.subtitles.length || !isEdit || state.speech)) {
+    state.subs = p.subtitles.slice(0, 300).map(x => ({ id: uid(), start: r2(clamp(parseFloat(x.start) || 0, 0, T)), end: r2(clamp(parseFloat(x.end) || 0, 0, T)), text: String(x.text || "").trim() })).filter(x => x.text && x.end > x.start);
+  }
+  const cap = String(p.caption || "").trim(), tags = Array.isArray(p.hashtags) ? p.hashtags.map(h => "#" + String(h).replace(/^#/, "").replace(/\s+/g, "")).filter(h => h.length > 1).join(" ") : "";
+  if (cap) state.caption = cap + (tags ? "\n\n" + tags : "");
+  sel = null; t = 0;
+  return String(p.summary || "Montage prêt.").slice(0, 600);
+}
+function snapToBeat() {
+  const b = state.beat.beat;
+  state.clips.forEach(c => {
+    const n = Math.max(1, Math.round(c.dur / b)); let d = n * b;
+    const m = media.get(c.mediaId);
+    if (c.kind === "video" && m && c.trimStart + d > m.duration) d = Math.max(1, Math.floor((m.duration - c.trimStart) / b)) * b;
+    c.dur = r2(d);
+  });
+}
+function localPlan(request) {
+  const q = (request || "").toLowerCase();
+  const th = /chic|palace|luxe|élégan|hôtel|hotel/.test(q) ? THEMES.palace : /soir|fête|fete|party|dynami|club/.test(q) ? THEMES.soiree : /food|brunch|recette|plat|resto|cuisine/.test(q) ? THEMES.food : /voyage|trip|vacance/.test(q) ? THEMES.voyage : THEMES.reve;
+  const clips = []; const mz = ["zoomin", "zoomout"];
+  state.sources.forEach((s, i) => {
+    const m = media.get(s.mediaId); if (!m) return;
+    if (s.kind === "video") { const d = Math.min(m.duration, th.dur < 2 ? 2.5 : 4); clips.push({ src: i, start: Math.max(0, (m.duration - d) / 2), dur: d, anim: "none", filter: th.filter, trans: th.trans }); }
+    else clips.push({ src: i, start: 0, dur: th.dur, anim: th.anim === "mixzoom" ? mz[i % 2] : th.anim === "mixpan" ? ["panleft", "panright"][i % 2] : th.anim, filter: th.filter, trans: th.trans });
+  });
+  const T = clips.reduce((a, c) => a + c.dur, 0);
+  const title = (request || "").split(/[,.!]/)[0].trim().slice(0, 40) || "Mon Reel";
+  return { summary: `Montage automatique simple, style ${th.name}. L'IA n'étant pas disponible ici, je n'ai pas analysé les images.`, clips, texts: [{ text: title, start: 0, end: Math.min(3, T), style: th.text, y: .4 }], subtitles: state.speech ? [] : [], caption: "" };
+}
+
+/* ---------- Chat UI ---------- */
+function addAIMsg(m) { state.chat.push({ id: uid(), ...m }); if (state.chat.length > 40) state.chat.splice(0, state.chat.length - 40); renderChat(); scheduleSave(); }
+let progressEl = null;
+function renderChat() {
+  const C = $("#chat");
+  const welcome = !state.chat.length ? `<div class="msg ai">Importe tes médias et dis-moi ce que tu veux. Ensuite, demande-moi n'importe quelle retouche : ordre, rythme, textes, ambiance, durée…</div>` : "";
+  C.innerHTML = welcome + state.chat.map(m => `<div class="msg ${m.role}${m.err ? " err" : ""}">${esc(m.text)}${m.role === "ai" && m.actions ? `<div class="acts">${m.actions.includes("undo") && undoStack.length ? `<button class="btn small" data-a="undo">↶ Annuler ce changement</button>` : ""}${m.actions.includes("retry") ? `<button class="btn small" data-a="retry" data-req="${esc(m.req || "")}" data-edit="${m.edit ? 1 : 0}">Réessayer</button>` : ""}${m.actions.includes("redo") ? `<button class="btn small" data-a="remake">Refaire le montage</button>` : ""}</div>` : ""}</div>`).join("");
+  if (aiCtl) { progressEl = document.createElement("div"); progressEl.className = "msg ai"; progressEl.innerHTML = progressHTML(); C.appendChild(progressEl); }
+  C.scrollTop = C.scrollHeight;
+  $("#orb").classList.toggle("work", !!aiCtl);
+  $("#aiState").textContent = aiCtl ? "au travail…" : aiAvailable() ? "" : "mode simple";
+  $("#sendBtn").disabled = !!aiCtl; $("#stopBtn").hidden = !aiCtl;
+  $("#quick").innerHTML = QUICK.map(q => `<button class="idea" ${aiCtl ? "disabled" : ""}>${q}</button>`).join("");
+}
+$("#chat").onclick = e => {
+  const b = e.target.closest("[data-a]"); if (!b) return;
+  if (b.dataset.a === "undo") undo();
+  if (b.dataset.a === "retry") runAI(b.dataset.req, b.dataset.edit === "1", true);
+  if (b.dataset.a === "remake") runAI(state.chat.filter(m => m.role === "user")[0]?.text || "", false);
+};
+let progSteps = [], progIdx = 0, progChars = 0;
+function progressHTML() { return `<div class="progress">${progSteps.map((s, i) => `<div class="st ${i < progIdx ? "done" : i === progIdx ? "now" : ""}">${esc(s)}${i === progIdx && progChars ? ` · ${progChars} caractères` : ""}</div>`).join("")}</div>`; }
+function setStep(i) { progIdx = i; if (progressEl) progressEl.innerHTML = progressHTML(); }
+function renderExtras() {
+  const X = $("#extras");
+  if (!state.caption && !state.clips.length) { X.innerHTML = ""; return; }
+  X.innerHTML = `${state.caption ? `<details class="more"><summary>Légende Instagram</summary><div class="in"><textarea class="inp" id="capOut" rows="6">${esc(state.caption)}</textarea><button class="btn small" id="capCopy">Copier la légende</button></div></details>` : ""}
+  <details class="more"><summary>Paroles pour les sous-titres</summary><div class="in"><p class="note">Dicte ou colle ce qui est dit, puis demande « ajoute les sous-titres ».</p><textarea class="inp" id="speechIn">${esc(state.speech)}</textarea></div></details>`;
+  const cc = $("#capCopy"); if (cc) cc.onclick = () => { const ta = $("#capOut"); navigator.clipboard.writeText(ta.value).then(() => toast("Légende copiée"), () => { ta.focus(); ta.select(); toast("Sélectionnée : copie-la avec un appui long"); }); };
+  const co = $("#capOut"); if (co) co.onchange = () => { state.caption = co.value; scheduleSave(); };
+  $("#speechIn").onchange = e => { state.speech = e.target.value.trim(); scheduleSave(); };
+}
+
+async function runAI(request, isEdit, retry) {
+  if (aiCtl) return;
+  if (!state.sources.length) return toast("Importe d'abord tes médias.");
+  if (!retry) addAIMsg({ role: "user", text: request || "Crée ma vidéo" });
+  pause();
+  if (!aiAvailable()) {
+    if (isEdit) { addAIMsg({ role: "ai", err: true, text: "L'IA n'est pas disponible dans cette vue, je ne peux pas faire de retouche. Utilise « Ajuster à la main », " + (window.__RR_STANDALONE ? "ou réessaie dans un instant." : "ou ouvre MaDA dans Claude connecté à ton compte.") }); return; }
+    pushUndo(); const s = applyPlan(localPlan(request), false); showView("studio"); afterChange(true);
+    addAIMsg({ role: "ai", text: s, actions: ["undo"] }); return;
+  }
+  aiCtl = new AbortController(); const signal = aiCtl.signal;
+  progSteps = [`Analyse de ${state.sources.length} média${state.sources.length > 1 ? "s" : ""}`, isEdit ? "Retouche du montage" : "Choix des meilleurs moments et du rythme", "Application à la vidéo"]; progIdx = 0; progChars = 0;
+  renderChat(); renderHome();
+  try {
+    const frames = await gatherFrames(imgMax);
+    if (signal.aborted) throw { code: "cancelled" };
+    setStep(1);
+    const prompt = buildPrompt(request, frames, isEdit);
+    const p = await sample.json(prompt, { signal, images: frames.blobs.length ? frames.blobs : undefined, cache: false, onText: ({ text }) => { progChars = text.length; if (progressEl) progressEl.innerHTML = progressHTML(); } });
+    setStep(2);
+    const before = snap();
+    const summary = applyPlan(p, isEdit);
+    undoStack.push(before); redoStack.length = 0; updUndo();
+    aiCtl = null;
+    if (state.view !== "studio") showView("studio");
+    afterChange(true);
+    addAIMsg({ role: "ai", text: summary + (state.beat && state.music ? `\nCoupes calées sur la musique (${state.beat.bpm} BPM).` : ""), actions: ["undo"] });
+    play();
+  } catch (e) {
+    aiCtl = null;
+    if (e && e.code === "cancelled") addAIMsg({ role: "ai", text: "Arrêté." });
+    else addAIMsg({ role: "ai", err: true, text: aiErr(e), actions: aiDisabled ? [] : ["retry"], req: request, edit: isEdit });
+    if (!isEdit && state.view === "home" && !aiAvailable()) { showView("studio"); afterChange(true); }
+  } finally { aiCtl = null; renderChat(); renderHome(); }
+}
+$("#homeGo").onclick = () => {
+  state.aspect = $("#homeAspect").value; state.targetDur = $("#homeDur").value; state.speech = $("#homeSpeech").value.trim();
+  setCanvasSize(); showView("studio"); afterChange(true);
+  runAI($("#homeAsk").value.trim(), false);
+};
+function send() { const v = $("#ask").value.trim(); if (!v || aiCtl) return; $("#ask").value = ""; autoGrow(); runAI(v, state.clips.length > 0); }
+$("#sendBtn").onclick = send;
+$("#ask").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } });
+const autoGrow = () => { const a = $("#ask"); a.style.height = "auto"; a.style.height = Math.min(140, a.scrollHeight) + "px"; };
+$("#ask").addEventListener("input", autoGrow);
+$("#quick").onclick = e => { const b = e.target.closest("button"); if (b && !aiCtl) runAI(b.textContent, state.clips.length > 0); };
+$("#stopBtn").onclick = () => aiCtl && aiCtl.abort();
+
+/* ---------- Header / keys ---------- */
+$("#undoBtn").onclick = undo; $("#redoBtn").onclick = redo;
+$("#playBtn").onclick = () => playing ? pause() : play();
+$("#toStart").onclick = () => setTime(0);
+document.addEventListener("keydown", e => {
+  if (e.target.closest("input,textarea,select") || state.view !== "studio") return;
+  if (e.code === "Space") { e.preventDefault(); playing ? pause() : play(); }
+  else if ((e.key === "Delete" || e.key === "Backspace") && sel) { e.preventDefault(); pushUndo(); const arr = sel.type === "clip" ? state.clips : sel.type === "text" ? state.texts : state.subs; const i = arr.findIndex(x => x.id === sel.id); if (i >= 0) arr.splice(i, 1); sel = null; afterChange(); }
+  else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+});
+function loadFont(o) { try { document.fonts.load(`${o.italic ? "italic " : ""}${o.weight} 40px "${o.font}"`).then(requestDraw, () => { }); } catch (e) { } }
+let toastTimer;
+function toast(msg, ms = 2600) { const el = $("#toast"); el.textContent = msg; el.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => el.hidden = true, ms); }
+
+/* ---------- Export ---------- */
+let rec = null, recChunks = [], recMime = "", expCancelled = false, lastExport = null;
+const pickMime = () => ["video/mp4;codecs=avc1.42E01E,mp4a.40.2", "video/mp4;codecs=avc1,mp4a", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"].find(m => { try { return MediaRecorder.isTypeSupported(m); } catch (e) { return false; } }) || "";
+function showExport(html) { $("#exportModal").innerHTML = html; $("#exportOv").hidden = false; }
+$("#exportBtn").onclick = () => {
+  if (!state.clips.length) return toast("Le montage est vide.");
+  if (!window.MediaRecorder || !cv.captureStream) return showExport(`<h2>Export impossible ici</h2><p class="note">Ce navigateur ne sait pas enregistrer une vidéo. Ouvre MaDA dans Chrome, Edge ou un Safari récent.</p><button class="btn" id="expClose">Fermer</button>`);
+  const [w, h] = ASPECTS[state.aspect];
+  showExport(`<h2>Exporter la vidéo</h2><p class="note">${state.aspect} · ${w}×${h} · ${fmt(total())}. La vidéo est rejouée pendant l'enregistrement : <b style="color:var(--fg)">garde cet onglet ouvert et visible</b> jusqu'à la fin.</p><div class="row"><button class="btn primary" id="expGo">Lancer l'export</button><button class="btn ghost" id="expClose">Annuler</button></div>`);
+};
+$("#exportOv").addEventListener("click", e => {
+  const id = e.target.id;
+  if (id === "expClose") $("#exportOv").hidden = true;
+  if (id === "expGo") startExport();
+  if (id === "expCancel") { expCancelled = true; exporting = false; pause(); try { rec && rec.stop(); } catch (er) { } $("#exportOv").hidden = true; requestDraw(); }
+  if (id === "expSave") saveExport();
+  if (id === "expCap") { navigator.clipboard.writeText(state.caption).then(() => toast("Légende copiée"), () => toast("Copie-la depuis le panneau de l'IA")); }
+});
+function startExport() {
+  pause(); ensureAudio(); sel = null; renderInspector(); recMime = pickMime();
+  const stream = cv.captureStream(30); if (dest) dest.stream.getAudioTracks().forEach(tr => stream.addTrack(tr));
+  try { rec = new MediaRecorder(stream, recMime ? { mimeType: recMime, videoBitsPerSecond: 8e6 } : undefined); }
+  catch (e) { return showExport(`<h2>Export impossible</h2><p class="note">L'enregistreur vidéo n'a pas démarré sur ce navigateur.</p><button class="btn" id="expClose">Fermer</button>`); }
+  recMime = rec.mimeType || recMime || "video/webm"; recChunks = []; expCancelled = false;
+  rec.ondataavailable = e => { if (e.data && e.data.size) recChunks.push(e.data); };
+  rec.onstop = () => { if (!expCancelled) exportDone(); };
+  showExport(`<h2>Export en cours…</h2><div class="bar"><i id="expBar"></i></div><p class="note">Ne change pas d'onglet.</p><button class="btn ghost" id="expCancel">Annuler l'export</button>`);
+  exporting = true; t = 0; render(0); rec.start(250); setTimeout(play, 120);
+}
+function finishExport() { exporting = false; setTimeout(() => { try { rec.stop(); } catch (e) { } }, 200); }
+function exportDone() {
+  const blob = new Blob(recChunks, { type: recMime.split(";")[0] }), ext = recMime.includes("mp4") ? "mp4" : "webm";
+  lastExport = { blob, ext };
+  showExport(`<h2>Ta vidéo est prête</h2><video src="${URL.createObjectURL(blob)}" controls playsinline></video>
+    <p class="note">${ext.toUpperCase()} · ${(blob.size / 1048576).toFixed(1)} Mo${ext === "webm" ? ". Instagram préfère le MP4 : exporte depuis Safari ou un Chrome récent pour l'obtenir." : ""}</p>
+    ${downloads ? `<button class="btn primary" id="expSave">Enregistrer la vidéo</button>` : `<p class="note">L'enregistrement de fichiers n'est pas disponible dans cette vue.</p>`}
+    ${state.caption ? `<button class="btn" id="expCap">Copier la légende Instagram</button>` : ""}
+    <button class="btn ghost" id="expClose">Fermer</button>`);
+  requestDraw();
+}
+async function saveExport() {
+  if (!lastExport || !downloads) return;
+  try { await downloads.save({ filename: `mada-${new Date().toISOString().slice(0, 10)}.${lastExport.ext}`, data: lastExport.blob }); toast("Vidéo enregistrée"); }
+  catch (e) { toast(e && e.code === "declined" ? "Enregistrement annulé." : e && e.code === "too_large" ? "Fichier trop lourd pour cette vue." : "Impossible d'enregistrer ici."); }
+}
+
+/* ---------- Boot ---------- */
+async function boot() {
+  [W, H] = ASPECTS[state.aspect]; cv.width = W; cv.height = H;
+  new ResizeObserver(fitCanvas).observe($("#stageBox"));
+  await IDB.open();
+  const raw = await IDB.get("kv", "project");
+  if (raw) {
+    try {
+      const s = JSON.parse(raw);
+      const ids = new Set((s.sources || []).map(x => x.mediaId)); if (s.music) ids.add(s.music.mediaId);
+      for (const id of ids) { const r = await IDB.get("media", id); if (r && r.blob) { try { await addMedia(r.blob, r.name, r.kind, id); } catch (e) { } } }
+      state = Object.assign(freshState(), s);
+      state.sources = state.sources.filter(x => media.has(x.mediaId));
+      state.clips = state.clips.filter(c => media.has(c.mediaId));
+      if (state.music && !media.has(state.music.mediaId)) { state.music = null; state.beat = null; }
+      state.subStyle = { ...DEFAULT_SUB, ...(s.subStyle || {}) };
+      state.texts.forEach(loadFont);
+    } catch (e) { state = freshState(); }
+  }
+  ["Bebas Neue", "Playfair Display", "Caveat", "DM Sans", "DM Mono", "Cormorant Garamond"].forEach(f => { try { document.fonts.load(`600 40px "${f}"`).then(requestDraw, () => { }); } catch (e) { } });
+  $("#homeAspect").value = state.aspect; $("#homeDur").value = state.targetDur; $("#homeSpeech").value = state.speech;
+  showView(state.view === "studio" && state.clips.length ? "studio" : "home");
+  afterChange(true);
+}
+boot();
+(async () => {
+  try {
+    if (window.claude && claude.use) {
+      const [s, d] = await Promise.all([claude.use("sample"), claude.use("downloads")]);
+      sample = s; downloads = d;
+      if (sample) { const lim = await sample.limits().catch(() => null); imgMax = lim && lim.images ? lim.images.maxCount : 0; }
+    }
+  } catch (e) { }
+  renderHome(); renderChat();
+})();
+</script>

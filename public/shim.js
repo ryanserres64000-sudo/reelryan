@@ -5,7 +5,7 @@
    - "db" / "user": not available, so the app keeps everything in this browser. */
 (function () {
   const ACCESS_KEY = "rr-access-code";
-  const MAX_IMAGES = 6;
+  const MAX_IMAGES = 12;
 
   function getAccess() { try { return localStorage.getItem(ACCESS_KEY) || ""; } catch (e) { return ""; } }
   function setAccess(v) { try { v ? localStorage.setItem(ACCESS_KEY, v) : localStorage.removeItem(ACCESS_KEY); } catch (e) { } }

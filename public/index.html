@@ -1,4 +1,5 @@
-<!doctype html><html lang="fr"><head><meta charset=utf8><meta name="description" content="MaDA, ta directrice artistique IA : elle crée tes posts, Reels et stories à ta place."><meta name="theme-color" content="#0F0D12"><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="manifest" href="/manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="MaDA"><meta property="og:title" content="MaDA"><meta property="og:description" content="Ta directrice artistique IA : posts, Reels et stories en un clic."><script>window.__RR_STANDALONE=true</script><script src="/shim.js"></script><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="description" content="MaDA, ta directrice artistique IA : elle crée tes posts, Reels et stories à ta place."><meta name="theme-color" content="#0F0D12"><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="manifest" href="/manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="MaDA"><meta property="og:title" content="MaDA"><meta property="og:description" content="Ta directrice artistique IA : posts, Reels et stories en un clic."><script>window.__RR_STANDALONE=true</script><script src="/shim.js"></script>
 <title>MaDA</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -436,6 +437,7 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
 
 
 </style>
+</head><body>
 <div class="shell">
   <nav class="side" aria-label="Navigation principale">
     <div class="logo">Ma<b>DA</b><small>Studio</small></div>
@@ -2485,7 +2487,7 @@ async function runAI(request, isEdit, retry) {
   if (!retry) addAIMsg({ role: "user", text: request || "Crée ma vidéo" });
   pause();
   if (!aiAvailable()) {
-    if (isEdit) { addAIMsg({ role: "ai", err: true, text: "L'IA n'est pas disponible dans cette vue, je ne peux pas faire de retouche. Utilise « Ajuster à la main », ou réessaie dans un instant." }); return; }
+    if (isEdit) { addAIMsg({ role: "ai", err: true, text: "L'IA n'est pas disponible dans cette vue, je ne peux pas faire de retouche. Utilise « Ajuster à la main », " + (window.__RR_STANDALONE ? "ou réessaie dans un instant." : "ou ouvre MaDA dans Claude connecté à ton compte.") }); return; }
     pushUndo(); const s = applyPlan(localPlan(request), false); showView("studio"); afterChange(true);
     addAIMsg({ role: "ai", text: s, actions: ["undo"] }); return;
   }
@@ -3022,5 +3024,4 @@ const Account = {
 })();
 
 </script>
-
 </body></html>

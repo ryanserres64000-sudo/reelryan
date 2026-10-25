@@ -9,8 +9,10 @@ import { TRANSITION_SECONDS } from "./timeline.mjs";
 const run = promisify(execFile);
 const W = 1080, H = 1920, FPS = 30;
 const XFADE = { fondu: "fade", glisse: "slideleft", zoom: "zoomin" };
-const TEXT_SIZE = { accroche: 92, titre: 76, info: 64, signature: 60 };
-const TEXT_Y = { haut: "h*0.14", centre: "(h-text_h)/2", bas: "h*0.66" };
+// Sizes close to what Instagram creators use: readable, never a wall of text.
+const TEXT_SIZE = { accroche: 66, titre: 58, info: 48, signature: 50 };
+// Inside the Reels safe zone (top bar and caption area stay clear).
+const TEXT_Y = { haut: "h*0.16", centre: "(h-text_h)/2", bas: "h*0.64" };
 
 const FONT_CANDIDATES = [
   "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
@@ -39,6 +41,11 @@ function wrap(text, size) {
   return lines.join("\n");
 }
 
+// drawtext has no colour emoji font: drop emojis from the picture (they stay in the timeline JSON).
+const noEmoji = s => s.replace(/[\p{Extended_Pictographic}\uFE0F\u200D\u20E3]/gu, "").replace(/\s+/g, " ").trim();
+// Long imposed texts get a slightly smaller size so they stay within about four lines.
+const sizeFor = (text, style) => Math.round(TEXT_SIZE[style] * (text.length > 48 ? 0.85 : 1));
+
 // ffmpeg filter arguments: escape the characters that end or split an option.
 const esc = s => String(s).replace(/\\/g, "/").replace(/[:']/g, m => "\\" + m);
 
@@ -51,11 +58,14 @@ export async function renderTimeline(timeline, clips, style, outFile, { music, w
 
   // One input per shot, already trimmed, so every stream starts at 0.
   plans.forEach((p, i) => {
-    args.push("-ss", String(p.debut), "-t", String(p.fin - p.debut), "-i", clips[p.source].file);
-    const d = p.fin - p.debut;
+    const clip = clips[p.source], d = p.fin - p.debut;
+    if (clip.still) args.push("-loop", "1", "-framerate", String(FPS), "-t", String(d), "-i", clip.file);
+    else args.push("-ss", String(p.debut), "-t", String(d), "-i", clip.file);
     const x = p.cadrage === "gauche" ? "0" : p.cadrage === "droite" ? "iw-ow" : "(iw-ow)/2";
-    graph.push(`[${i}:v]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H}:${x}:(ih-oh)/2,fps=${FPS},setsar=1,format=yuv420p,trim=duration=${d},setpts=PTS-STARTPTS,settb=1/${FPS}[v${i}]`);
-    graph.push(p.garder_son && clips[p.source].hasAudio
+    // Photos get a slow 6 % push-in so they do not look frozen next to the videos.
+    const zoom = clip.still ? `,scale=w='trunc(${W}*(1+0.06*t/${d})/2)*2':h=-2:eval=frame,crop=${W}:${H}` : "";
+    graph.push(`[${i}:v]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H}:${x}:(ih-oh)/2${zoom},fps=${FPS},setsar=1,format=yuv420p,trim=duration=${d},setpts=PTS-STARTPTS,settb=1/${FPS}[v${i}]`);
+    graph.push(p.garder_son && clip.hasAudio
       ? `[${i}:a]aformat=sample_rates=48000:channel_layouts=stereo,atrim=duration=${d},asetpts=PTS-STARTPTS,apad=whole_dur=${d}[a${i}]`
       : `anullsrc=r=48000:cl=stereo,atrim=duration=${d}[a${i}]`);
   });
@@ -78,11 +88,16 @@ export async function renderTimeline(timeline, clips, style, outFile, { music, w
   // Texts, each from its own file so no escaping is needed for the words themselves.
   const main = color(style.couleurs?.texte, "white"), accent = color(style.couleurs?.principale, "black");
   for (const [i, t] of timeline.textes.entries()) {
+    const words = noEmoji(t.texte);
+    if (!words) continue;
+    const size = sizeFor(words, t.style);
     const file = path.join(workDir, `texte${i}.txt`);
-    await writeFile(file, wrap(t.texte, TEXT_SIZE[t.style]));
+    await writeFile(file, wrap(words, size));
     const fade = `if(lt(t,${t.debut}+0.2),(t-${t.debut})/0.2,if(gt(t,${t.fin}-0.2),(${t.fin}-t)/0.2,1))`;
-    const box = t.style === "accroche" || t.style === "signature" ? `:box=1:boxcolor=${accent}@0.85:boxborderw=28` : `:borderw=4:bordercolor=black@0.6`;
-    graph.push(`[${v}]drawtext=fontfile='${esc(font)}':textfile='${esc(file)}':fontsize=${TEXT_SIZE[t.style]}:fontcolor=${main}${box}:text_align=C:line_spacing=${Math.round(TEXT_SIZE[t.style] * 0.25)}:x=(w-text_w)/2:y=${TEXT_Y[t.position]}:enable='between(t,${t.debut},${t.fin})':alpha='${fade}'[vt${i}]`);
+    // Default is sober text with a soft shadow; style.textes = "bandeau" puts hooks on a coloured band.
+    const box = style.textes === "bandeau" && (t.style === "accroche" || t.style === "signature") ? `:box=1:boxcolor=${accent}@0.88:boxborderw=22|34`
+      : `:shadowcolor=black@0.55:shadowx=0:shadowy=3:borderw=2:bordercolor=black@0.35`;
+    graph.push(`[${v}]drawtext=fontfile='${esc(font)}':textfile='${esc(file)}':fontsize=${size}:fontcolor=${main}${box}:text_align=C:line_spacing=${Math.round(size * 0.25)}:x=(w-text_w)/2:y=${TEXT_Y[t.position]}:enable='between(t,${t.debut},${t.fin})':alpha='${fade}'[vt${i}]`);
     v = `vt${i}`;
   }
 
@@ -97,7 +112,9 @@ export async function renderTimeline(timeline, clips, style, outFile, { music, w
   // Optional music under the original sound.
   if (music) {
     args.push("-stream_loop", "-1", "-i", music);
-    graph.push(`[${next}:a]aformat=sample_rates=48000:channel_layouts=stereo,atrim=duration=${total.toFixed(3)},volume=0.6[mus]`, `[${a}][mus]amix=inputs=2:duration=first:normalize=0[am]`);
+        // Music stays under the voices when some shots keep their sound.
+    const level = plans.some(p => p.garder_son && clips[p.source].hasAudio) ? 0.3 : 0.8;
+    graph.push(`[${next}:a]aformat=sample_rates=48000:channel_layouts=stereo,atrim=duration=${total.toFixed(3)},volume=${level}[mus]`, `[${a}][mus]amix=inputs=2:duration=first:normalize=0[am]`);
     a = "am";
   }
 

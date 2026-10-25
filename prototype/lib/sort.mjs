@@ -8,6 +8,28 @@ import path from "node:path";
 const run = promisify(execFile);
 const MAX_BUFFER = 64 * 1024 * 1024;
 export const VIDEO_EXT = new Set([".mp4", ".mov", ".m4v", ".mkv", ".webm", ".avi"]);
+export const IMAGE_EXT = new Set([".jpg", ".jpeg", ".png", ".heic", ".heif", ".webp"]);
+// A photo becomes a still shot (slow zoom) of at most this length.
+export const STILL_SECONDS = 4;
+const isImage = file => IMAGE_EXT.has(path.extname(file).toLowerCase());
+
+// iPhone photos are HEIC: convert them to JPEG once (sips ships with macOS, ffmpeg otherwise).
+async function readableStill(file, workDir) {
+  if (!/\.hei[cf]$/i.test(file)) return file;
+  const out = path.join(workDir, path.basename(file).replace(/\.[^.]+$/, ".jpg"));
+  try { await run("sips", ["-s", "format", "jpeg", file, "--out", out]); }
+  catch { await run("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", file, "-frames:v", "1", out]); }
+  return out;
+}
+
+// Probes a rush, video or photo; a photo is returned with `still` and its converted file.
+export async function probeMedia(file, workDir) {
+  if (!isImage(file)) return { file, ...(await probe(file)) };
+  await mkdir(workDir, { recursive: true });
+  const readable = await readableStill(file, workDir);
+  const info = await probe(readable);
+  return { ...info, file: readable, duration: STILL_SECONDS, hasAudio: false, still: true };
+}
 
 export async function probe(file) {
   const { stdout } = await run("ffprobe", ["-v", "error", "-show_streams", "-show_format", "-of", "json", file], { maxBuffer: MAX_BUFFER });
@@ -28,6 +50,29 @@ async function sceneChanges(file, threshold = 0.3) {
   const { stderr } = await run("ffmpeg", ["-hide_banner", "-nostats", "-i", file, "-an",
     "-vf", `scale=160:-2,select='gt(scene,${threshold})',showinfo`, "-f", "null", "-"], { maxBuffer: MAX_BUFFER });
   return [...stderr.matchAll(/pts_time:([\d.]+)/g)].map(m => Number(m[1]));
+}
+
+// Stretches where someone is probably talking: audible sound in the voice band (300-3400 Hz).
+// Returns [[start, end], ...] in seconds, merged when less than 0.6 s apart.
+async function voiceSpans(file, duration) {
+  const { stderr } = await run("ffmpeg", ["-hide_banner", "-nostats", "-i", file, "-vn",
+    "-af", "highpass=f=300,lowpass=f=3400,silencedetect=noise=-38dB:d=0.4", "-f", "null", "-"], { maxBuffer: MAX_BUFFER });
+  const spans = [];
+  let start = 0;
+  for (const m of stderr.matchAll(/silence_(start|end): ([\d.]+)/g)) {
+    const t = Number(m[2]);
+    if (m[1] === "start") { if (t - start > 0.5) spans.push([start, t]); }
+    else start = t;
+  }
+  if (!/silence_start/.test(stderr) || stderr.lastIndexOf("silence_end") > stderr.lastIndexOf("silence_start")) {
+    if (duration - start > 0.5) spans.push([start, duration]);
+  }
+  const merged = [];
+  for (const sp of spans) {
+    const last = merged.at(-1);
+    if (last && sp[0] - last[1] < 0.6) last[1] = sp[1]; else merged.push([...sp]);
+  }
+  return merged.map(([a, b]) => [Math.round(a * 10) / 10, Math.round(b * 10) / 10]);
 }
 
 // Candidate keyframes: shot changes plus regular sampling, at least `spacing` apart.
@@ -56,13 +101,14 @@ export async function sortRushes(files, workDir, { maxFrames = 30, onProgress = 
   let n = 0;
   for (const [i, file] of files.entries()) {
     const id = `clip${String(i + 1).padStart(2, "0")}`;
-    const info = await probe(file);
-    clips[id] = { id, file, name: path.basename(file), ...info };
-    const scenes = await sceneChanges(file);
+    const info = await probeMedia(file, path.join(workDir, "photos"));
+    clips[id] = { id, name: path.basename(file), ...info };
+    if (info.hasAudio) clips[id].voix = await voiceSpans(info.file, info.duration);
+    const scenes = info.still ? [] : await sceneChanges(file);
     const own = [];
-    for (const t of candidateTimes(info.duration, scenes)) {
+    for (const t of info.still ? [0] : candidateTimes(info.duration, scenes)) {
       const out = path.join(workDir, `${id}_${t.toFixed(1)}.jpg`);
-      const m = await extractFrame(file, t, out);
+      const m = await extractFrame(info.file, t, out);
       own.push({ id: `f${++n}`, clip: id, time: Math.round(t * 10) / 10, file: out, blur: m.blur, luma: m.luma, scene: scenes.some(s => Math.abs(s - t) < 0.5) });
     }
     // Blur depends on the content, so compare each frame with the sharpest quarter of its rush.
@@ -74,7 +120,7 @@ export async function sortRushes(files, workDir, { maxFrames = 30, onProgress = 
         : f.blur !== null && ref && f.blur > ref * 1.35 ? "floue" : null;
       frames.push(f);
     }
-    onProgress(`${clips[id].name} : ${info.duration.toFixed(1)} s, ${scenes.length} changements de plan`);
+    onProgress(info.still ? `${clips[id].name} : photo` : `${clips[id].name} : ${info.duration.toFixed(1)} s, ${scenes.length} changements de plan`);
   }
   const usable = frames.filter(f => !f.reject);
   return { clips, frames, kept: pickSpread(usable, Object.keys(clips), maxFrames) };

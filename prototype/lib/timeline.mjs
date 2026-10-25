@@ -39,7 +39,7 @@ export const TIMELINE_SCHEMA = {
         additionalProperties: false,
         required: ["texte", "debut", "fin", "position", "style"],
         properties: {
-          texte: { type: "string", description: "Texte affiché, 6 mots maximum" },
+          texte: { type: "string", description: "Texte affiché : mot pour mot s'il est imposé par le brief, sinon 6 mots maximum" },
           debut: { type: "number", description: "Début dans le montage final, en secondes" },
           fin: { type: "number", description: "Fin dans le montage final, en secondes" },
           position: { type: "string", enum: TEXT_POSITIONS },
@@ -94,7 +94,7 @@ export function sanitizeTimeline(raw, clips, { beat = 0, maxDuration = 60 } = {}
   const duration = timelineDuration(plans);
   const textes = (Array.isArray(raw.textes) ? raw.textes : [])
     .map(t => ({
-      texte: String(t?.texte || "").trim().slice(0, 80),
+      texte: String(t?.texte || "").trim().slice(0, 140),
       debut: round(Math.max(0, Number(t?.debut) || 0)),
       fin: round(Math.min(duration, Number(t?.fin) || 0)),
       position: TEXT_POSITIONS.includes(t?.position) ? t.position : "centre",

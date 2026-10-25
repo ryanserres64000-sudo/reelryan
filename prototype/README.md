@@ -63,7 +63,8 @@ npm run montage -- corriger prototype/exemple-style.json "Jamais de texte en hau
 Un fichier JSON par personne testée (copie `exemple-style.json`). Tout est facultatif :
 
 - `nom`, `activite`, `ton`, `public` : décrivent la personne, l'IA s'en sert pour les textes ;
-- `couleurs.principale` (fond des textes d'accroche et de signature) et `couleurs.texte` ;
+- `couleurs.texte` et `couleurs.principale` (fond des textes d'accroche et de signature quand `textes` vaut `"bandeau"`) ;
+- `textes` : `"sobre"` (par défaut, texte avec une ombre douce) ou `"bandeau"` (accroche et signature sur un bandeau de couleur) ;
 - `police` : chemin d'un fichier `.ttf` ou `.otf` ;
 - `logo` : chemin d'un PNG, affiché pendant les 2,5 dernières secondes ;
 - `corrections` : la mémoire du style, alimentée par la commande `corriger`.
@@ -74,7 +75,10 @@ Le protocole complet est dans `docs/cout-ia-et-grille-qualite.md`. En bref : mê
 
 ## Limites connues du prototype
 
-- Vidéos seulement (pas encore de photos dans les rushes).
+- Les photos (JPG, PNG, HEIC) deviennent des plans fixes de 4 s au plus, avec un léger zoom.
+- Les emojis des textes ne s'affichent pas dans la vidéo (police sans emojis) : ils restent dans `timeline.json`, à remettre dans la légende.
 - Le tempo se donne à la main (`--bpm`) : pas de détection automatique du rythme.
 - Pas de détection de visages avant l'IA (c'est Haiku qui les compte) ; l'iPhone le fera avec Vision.
+- La parole est repérée par le volume dans la bande de la voix, pas par une vraie reconnaissance vocale : une ambiance bruyante peut passer pour une voix.
+- Les textes écrits entre guillemets dans le brief sont imposés : l'IA doit les reprendre mot pour mot, et le script signale ceux qui manquent. La relecture critique est écartée si elle raccourcit trop le montage ou perd un texte imposé.
 - Les textes utilisent une police système si le style n'en donne pas.

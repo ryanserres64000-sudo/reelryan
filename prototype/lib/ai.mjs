@@ -109,14 +109,27 @@ Ce qui fait un bon montage MaDA :
 - Du rythme : des plans de 0,8 à 3 s en général, plus longs seulement quand quelqu'un parle. Varie les valeurs de plan (large, moyen, serré, détail).
 - Surtout des coupes franches. Une transition (fondu, glisse, zoom) seulement quand elle sert l'histoire, 2 au maximum.
 - Choisis les débuts et fins de plan autour des images clés bien notées ; évite les moments marqués flous ou sans intérêt.
-- Garde le son d'origine quand quelqu'un parle face caméra, sinon coupe-le (la musique tendance sera ajoutée dans l'appli de publication).
-- Textes : 6 mots maximum chacun, 3 textes au maximum, dans le ton de la personne. Une accroche au début, éventuellement une info utile, une signature ou un appel à l'action à la fin. Pas de phrases génériques (« Découvrez… », « Bienvenue… ») : des mots qui ne pourraient venir que de cette activité.
+- La parole est précieuse : quand un rush a de la voix (indiquée dans la liste des rushes) et qu'on voit des visages, garde le son d'origine, et cale le plan sur la phrase entière (début un peu avant, fin un peu après) au lieu de la couper au milieu. Sans voix, coupe le son (la musique sera ajoutée).
+- Textes imposés : si le brief donne des textes (entre guillemets ou en liste), ils sont tous obligatoires, mot pour mot, emojis compris, au moment demandé (sur le plan cité, au début, à la fin). Ne les raccourcis jamais et n'en supprime aucun ; les limites ci-dessous ne valent que pour les textes que tu inventes.
+- Textes inventés : 6 mots maximum chacun, 3 textes au maximum, dans le ton de la personne. Une accroche au début, éventuellement une info utile, une signature ou un appel à l'action à la fin. Pas de phrases génériques (« Découvrez… », « Bienvenue… ») : des mots qui ne pourraient venir que de cette activité.
 - Respecte le style et les corrections passées de la personne : elles priment sur tes habitudes.
-- Les textes ne se chevauchent pas et restent au moins 1 s à l'écran.
+- Les textes ne se chevauchent pas et restent au moins 1 s à l'écran (un texte long : environ 1 s pour 3 mots).
+- La durée visée est un engagement : vise-la à 10 % près tant que les rushes le permettent (un même rush peut fournir plusieurs plans à des moments différents).
+- Une photo (rush marqué « photo ») est un plan fixe animé d'un léger zoom : 1 à 3 s, jamais plus que sa durée indiquée.
 Une transition non franche fait se chevaucher deux plans de ${TRANSITION_SECONDS} s : compte-le dans la durée.`;
 
+// Texts the person wrote between quotes in the brief: they must appear word for word.
+export function imposedTexts(brief) {
+  return [...String(brief).matchAll(/«\s*([^»]+?)\s*»|“([^”]+)”|"([^"]+)"/g)].map(m => (m[1] || m[2] || m[3]).trim()).filter(Boolean);
+}
+const imposedBlock = brief => {
+  const list = imposedTexts(brief);
+  return list.length ? `\nTextes imposés par la personne (tous obligatoires, mot pour mot, aucun raccourci) :\n${list.map(t => `- « ${t} »`).join("\n")}\n` : "";
+};
+
 export async function decideEdit({ brief, style, clips, frames, tags, duration, beat, model }, ledger) {
-  const rushes = Object.values(clips).map(c => `- ${c.id} : ${c.duration.toFixed(1)} s, ${c.width}×${c.height}${c.hasAudio ? ", avec son" : ", sans son"}`).join("\n");
+  const rushes = Object.values(clips).map(c => c.still ? `- ${c.id} : photo, ${c.duration} s au maximum, ${c.width}×${c.height}`
+    : `- ${c.id} : ${c.duration.toFixed(1)} s, ${c.width}×${c.height}${!c.hasAudio ? ", sans son" : c.voix?.length ? `, voix ou son fort de ${c.voix.map(([a, b]) => `${a} à ${b} s`).join(", ")}` : ", son d'ambiance seulement"}`).join("\n");
   const labelled = frames.map(f => {
     const t = tags[f.id];
     return t ? `- ${f.id} | ${f.clip} à ${f.time} s | ${t.valeur_plan}, ${t.mouvement}, visages ${t.visages}, qualité ${t.qualite}/5, intérêt ${t.interet}/5${t.accroche ? ", accroche" : ""} | ${t.description}`
@@ -130,8 +143,8 @@ export async function decideEdit({ brief, style, clips, frames, tags, duration, 
   }
   const corrections = (style.corrections || []).slice(-15).map(c => `- ${c}`).join("\n") || "aucune pour l'instant";
   content.push({ type: "text", text: `Brief : ${brief}
-
-Durée visée : environ ${duration} s.
+${imposedBlock(brief)}
+Durée visée : ${duration} s (à 10 % près).
 ${beat ? `Tempo : un temps tous les ${beat.toFixed(3)} s. Les longueurs de plan seront arrondies à un nombre entier de temps.` : "Pas de tempo imposé."}
 
 Style de la personne :
@@ -154,16 +167,18 @@ const REVIEW_SYSTEM = `${DIRECTOR_SYSTEM}
 
 Cette fois, tu relis un montage déjà rendu. Tu reçois des images du résultat final à intervalles réguliers et la timeline qui l'a produit.
 Sois critique comme une directrice artistique d'agence : accroche faible, plan raté ou flou, texte illisible ou mal placé, rythme mou, rendu qui fait « modèle tout fait ».
+Ne raccourcis pas le montage : si tu retires un plan répété ou raté, remplace-le par un autre moment des rushes pour rester à la durée visée. Garde tous les textes imposés, mot pour mot.
 Renvoie la timeline corrigée complète (ou identique si elle est déjà excellente), et résume tes changements dans « intention ».`;
 
-export async function reviewEdit({ brief, style, timeline, snapshots, model }, ledger) {
+export async function reviewEdit({ brief, style, timeline, snapshots, duration, model }, ledger) {
   const content = [];
   for (const s of snapshots) {
     content.push({ type: "text", text: `Résultat à ${s.time} s :` });
     content.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: s.data } });
   }
   content.push({ type: "text", text: `Brief : ${brief}
-
+${imposedBlock(brief)}
+Durée visée : ${duration} s (à 10 % près).
 Style : ${JSON.stringify({ ...style, corrections: undefined })}
 Corrections passées : ${(style.corrections || []).slice(-15).join(" ; ") || "aucune"}
 

@@ -17,7 +17,7 @@ Ces décisions priment sur `source/MISSION.md` et sur la PR #1 (Capacitor, Andro
 - **Promesse** : « Tu donnes tes rushes et une phrase, tu récupères un Reel publiable en 2 minutes, dans TON style, sans template. » La charte (couleurs, polices, logo) fait partie de « ton style ».
 - **Cible n°1** : les indépendants qui font leur propre contenu pour leur activité (coachs, restaurateurs, artisans, commerçants, freelances). Ils ont besoin d'une identité de marque, ne savent pas monter et paient pour gagner du temps. L'offre Agence viendra plus tard, en plus, pas comme position de repli.
 - **Défense face à Edits, CapCut et Canva** : le multi-plateforme (export pour Reels, TikTok et Shorts, quand Edits reste centré sur Instagram) et la mémoire du style. L'appli apprend des corrections de chaque utilisateur, et ces corrections nourrissent son style. C'est ce que les concurrents ne pourront pas copier.
-- **Prix** : 9,99 €/mois ou 59,99 €/an (4,99 € est trop bas vu le coût de l'IA). Pas d'offre à vie au lancement ; si un jour il y en a une, prix élevé et quota mensuel.
+- **Prix** : 6,99 €/mois (4,99 € est trop bas vu le coût de l'IA). Annuel proposé : 49,99 €/an (environ 40 % de remise), à valider par Ryan. Pas d'offre à vie au lancement ; si un jour il y en a une, prix élevé et quota mensuel.
 - **Gratuit et paywall** : montage manuel gratuit (rendu sur l'appareil). Montages IA gratuits limités à des rushes de 60 à 90 s. Le paywall s'affiche juste après le premier très bon résultat. Protection contre les comptes multiples (App Attest et identifiant d'appareil).
 - **App Store** : achats intégrés StoreKit dès la v1, « Se connecter avec Apple » (Google en plus, en option), suppression du compte depuis l'appli, étiquettes de confidentialité complètes, mention claire de l'usage de l'IA.
 - **Musique** : coupes calées sur le rythme, puis export d'une vidéo prête à recevoir un son tendance, que l'utilisateur ajoute dans Instagram au moment de publier (légal). À côté : import de ses propres sons, et un catalogue sous licence (comparer les tarifs d'API d'Epidemic Sound, Artlist et Soundstripe).
@@ -64,7 +64,7 @@ Ne jamais modifier `public/index.html` à la main : modifier les modules, puis l
 2. **Test à l'aveugle** sur 20 briefs réels contre CapCut et Edits, objectif de 70 % de préférence. Rien d'autre ne démarre avant le résultat.
 3. **Appli Expo (iOS)** : import depuis la photothèque, tri avec Vision, module natif AVFoundation pour l'aperçu et l'export (un seul `AVComposition`), éditeur de visuels qui dessine le JSON des calques.
 4. **Serveur** : l'API IA existante (clés côté serveur), comptes avec « Se connecter avec Apple », quotas, protection contre les comptes multiples (App Attest).
-5. **Abonnement** StoreKit (9,99 €/mois, 59,99 €/an), paywall après le premier très bon résultat.
+5. **Abonnement** StoreKit (6,99 €/mois, annuel proposé à 49,99 €/an), paywall après le premier très bon résultat.
 6. **Mémoire du style** : enregistrer les corrections de chaque utilisateur et les réinjecter dans les consignes du directeur artistique.
 7. **Dossier App Store** : suppression du compte, étiquettes de confidentialité, mention de l'IA.
 

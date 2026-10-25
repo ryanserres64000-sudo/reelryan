@@ -1,6 +1,6 @@
 # Coût IA d'un montage et protocole de test « pas générique »
 
-Estimation faite le 25 octobre 2026, avant toute ligne de code, et revue après les réponses révisées de Ryan (tri sur l'appareil, 15 à 30 images, 9,99 €/mois ou 59,99 €/an). Le prototype sur ordinateur doit remplacer ces chiffres par des mesures réelles (champ `usage` des réponses de l'API).
+Estimation faite le 25 octobre 2026, avant toute ligne de code, et revue après les réponses révisées de Ryan (tri sur l'appareil, 15 à 30 images, 6,99 €/mois). Le prototype sur ordinateur doit remplacer ces chiffres par des mesures réelles (champ `usage` des réponses de l'API).
 
 ## 1. Coût d'un montage IA
 
@@ -35,17 +35,19 @@ Un Reel de 30 secondes, à partir de 10 clips d'environ 15 secondes, plus une ph
 
 Fourchette réaliste : de 0,08 à 0,35 $ par montage. Le tri sur l'appareil divise par deux le coût des images, mais ce qui coûte le plus reste la sortie du gros modèle (la réflexion et la timeline). Pour baisser encore, il faut une timeline JSON compacte et un niveau de réflexion (« effort ») réglé au plus bas qui garde la qualité.
 
-### Ce que ça veut dire pour 9,99 €/mois ou 59,99 €/an
+### Ce que ça veut dire pour 6,99 €/mois (et un annuel à 49,99 €)
 
-| | Mensuel 9,99 € | Annuel 59,99 € (5,00 €/mois) |
+| | Mensuel 6,99 € | Annuel proposé 49,99 € (4,17 €/mois) |
 | --- | --- | --- |
-| Hors TVA (20 %) | 8,33 € | 4,17 €/mois |
-| Après la part d'Apple (15 %, programme petites entreprises) | **environ 7,08 €** | **environ 3,54 €/mois** |
-| Budget IA si on garde un tiers du revenu | 2,36 € | 1,18 €/mois |
-| Montages par mois dans ce budget, avec Sonnet | environ 19 | environ 10 |
-| Montages par mois dans ce budget, avec Opus | environ 10 | environ 5 |
+| Hors TVA (20 %) | 5,83 € | 3,47 €/mois |
+| Après la part d'Apple (15 %, programme petites entreprises) | **environ 4,95 €** | **environ 2,95 €/mois** |
+| Budget IA si on garde un tiers du revenu | 1,65 € | 0,98 €/mois |
+| Montages par mois dans ce budget, avec Sonnet | environ 13 | environ 8 |
+| Montages par mois dans ce budget, avec Opus | environ 7 | environ 4 |
 
-Recommandation : Sonnet 5.5 par défaut, un quota d'environ 20 montages IA par mois pour tous les abonnés (l'annuel ne dépasse son budget que chez les gros utilisateurs, et la plupart n'iront pas au bout), Opus 5.5 seulement si le test à l'aveugle montre qu'il fait gagner des préférences. Un montage gratuit sur des rushes de 60 à 90 s coûte environ 0,05 à 0,10 $.
+Annuel : 49,99 € (« moins de 50 € », environ 40 % de remise sur 12 × 6,99 € = 83,88 €). Un annuel à 59,99 € garderait plus de marge (environ 3,54 €/mois) mais la remise, environ 28 %, attire moins.
+
+Recommandation : Sonnet 5.5 par défaut et un quota de 15 montages IA par mois. Au pire, un abonné qui va au bout coûte 1,80 €, soit 36 % du revenu mensuel ou 61 % de l'annuel ; la plupart n'iront pas au bout. Opus 5.5 seulement si le test à l'aveugle montre qu'il fait gagner des préférences. Un montage gratuit sur des rushes de 60 à 90 s coûte environ 0,05 à 0,10 $.
 
 Coût du test lui-même : 20 briefs, chacun monté avec Sonnet puis avec Opus, retouches comprises, soit environ 10 $ d'API. Le rendu FFmpeg tourne sur l'ordinateur, il ne coûte rien.
 

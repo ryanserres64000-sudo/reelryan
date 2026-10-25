@@ -35,6 +35,8 @@ Prototype fonctionnel en une seule page HTML, assemblée à partir des modules d
 - `source/mada-studio.html` : version publiée dans Claude (artefact). L'IA passe par `claude.use("sample")`, la sauvegarde par `claude.use("db")`.
 - `public/index.html` : version site web (déployée sur Vercel). `public/shim.js` remplace `window.claude` et appelle `/api/generate` (`api/generate.js` + `lib/claude.js`), qui garde la clé API Anthropic côté serveur, applique le code d'accès `APP_PASSWORD` et une limite de demandes par visiteur (`MAX_PER_HOUR`). `server.js` sert la même chose hors Vercel.
 
+Prototype de montage sur ordinateur dans `prototype/` (mode d'emploi : `prototype/README.md`) : `npm run montage -- monter <dossier> --brief "…"`. Tri des plans avec FFmpeg (`lib/sort.mjs`), étiquetage Haiku 5.5 puis décision Sonnet 5.5 ou Opus 5.5 (`lib/ai.mjs`), timeline JSON validée et calée sur le tempo (`lib/timeline.mjs`), rendu FFmpeg 1080 × 1920 (`lib/render.mjs`), coût réel dans `cout.json`. Le schéma de `lib/timeline.mjs` est celui que lira l'appli iPhone.
+
 Ne jamais modifier `public/index.html` à la main : modifier les modules, puis lancer `cd source && python3 build.py && node --check all.js`.
 
 ## Fichiers sources
@@ -60,7 +62,7 @@ Ne jamais modifier `public/index.html` à la main : modifier les modules, puis l
 
 ## Prochaines étapes
 
-1. **Prototype sur ordinateur** : script rushes → tri des plans → Claude (étiquetage puis décision) → timeline JSON → rendu FFmpeg. Mesurer le coût réel de chaque montage (champ `usage` des réponses de l'API).
+1. **Prototype sur ordinateur** : fait (`prototype/`). Reste à le lancer sur de vrais rushes et à relever le coût réel de chaque montage (`cout.json`).
 2. **Test à l'aveugle** sur 20 briefs réels contre CapCut et Edits, objectif de 70 % de préférence. Rien d'autre ne démarre avant le résultat.
 3. **Appli Expo (iOS)** : import depuis la photothèque, tri avec Vision, module natif AVFoundation pour l'aperçu et l'export (un seul `AVComposition`), éditeur de visuels qui dessine le JSON des calques.
 4. **Serveur** : l'API IA existante (clés côté serveur), comptes avec « Se connecter avec Apple », quotas, protection contre les comptes multiples (App Attest).

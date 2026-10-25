@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Test à l'aveugle — fiche de vote</title>
+<style>
+:root{
+  --bg:#0F0D12; --panel:#17141C; --panel-2:#211D27; --line:#2F2937; --fg:#F0EBF5; --muted:#9C93A8;
+  --accent:#E8C27A; --accent-ink:#1C1509; --ok:#7FC7A6; --danger:#E5847A;
+  --r-chip:8px; --r-btn:12px; --r-card:16px;
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
+  --f-body:"DM Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme: light){
+  :root{ --bg:#FBF8F3; --panel:#FFFFFF; --panel-2:#F3EEE6; --line:#E7E1D8; --fg:#1A1620; --muted:#6B6275; --accent:#8A6516; --accent-ink:#FFFFFF; --ok:#1F7A55; --danger:#B3261E; color-scheme:light; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 var(--f-body)}
+main{max-width:1100px;margin:0 auto;padding:var(--s5) var(--s4) 120px}
+h1{font-size:26px;margin:0 0 var(--s2)}
+h2{font-size:18px;margin:0}
+p{margin:0 0 var(--s3)}
+.muted{color:var(--muted)}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r-card);padding:var(--s4);margin:var(--s4) 0}
+.brief{background:var(--panel-2);border-radius:var(--r-btn);padding:var(--s3);margin:var(--s3) 0;white-space:pre-wrap}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:var(--s4)}
+.vid{display:flex;flex-direction:column;gap:var(--s2)}
+.vid video{width:100%;aspect-ratio:9/16;background:#000;border-radius:var(--r-btn)}
+.vid h3{margin:0;font-size:16px}
+.seg{display:flex;flex-wrap:wrap;gap:var(--s1)}
+.seg button{min-width:44px;min-height:44px;border-radius:var(--r-chip);border:1px solid var(--line);background:transparent;color:var(--fg);font:inherit;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.crit{display:flex;flex-direction:column;gap:var(--s1);margin-top:var(--s2)}
+.crit .seg button{min-width:36px;min-height:36px}
+label{font-size:13px;color:var(--muted)}
+input[type=text],textarea{width:100%;background:var(--panel-2);color:var(--fg);border:1px solid var(--line);border-radius:var(--r-btn);padding:var(--s3);font:inherit}
+textarea{min-height:64px}
+.state{font-size:13px;padding:2px var(--s2);border-radius:var(--r-chip);border:1px solid var(--line)}
+.state.done{color:var(--ok);border-color:var(--ok)}
+.bar{position:fixed;left:0;right:0;bottom:0;background:var(--panel);border-top:1px solid var(--line);padding:var(--s3) var(--s4);display:flex;gap:var(--s3);align-items:center;justify-content:center;flex-wrap:wrap}
+.primary{min-height:52px;padding:0 var(--s5);border:0;border-radius:var(--r-btn);background:var(--accent);color:var(--accent-ink);font:600 17px var(--f-body);cursor:pointer}
+.primary:disabled{opacity:.5;cursor:not-allowed}
+.head{display:flex;justify-content:space-between;align-items:center;gap:var(--s3);flex-wrap:wrap}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Test à l'aveugle</h1>
+  <p class="muted">Pour chaque brief, regarde les vidéos en entier, classe-les de ta préférée (1) à celle que tu aimes le moins, puis note chacune de 1 à 5. Tu ne sais pas quel outil a fait quelle vidéo, et c'est voulu.</p>
+  <div class="card">
+    <label for="juge">Ton prénom</label>
+    <input type="text" id="juge" autocomplete="given-name" placeholder="Par exemple : Élise">
+  </div>
+  <div id="briefs"></div>
+</main>
+<div class="bar">
+  <span id="progress" class="muted"></span>
+  <button class="primary" id="save" disabled>Télécharger mes votes</button>
+</div>
+<script src="donnees.js"></script>
+<script>
+"use strict";
+const T = window.MADA_TEST;
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const KEY = "mada-test-votes";
+let state = { juge: "", briefs: {} };
+try { state = JSON.parse(localStorage.getItem(KEY)) || state; } catch (e) {}
+const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
+
+if (!T) document.getElementById("briefs").innerHTML = '<div class="card">Le fichier donnees.js est introuvable : il doit être dans le même dossier que cette page.</div>';
+
+const answer = id => (state.briefs[id] ??= { classement: {}, notes: {}, commentaire: "" });
+function complete(b) {
+  const a = state.briefs[b.id]; if (!a) return false;
+  const ranks = b.videos.map(v => a.classement[v.lettre]);
+  const ranked = ranks.every(r => r >= 1) && new Set(ranks).size === b.videos.length;
+  const noted = b.videos.every(v => T.criteres.every(([c]) => (a.notes[v.lettre] || {})[c] >= 1));
+  return ranked && noted;
+}
+const ordinal = n => n === 1 ? "1er" : `${n}e`;
+
+function render() {
+  if (!T) return;
+  $("#juge").value = state.juge || "";
+  $("#briefs").innerHTML = T.briefs.map((b, i) => {
+    const a = answer(b.id), n = b.videos.length;
+    return `<section class="card" data-brief="${b.id}">
+      <div class="head"><h2>Brief ${i + 1} sur ${T.briefs.length}</h2><span class="state${complete(b) ? " done" : ""}">${complete(b) ? "Complet" : "À faire"}</span></div>
+      <div class="brief">${esc(b.brief)}</div>
+      <div class="grid">${b.videos.map(v => `<div class="vid">
+        <h3>Vidéo ${v.lettre}</h3>
+        <video src="${esc(v.src)}" controls playsinline preload="metadata"></video>
+        <label>Classement</label>
+        <div class="seg" role="group" aria-label="Classement de la vidéo ${v.lettre}">${Array.from({ length: n }, (_, k) => k + 1).map(r => `<button data-rank="${r}" data-l="${v.lettre}" aria-pressed="${a.classement[v.lettre] === r}">${ordinal(r)}</button>`).join("")}</div>
+        ${T.criteres.map(([c, label]) => `<div class="crit"><label>${esc(label)}</label><div class="seg" role="group" aria-label="${esc(label)}, vidéo ${v.lettre}">${[1, 2, 3, 4, 5].map(x => `<button data-crit="${c}" data-note="${x}" data-l="${v.lettre}" aria-pressed="${(a.notes[v.lettre] || {})[c] === x}">${x}</button>`).join("")}</div></div>`).join("")}
+      </div>`).join("")}</div>
+      <label for="c-${b.id}" style="display:block;margin-top:16px">Ce que tu changerais (facultatif)</label>
+      <textarea id="c-${b.id}" data-comment="${b.id}">${esc(a.commentaire || "")}</textarea>
+    </section>`;
+  }).join("");
+  progress();
+}
+function progress() {
+  const done = T ? T.briefs.filter(complete).length : 0;
+  $("#progress").textContent = T ? `${done} brief${done > 1 ? "s" : ""} complet${done > 1 ? "s" : ""} sur ${T.briefs.length}` : "";
+  $("#save").disabled = !state.juge.trim() || !done;
+  document.querySelectorAll("section[data-brief]").forEach(s => {
+    const b = T.briefs.find(x => x.id === s.dataset.brief), st = s.querySelector(".state");
+    st.textContent = complete(b) ? "Complet" : "À faire"; st.classList.toggle("done", complete(b));
+  });
+}
+
+document.addEventListener("click", e => {
+  const btn = e.target.closest("button[data-l]"); if (!btn) return;
+  const sec = btn.closest("section"), id = sec.dataset.brief, a = answer(id), l = btn.dataset.l;
+  if (btn.dataset.rank) {
+    const r = Number(btn.dataset.rank), prev = a.classement[l];
+    // Ranks stay unique: the video that had this rank takes the old one.
+    const other = Object.keys(a.classement).find(k => k !== l && a.classement[k] === r);
+    if (other) { if (prev) a.classement[other] = prev; else delete a.classement[other]; }
+    a.classement[l] = r;
+    sec.querySelectorAll("button[data-rank]").forEach(b => b.setAttribute("aria-pressed", String(a.classement[b.dataset.l] === Number(b.dataset.rank))));
+  } else {
+    (a.notes[l] ??= {})[btn.dataset.crit] = Number(btn.dataset.note);
+    btn.parentElement.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", String(b === btn)));
+  }
+  persist(); progress();
+});
+document.addEventListener("input", e => {
+  if (e.target.id === "juge") state.juge = e.target.value;
+  else if (e.target.dataset.comment) answer(e.target.dataset.comment).commentaire = e.target.value;
+  persist(); progress();
+});
+$("#save").onclick = () => {
+  const nom = state.juge.trim();
+  const data = { juge: nom, date: new Date().toISOString(), briefs: Object.fromEntries(T.briefs.filter(complete).map(b => [b.id, state.briefs[b.id]])) };
+  const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }));
+  const a = Object.assign(document.createElement("a"), { href: url, download: `votes-${nom.normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/gi, "-").toLowerCase()}.json` });
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
+};
+render();
+</script>
+</body>
+</html>

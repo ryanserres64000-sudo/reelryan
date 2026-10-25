@@ -82,3 +82,12 @@ Le protocole complet est dans `docs/cout-ia-et-grille-qualite.md`. En bref : mê
 - La parole est repérée par le volume dans la bande de la voix, pas par une vraie reconnaissance vocale : une ambiance bruyante peut passer pour une voix.
 - Les textes écrits entre guillemets dans le brief sont imposés : l'IA doit les reprendre mot pour mot, et le script signale ceux qui manquent. La relecture critique est écartée si elle raccourcit trop le montage ou perd un texte imposé.
 - Les textes utilisent une police système si le style n'en donne pas.
+
+## Test à l'aveugle en 3 commandes (lot 0)
+
+1. Un sous-dossier par brief dans un dossier `briefs` : les rushes, un fichier `brief.txt` (la phrase, plus si besoin les lignes `durée : 30` et `bpm : 110`), éventuellement `style.json` et `musique.mp3`, et un sous-dossier `concurrents` avec les exports `capcut.mp4`, `edits.mp4` (et `youtube.mp4` si tu as YouTube Edit with AI).
+2. `npm run montage -- lot ~/Downloads/briefs` : monte tous les briefs, reprend là où il s'est arrêté, écrit `resume.csv` (temps, coût, textes imposés manquants).
+3. `npm run montage -- preparer-test ~/Downloads/briefs sortie/lot-<date>` : copie les versions sans leurs métadonnées, les renomme au hasard (A, B, C…) et crée `test-aveugle/fiche-de-vote.html`. Les juges reçoivent le dossier sans `cle-secrete.json`, votent dans la page et renvoient leur fichier `votes-<prénom>.json`.
+4. `npm run montage -- resultats test-aveugle` : taux de préférence face à chaque concurrent, fourchette probable, notes de la grille, verdict (objectif 70 %).
+
+Les juges classent toutes les versions et les notent toutes sur la grille : noter seulement MaDa dévoilerait laquelle est MaDa.

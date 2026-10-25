@@ -7,6 +7,8 @@ import { handleGenerate, readJson } from "./lib/claude.js";
 import { handleMusic } from "./lib/music.js";
 import { handleStatus } from "./lib/pro.js";
 import { cors } from "./lib/cors.js";
+import { handleSocial } from "./lib/social.js";
+import { handleAccountDelete } from "./lib/account.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "public");
@@ -18,6 +20,8 @@ http.createServer(async (req, res) => {
   if (url.pathname.startsWith("/api/") && cors(req, res)) return;
   if (url.pathname === "/api/music") return handleMusic(req, res, url);
   if (url.pathname === "/api/status") return handleStatus(req, res);
+  if (url.pathname.startsWith("/api/social/")) return handleSocial(req, res, url.pathname.slice(12), readJson);
+  if (url.pathname === "/api/account" && req.method === "POST") return handleAccountDelete(req, res);
   if (url.pathname === "/api/generate") {
     if (req.method !== "POST") { res.statusCode = 405; return res.end(); }
     let body;

@@ -5,6 +5,9 @@
     },
     "api/music.js": {
       "maxDuration": 60
+    },
+    "api/social.js": {
+      "maxDuration": 300
     }
   },
   "headers": [
@@ -20,6 +23,12 @@
           "value": "strict-origin-when-cross-origin"
         }
       ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/social/:action",
+      "destination": "/api/social?action=:action"
     }
   ]
 }

@@ -400,7 +400,7 @@ const Exporter = {
       <div class="segs" id="xFmt"><button data-x="png" aria-pressed="true">PNG</button><button data-x="jpg" aria-pressed="false">JPG</button><button data-x="pdf" aria-pressed="false">PDF (impression)</button></div>
       <div class="segs" id="xScale"><button data-s="1" aria-pressed="true">Standard ×1</button><button data-s="2" aria-pressed="false">Haute définition ×2</button></div>
       <img class="prev" src="${doc.thumb || ""}" alt="Aperçu">
-      <div class="row"><button class="btn primary" id="xGo">Enregistrer le fichier</button><button class="btn" id="xShare">Partager sur Instagram / TikTok</button><button class="btn ghost" data-close>Fermer</button></div>`);
+      <div class="row"><button class="btn primary" id="xGo">Enregistrer le fichier</button><button class="btn" id="xShare">Publier sur Instagram / TikTok</button><button class="btn ghost" data-close>Fermer</button></div>`);
     let fmt = "png", sc = 1;
     $("#xFmt").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; fmt = b.dataset.x; $$("#xFmt button").forEach(x => x.setAttribute("aria-pressed", x === b)); };
     $("#xScale").onclick = e => { const b = e.target.closest("[data-s]"); if (!b) return; sc = +b.dataset.s; $$("#xScale button").forEach(x => x.setAttribute("aria-pressed", x === b)); };
@@ -410,7 +410,7 @@ const Exporter = {
       try {
         await prepareDesign(d); const c = document.createElement("canvas"); c.width = d.w * 2; c.height = d.h * 2; renderDesign(c.getContext("2d"), d, 2);
         const blob = await new Promise(r => c.toBlob(r, "image/jpeg", .93));
-        await shareFile(base + ".jpg", blob);
+        await Publish.open({ blob, name: base + ".jpg", kind: "image" });
       } catch (e) { toast("Le partage a échoué."); }
       finally { if (b.isConnected) b.disabled = false; }
     };

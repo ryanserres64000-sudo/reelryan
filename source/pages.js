@@ -10,7 +10,7 @@ const ICONS = {
   account: '<circle cx="12" cy="8.5" r="4"/><path d="M4.5 20.5c1.2-3.6 4-5.5 7.5-5.5s6.3 1.9 7.5 5.5"/>'
 };
 const ico = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k]}</svg>`;
-const NAV = [["dash", "Accueil"], ["create", "Créer un visuel"], ["video", "Monter une vidéo"], ["ideas", "Idées & veille"], ["insta", "Analyse Instagram"], ["brand", "Identité de marque"], ["gallery", "Mes créations"], ["account", "Compte"]];
+const NAV = [["dash", "Accueil"], ["create", "Créer un visuel"], ["video", "Monter une vidéo"], ["ideas", "Idées & veille"], ["insta", "Statistiques"], ["brand", "Identité de marque"], ["gallery", "Mes créations"], ["account", "Compte"]];
 
 const App = {
   view: "dash", me: null,
@@ -194,7 +194,9 @@ Garde les informations factuelles déjà fournies ; n'invente ni chiffres ni adr
 const Insta = {
   render() {
     const b = WS.cur, ig = b.ig, shots = Assets.list.filter(a => a.tag === "screenshot");
+    const live = Stats.html();
     $("#view-insta").innerHTML = `<div class="page">
+      ${live ? `<div class="page-h"><div class="grow"><div class="eyebrow">Statistiques</div><h1>Tes comptes en un coup d'œil</h1><p>Les chiffres officiels de tes publications Instagram et TikTok, et les conseils de l'IA pour faire mieux.</p></div></div>${live}<div class="sec-h" style="margin-top:8px"><h2>Analyse par captures d'écran</h2></div>` : ""}
       <div class="page-h"><div class="grow"><div class="eyebrow">Analyse Instagram</div><h1>Ce que ton compte dit de toi</h1><p>Ajoute des captures d'écran de ton profil, de ta grille, de tes meilleures publications et de tes statistiques (Insights). L'IA analyse ton style, tes performances visibles et te dit quoi changer.</p></div></div>
       <div class="card"><div class="sec-h"><h2>Captures d'écran</h2><span class="note">${shots.length} ajoutée${shots.length > 1 ? "s" : ""}${AI.imgMax ? ` · l'IA en lit ${AI.imgMax} au maximum` : ""}</span></div>
         <div class="assets">${`<button class="asset add" id="igAdd" aria-label="Ajouter des captures">+</button>` + shots.map(a => `<button class="asset" data-shot="${a.id}" style="background-image:url('${a.url}')" aria-label="Retirer ${esc(a.name)}" title="Retirer"></button>`).join("")}</div>
@@ -202,8 +204,9 @@ const Insta = {
         <div class="g2"><div class="fld"><label class="lbl" for="igHandle">Compte analysé</label><input class="inp" id="igHandle" value="${esc(b.handle)}" placeholder="@compte"></div>
         <div class="fld"><label class="lbl" for="igGoal">Objectif</label><input class="inp" id="igGoal" placeholder="Ex : gagner des abonnés locaux, remplir les soirées, vendre plus"></div></div>
         <div class="row"><button class="btn ai" id="igGo" ${shots.length ? "" : "disabled"}>✦ Analyser mon compte</button><span class="note" id="igState"></span></div></div>
-      <div class="card"><div class="sec-h"><h2>Connexion directe à Instagram</h2></div><p class="note">La lecture automatique des statistiques passe par l'API officielle de Meta, qu'une page ne peut pas appeler elle-même. Deux connecteurs Claude existent pour s'en approcher : <b>Metricool</b> (statistiques et planification) et <b>vidIQ</b> (recherche de tendances Instagram, TikTok, YouTube). Une fois l'un d'eux connecté dans Claude, je peux les brancher à cet écran.</p></div>
+      ${live ? "" : `<div class="card"><div class="sec-h"><h2>Connexion directe à Instagram</h2></div><p class="note">La lecture automatique des statistiques passe par l'API officielle de Meta, qu'une page ne peut pas appeler elle-même. Deux connecteurs Claude existent pour s'en approcher : <b>Metricool</b> (statistiques et planification) et <b>vidIQ</b> (recherche de tendances Instagram, TikTok, YouTube). Une fois l'un d'eux connecté dans Claude, je peux les brancher à cet écran.</p></div>`}
       <div id="igResult">${ig ? this.result(ig) : ""}</div></div>`;
+    if (live) Stats.bind($("#view-insta"));
     $("#igAdd").onclick = async () => { await importImages(await pickFiles(), "screenshot"); this.render(); };
     $("#view-insta").onclick = async e => {
       const s = e.target.closest("[data-shot]"); if (s) { await Assets.del(s.dataset.shot); return this.render(); }
@@ -355,10 +358,13 @@ const Gallery = {
 const Account = {
   render() {
     const SA = !!window.__RR_STANDALONE, n = (App.me && App.me.name) || "", cloud = Store.mode === "cloud" && !Store.readOnly;
+    if (SA && Social.enabled() && Auth.user && !Social.loaded) Social.load().then(() => App.view === "account" && this.render());
     $("#view-account").innerHTML = `<div class="page">
-      <div class="page-h"><div class="grow"><div class="eyebrow">Compte</div><h1>${esc(n || "Mon compte")}</h1><p>${SA ? "Version autonome : aucune connexion nécessaire. Tout ce que tu crées est enregistré dans ce navigateur, et l'IA fonctionne via le serveur de l'application." : "Chaque personne se connecte avec son propre compte Claude et retrouve son espace privé : ses marques, ses créations et ses idées ne sont visibles que par elle."}</p></div></div>
+      <div class="page-h"><div class="grow"><div class="eyebrow">Compte</div><h1>${esc(n || "Mon compte")}</h1><p>${SA ? (Auth.available ? "Ton compte, ton abonnement, tes réseaux et tes données." : "Version autonome : aucune connexion nécessaire. Tout ce que tu crées est enregistré dans ce navigateur, et l'IA fonctionne via le serveur de l'application.") : "Chaque personne se connecte avec son propre compte Claude et retrouve son espace privé : ses marques, ses créations et ses idées ne sont visibles que par elle."}</p></div></div>
       <div class="g2">
+        ${Auth.card()}
         ${Pro.card()}
+        ${Social.card()}
         <div class="card"><div class="sec-h"><h2>Sauvegarde</h2><span class="pill ${cloud ? "ai" : ""}">${cloud ? "En ligne" : "Sur cet appareil"}</span></div>
           <p class="note">${cloud ? "Tes marques, créations et idées sont synchronisées avec ton compte : tu les retrouves sur tous tes appareils. Les images importées, elles, restent dans le navigateur où tu les as ajoutées." : Store.mode === "cloud" ? "Ton niveau d'accès ne permet pas la sauvegarde en ligne : tout est enregistré dans ce navigateur. Demande au propriétaire de l'application de te passer en « Contributeur » dans le menu Partager." : "La sauvegarde en ligne n'est pas disponible dans cette vue : tout est enregistré dans ce navigateur."}</p></div>
         ${SA ? "" : `<div class="card"><div class="sec-h"><h2>Inviter d'autres personnes</h2></div>
@@ -368,16 +374,13 @@ const Account = {
       </div>
       <div class="card"><div class="sec-h"><h2>Mes données</h2></div><p class="note">Télécharge une copie de tes marques, créations et idées (sans les images).</p><div class="row"><button class="btn" id="acExp">Exporter mes données (JSON)</button><button class="btn ghost danger" id="acWipe">Supprimer toutes mes données</button></div>
         ${SA ? `<p class="pro-legal"><a href="${Pro.link("confidentialite")}" target="_blank" rel="noopener">Confidentialité</a> · <a href="${Pro.link("conditions")}" target="_blank" rel="noopener">Conditions d'utilisation</a></p>` : ""}</div></div>`;
-    Pro.bindCard();
+    Pro.bindCard(); Auth.bindCard(); Social.bindCard($("#view-account"));
     $("#acWipe").onclick = () => {
       Modal.open(`<h2>Supprimer toutes tes données ?</h2><p class="note">Tes espaces de marque, créations, idées, images, musiques et montages enregistrés sur cet appareil seront effacés définitivement. Exporte-les d'abord si tu veux les garder.${Pro.pro && Pro.native() ? " Ton abonnement MaDA Pro n'est pas annulé : gère-le dans les réglages de ton compte." : ""}</p><div class="row"><button class="btn danger" id="acWipeGo">Tout supprimer</button><button class="btn ghost" data-close>Annuler</button></div>`);
       $("#acWipeGo").onclick = async () => {
         $("#acWipeGo").disabled = true;
-        if (Store.mode === "cloud") { for (const k of ["brand", "design", "ideas"]) for (const d of await Store.all(k)) await Store.del(k, d.id); }
-        try { L.db && L.db.close(); } catch (e) { }
-        await Promise.all(["ryanreel-studio", "ryanreel"].map(n => new Promise(r => { try { const q = indexedDB.deleteDatabase(n); q.onsuccess = q.onerror = q.onblocked = () => r(); } catch (e) { r(); } })));
-        try { const keep = lsGet("mada-uid"); localStorage.clear(); if (keep) lsSet("mada-uid", keep); } catch (e) { }
-        location.reload();
+        if (Store.mode === "cloud") { for (const k of ["brand", "design", "ideas", "post"]) for (const d of await Store.all(k)) await Store.del(k, d.id); }
+        await wipeDevice(true);
       };
     };
     $("#acBrand").onclick = () => App.go("brand", { force: true }); $("#acNew").onclick = newSpaceModal;
@@ -385,15 +388,30 @@ const Account = {
   }
 };
 
+// Erases everything MaDA keeps on this device, then restarts. keepSession keeps the sign-in.
+async function wipeDevice(keepSession) {
+  try { L.db && L.db.close(); } catch (e) { }
+  await Promise.all(["ryanreel-studio", "ryanreel"].map(n => new Promise(r => { try { const q = indexedDB.deleteDatabase(n); q.onsuccess = q.onerror = q.onblocked = () => r(); } catch (e) { r(); } })));
+  try {
+    const keep = ["mada-uid", "mada-onboarded", "mada-supa", ...(keepSession ? Object.keys(localStorage).filter(k => /^sb-/.test(k)).concat("mada-owner") : [])].map(k => [k, localStorage.getItem(k)]);
+    localStorage.clear(); keep.forEach(([k, v]) => v != null && localStorage.setItem(k, v));
+  } catch (e) { }
+  location.reload();
+}
+
 /* ================= BOOT ================= */
 (async function boot() {
   await L.open();
+  await Auth.init();
+  if (Auth.user) await Store.init();
   await WS.load(); await Assets.refresh(WS.cur.id);
   App.renderSide();
   const v0 = lsGet("rr-view"); App.view = ""; App.go(NAV.some(n => n[0] === v0) && v0 !== "create" ? v0 : "dash");
   Pro.init();
   AI.init().then(() => { if (App.view === "create" && $("#editor").hidden) Brief.render(); if (App.view === "account") Account.render(); });
-  await Store.init();
+  if (!Auth.user) await Store.init();
+  Social.init().then(() => { if (App.view === "insta" || App.view === "account") App.go(App.view, { force: true }); });
+  if (window.__RR_STANDALONE) Onboard.maybe();
   if (Store.user) { try { App.me = await Store.user.me(); App.isOwner = await Store.user.isOwner(); } catch (e) { } }
   if (Store.mode === "cloud") { const cur = WS.cur.id; await WS.load(); if (WS.list.some(b => b.id === cur)) WS.cur = WS.list.find(b => b.id === cur); Designs.list = null; Ideas.doc = null; await Assets.refresh(WS.cur.id); App.go(App.view, { force: true }); }
   App.renderSide(); Veille.init();

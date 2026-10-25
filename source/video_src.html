@@ -1113,7 +1113,7 @@ $("#exportOv").addEventListener("click", e => {
   if (id === "expGo") startExport();
   if (id === "expCancel") { expCancelled = true; exporting = false; pause(); try { rec && rec.stop(); } catch (er) { } $("#exportOv").hidden = true; requestDraw(); }
   if (id === "expSave") saveExport();
-  if (id === "expShare" && lastExport) shareFile(`mada-${new Date().toISOString().slice(0, 10)}.${lastExport.ext}`, lastExport.blob, state.caption);
+  if (id === "expShare" && lastExport) { const name = `mada-${new Date().toISOString().slice(0, 10)}.${lastExport.ext}`; typeof Publish !== "undefined" ? Publish.open({ blob: lastExport.blob, name, kind: "video", caption: state.caption, duration: total() }) : shareFile(name, lastExport.blob, state.caption); }
   if (id === "expCap") { navigator.clipboard.writeText(state.caption).then(() => toast("Légende copiée"), () => toast("Copie-la depuis le panneau de l'IA")); }
 });
 function startExport() {
@@ -1133,7 +1133,7 @@ function exportDone() {
   lastExport = { blob, ext };
   showExport(`<h2>Ta vidéo est prête</h2><video src="${URL.createObjectURL(blob)}" controls playsinline></video>
     <p class="note">${ext.toUpperCase()} · ${(blob.size / 1048576).toFixed(1)} Mo${ext === "webm" ? ". Instagram préfère le MP4 : exporte depuis Safari ou un Chrome récent pour l'obtenir." : ""}</p>
-    ${typeof shareFile !== "undefined" ? `<button class="btn primary" id="expShare">Partager sur Instagram / TikTok</button>` : ""}
+    ${typeof shareFile !== "undefined" ? `<button class="btn primary" id="expShare">Publier sur Instagram / TikTok</button>` : ""}
     ${downloads ? `<button class="btn" id="expSave">Enregistrer la vidéo</button>` : `<p class="note">L'enregistrement de fichiers n'est pas disponible dans cette vue.</p>`}
     ${state.caption ? `<button class="btn" id="expCap">Copier la légende Instagram</button>` : ""}
     <button class="btn ghost" id="expClose">Fermer</button>`);

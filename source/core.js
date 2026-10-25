@@ -28,6 +28,8 @@ const L = {
 const Store = {
   mode: "local", uid: null, db: null, user: null, readOnly: false, q: new Map(), timers: new Map(),
   async init() {
+    // Site and app: MaDA account (Supabase) when signed in.
+    if (window.__RR_STANDALONE) { if (typeof Auth !== "undefined" && Auth.user) { this.db = SupaDB; this.uid = Auth.user.id; this.mode = "cloud"; } return; }
     if (!(window.claude && claude.use)) return;
     try {
       const [db, user] = await Promise.all([claude.use("db"), claude.use("user")]);

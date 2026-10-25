@@ -13,11 +13,8 @@ const Pro = {
   apply(info) { const e = info && info.entitlements && info.entitlements.active; if (e) this.set(!!e[this.ENTITLEMENT]); },
 
   async init() {
-    const S = window.MadaServer;
-    if (S) {
-      try { const st = await S.json("/api/status"); this.on = !!st.gated; this.freePerDay = st.freePerDay || 0; if (st.gated) this.set(!!st.pro || this.pro); }
-      catch (e) { }
-    }
+    const S = window.MadaServer, st = await Status.get();
+    if (st) { this.on = !!st.gated; this.freePerDay = st.freePerDay || 0; if (st.gated) this.set(!!st.pro || this.pro); }
     const keys = window.MADA_RC_KEYS || {}, key = this.native() && keys[MadaNative.platform];
     if (key) {
       try {

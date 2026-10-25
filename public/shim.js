@@ -23,10 +23,13 @@
     } catch (e) { return ""; }
   })();
 
+  // Once signed in, the account id replaces the install id and the session token is sent too.
+  const ident = { user: "", token: "" };
   function baseHeaders() {
     const h = {}; const code = getAccess();
     if (code) h["x-rr-access"] = code;
-    if (USER) h["x-mada-user"] = USER;
+    if (ident.user || USER) h["x-mada-user"] = ident.user || USER;
+    if (ident.token) h.authorization = "Bearer " + ident.token;
     return h;
   }
 
@@ -134,6 +137,7 @@
   if (isNative) {
     window.MadaNative = {
       platform: Cap.getPlatform(),
+      scheme: "com.madastudio.app",
       share: nativeShare,
       plugin
     };
@@ -142,7 +146,8 @@
   /* ---------- Server helpers (music gallery, Pro) ---------- */
   window.MadaServer = {
     base: API,
-    user: USER,
+    get user() { return ident.user || USER; },
+    setIdentity(user, token) { ident.user = user || ""; ident.token = token || ""; },
     headers: baseHeaders,
     access: getAccess,
     async json(path) {
@@ -150,6 +155,12 @@
       let body = {}; try { body = await r.json(); } catch (e) { }
       if (!r.ok) throw { code: body.error || "server_error", status: r.status, message: body.message };
       return body;
+    },
+    async post(path, body) {
+      const r = await fetch(API + path, { method: "POST", headers: { "content-type": "application/json", ...baseHeaders() }, body: JSON.stringify(body || {}) });
+      let out = {}; try { out = await r.json(); } catch (e) { }
+      if (!r.ok) throw { code: out.error || "server_error", status: r.status, message: out.message };
+      return out;
     },
     async blob(path) {
       const r = await fetch(API + path, { headers: baseHeaders() });

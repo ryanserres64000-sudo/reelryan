@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="description" content="MaDA, ta directrice artistique IA : elle crée tes posts, Reels et stories à ta place."><meta name="theme-color" content="#0F0D12"><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="manifest" href="/manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="MaDA"><meta property="og:title" content="MaDA"><meta property="og:description" content="Ta directrice artistique IA : posts, Reels et stories en un clic."><script>window.__RR_STANDALONE=true</script><script src="/shim.js"></script>
+<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="description" content="MaDA, ta directrice artistique IA : elle crée tes posts, Reels et stories à ta place."><meta name="theme-color" content="#0F0D12"><link rel="icon" href="/icon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="manifest" href="/manifest.webmanifest"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="MaDA"><meta property="og:title" content="MaDA"><meta property="og:description" content="Ta directrice artistique IA : posts, Reels et stories en un clic."><script>window.__RR_STANDALONE=true</script><script src="/shim.js"></script><script src="/vendor/supabase.js"></script>
 <title>MaDA</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -286,6 +286,43 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
 .pro-perks li::before{content:"✦";color:var(--accent)}
 .pro-legal{font-size:11.5px;color:var(--muted);line-height:1.5}
 .pro-legal a{color:var(--muted)}
+/* ---- accounts ---- */
+.auth-btns{display:flex;flex-direction:column;gap:8px}
+.auth-btns .btn{justify-content:center;padding:12px;font-weight:600}
+.auth-apple{background:#F5F5F7;color:#000;border-color:#F5F5F7}
+.auth-google b{font-weight:800;color:#4285F4}
+.auth-or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12px}
+.auth-or::before,.auth-or::after{content:"";flex:1;height:1px;background:var(--line)}
+.onb{display:flex;flex-direction:column;align-items:center;text-align:center;gap:10px;padding:8px 4px}
+.onb-ico{width:72px;height:72px;border-radius:22px;display:grid;place-items:center;font-size:30px;color:var(--accent-ink);background:linear-gradient(135deg,var(--accent),var(--ai))}
+.onb-dots{display:flex;gap:6px}
+.onb-dots i{width:7px;height:7px;border-radius:50%;background:var(--panel-3)}
+.onb-dots i.on{background:var(--accent);width:20px;border-radius:4px}
+/* ---- social ---- */
+.soc-list,.pb-targets{display:flex;flex-direction:column;gap:6px}
+.soc-row{display:flex;align-items:center;gap:12px;padding:8px;border-radius:12px;background:var(--panel-2)}
+.soc-row .grow{flex:1;min-width:0;display:flex;flex-direction:column}
+.soc-row small{color:var(--muted);font-size:12px}
+.soc-row input[type=checkbox]{width:22px;height:22px;accent-color:var(--accent)}
+.soc-ico{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:18px;color:#fff;flex:none}
+.soc-ico.instagram{background:linear-gradient(45deg,#F9CE34,#EE2A7B,#6228D7)}
+.soc-ico.tiktok{background:#000;border:1px solid #333}
+.pb-opts{padding:8px 4px 4px 56px;display:flex;flex-direction:column;gap:8px}
+.pb-checks{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px}
+.pb-checks label{display:flex;align-items:center;gap:6px}
+.st-kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:8px}
+.st-kpis div{background:var(--panel-2);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column}
+.st-kpis b{font-family:var(--f-display);font-size:22px;font-variant-numeric:tabular-nums}
+.st-kpis small{color:var(--muted);font-size:12px}
+.st-table{display:flex;flex-direction:column;overflow-x:auto}
+.st-r{display:grid;grid-template-columns:minmax(200px,1fr) repeat(6,64px);gap:6px;align-items:center;padding:6px 4px;border-bottom:1px solid var(--line);color:inherit;text-decoration:none;font-size:13px;font-variant-numeric:tabular-nums;min-width:600px}
+.st-r>span:not(.st-post){text-align:right}
+.st-h{color:var(--muted);font-size:11.5px}
+a.st-r:hover{background:var(--panel-2)}
+.st-post{display:flex;gap:10px;align-items:center;min-width:0}
+.st-post img,.st-post i{width:40px;height:40px;border-radius:8px;object-fit:cover;flex:none;background:var(--panel-3)}
+.st-post>span{display:flex;flex-direction:column;min-width:0}
+.st-post small{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 
 /* ---- video studio (scoped) ---- */
 #view-video /* Layout: AI-first studio — home screen (import + request) → studio: [manual tools,#view-video hidden] | preview | AI assistant; timeline under. Stacks on phones: preview,#view-video assistant,#view-video timeline. */
@@ -701,6 +738,8 @@ const L = {
 const Store = {
   mode: "local", uid: null, db: null, user: null, readOnly: false, q: new Map(), timers: new Map(),
   async init() {
+    // Site and app: MaDA account (Supabase) when signed in.
+    if (window.__RR_STANDALONE) { if (typeof Auth !== "undefined" && Auth.user) { this.db = SupaDB; this.uid = Auth.user.id; this.mode = "cloud"; } return; }
     if (!(window.claude && claude.use)) return;
     try {
       const [db, user] = await Promise.all([claude.use("db"), claude.use("user")]);
@@ -1789,7 +1828,7 @@ const Exporter = {
       <div class="segs" id="xFmt"><button data-x="png" aria-pressed="true">PNG</button><button data-x="jpg" aria-pressed="false">JPG</button><button data-x="pdf" aria-pressed="false">PDF (impression)</button></div>
       <div class="segs" id="xScale"><button data-s="1" aria-pressed="true">Standard ×1</button><button data-s="2" aria-pressed="false">Haute définition ×2</button></div>
       <img class="prev" src="${doc.thumb || ""}" alt="Aperçu">
-      <div class="row"><button class="btn primary" id="xGo">Enregistrer le fichier</button><button class="btn" id="xShare">Partager sur Instagram / TikTok</button><button class="btn ghost" data-close>Fermer</button></div>`);
+      <div class="row"><button class="btn primary" id="xGo">Enregistrer le fichier</button><button class="btn" id="xShare">Publier sur Instagram / TikTok</button><button class="btn ghost" data-close>Fermer</button></div>`);
     let fmt = "png", sc = 1;
     $("#xFmt").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; fmt = b.dataset.x; $$("#xFmt button").forEach(x => x.setAttribute("aria-pressed", x === b)); };
     $("#xScale").onclick = e => { const b = e.target.closest("[data-s]"); if (!b) return; sc = +b.dataset.s; $$("#xScale button").forEach(x => x.setAttribute("aria-pressed", x === b)); };
@@ -1799,7 +1838,7 @@ const Exporter = {
       try {
         await prepareDesign(d); const c = document.createElement("canvas"); c.width = d.w * 2; c.height = d.h * 2; renderDesign(c.getContext("2d"), d, 2);
         const blob = await new Promise(r => c.toBlob(r, "image/jpeg", .93));
-        await shareFile(base + ".jpg", blob);
+        await Publish.open({ blob, name: base + ".jpg", kind: "image" });
       } catch (e) { toast("Le partage a échoué."); }
       finally { if (b.isConnected) b.disabled = false; }
     };
@@ -1979,11 +2018,8 @@ const Pro = {
   apply(info) { const e = info && info.entitlements && info.entitlements.active; if (e) this.set(!!e[this.ENTITLEMENT]); },
 
   async init() {
-    const S = window.MadaServer;
-    if (S) {
-      try { const st = await S.json("/api/status"); this.on = !!st.gated; this.freePerDay = st.freePerDay || 0; if (st.gated) this.set(!!st.pro || this.pro); }
-      catch (e) { }
-    }
+    const S = window.MadaServer, st = await Status.get();
+    if (st) { this.on = !!st.gated; this.freePerDay = st.freePerDay || 0; if (st.gated) this.set(!!st.pro || this.pro); }
     const keys = window.MADA_RC_KEYS || {}, key = this.native() && keys[MadaNative.platform];
     if (key) {
       try {
@@ -2044,6 +2080,426 @@ const Pro = {
   bindCard() {
     const a = $("#acPro"); if (a) a.onclick = () => this.paywall();
     const s = $("#acSubs"); if (s) s.onclick = () => window.open(MadaNative.platform === "ios" ? "https://apps.apple.com/account/subscriptions" : "https://play.google.com/store/account/subscriptions", "_blank");
+  }
+};
+
+/* ================= ACCOUNTS (site and app) ================= */
+// Optional MaDA account (Supabase): e-mail code, Apple or Google. Signed in,
+// brands, creations and ideas sync through the table mada_docs (Store "cloud"
+// mode), and Instagram / TikTok can be connected. Inside Claude, the Claude
+// account is used instead and none of this shows.
+const Status = {
+  p: null,
+  get() { return this.p || (this.p = window.MadaServer ? MadaServer.json("/api/status").catch(() => null) : Promise.resolve(null)); }
+};
+
+const Auth = {
+  sb: null, session: null, user: null, available: false,
+
+  native() { return !!window.MadaNative; },
+  name() { const m = (this.user && this.user.user_metadata) || {}; return m.full_name || m.name || (this.user && this.user.email ? this.user.email.split("@")[0] : ""); },
+
+  async init() {
+    if (!window.MadaServer || !window.supabase) return;
+    let cfg = null;
+    try { cfg = JSON.parse(lsGet("mada-supa") || "null"); } catch (e) { }
+    const st = await Status.get();
+    if (st) { cfg = st.supabase || null; lsSet("mada-supa", JSON.stringify(cfg)); }
+    if (!cfg || !cfg.url) return;
+    this.available = true;
+    try {
+      this.sb = supabase.createClient(cfg.url, cfg.anonKey, { auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true, detectSessionInUrl: !this.native() } });
+      const { data } = await this.sb.auth.getSession();
+      this.set(data && data.session);
+    } catch (e) { this.available = false; return; }
+    if (/[?&]code=/.test(location.search)) history.replaceState(null, "", location.pathname);
+    if (this.user) await this.adopt();
+    this.sb.auth.onAuthStateChange((ev, session) => {
+      const had = !!this.user; this.set(session);
+      if (ev === "SIGNED_IN" && !had) this.adopt().then(() => { toast("Connecté ✦"); setTimeout(() => location.reload(), 400); });
+      if (ev === "SIGNED_OUT" && had) location.reload();
+    });
+    if (this.native()) this.listenLinks();
+  },
+
+  set(session) {
+    this.session = session || null; this.user = session ? session.user : null;
+    MadaServer.setIdentity(this.user ? this.user.id : "", session ? session.access_token : "");
+    if (this.user) App.me = { name: this.name(), email: this.user.email };
+  },
+
+  // Data on this device made without an account joins the first account that signs in;
+  // data left by another account is removed (it stays in that account).
+  async adopt() {
+    const owner = lsGet("mada-owner");
+    if (owner && owner !== this.user.id) await L.op("docs", "readwrite", st => st.clear());
+    lsSet("mada-owner", this.user.id);
+  },
+
+  listenLinks() {
+    MadaNative.plugin("App").addListener("appUrlOpen", async ({ url }) => {
+      if (!url || !url.startsWith(MadaNative.scheme + "://")) return;
+      const u = new URL(url.replace(MadaNative.scheme + "://", "https://app/"));
+      MadaNative.plugin("Browser").close().catch(() => { });
+      if (u.pathname === "/auth") {
+        const code = u.searchParams.get("code");
+        if (!code) return toast("Connexion annulée.");
+        const { error } = await this.sb.auth.exchangeCodeForSession(code);
+        if (error) toast("La connexion n'a pas abouti. Réessaie.");
+      }
+      if (u.pathname === "/social") Social.returned(u.searchParams.get("provider"), u.searchParams.get("ok") === "1");
+    });
+  },
+
+  async oauth(provider) {
+    const native = this.native();
+    const { data, error } = await this.sb.auth.signInWithOAuth({ provider, options: { redirectTo: native ? MadaNative.scheme + "://auth" : location.origin + "/", skipBrowserRedirect: native } });
+    if (error) return toast(/not enabled|unsupported/i.test(error.message || "") ? "Cette connexion n'est pas encore activée." : "Connexion impossible pour l'instant.");
+    if (native) await MadaNative.plugin("Browser").open({ url: data.url, presentationStyle: "popover" });
+  },
+
+  open(reason) {
+    if (!this.available) return toast("Les comptes ne sont pas encore activés sur ce serveur.");
+    Modal.open(`<div class="eyebrow">Compte MaDA</div><h2>${reason ? "Connecte-toi pour continuer" : "Crée ton compte ou connecte-toi"}</h2>
+      <p class="note">${esc(reason || "Retrouve tes marques et créations sur tous tes appareils, et publie directement sur Instagram et TikTok.")}</p>
+      <div class="auth-btns"><button class="btn auth-apple" data-oauth="apple"><span aria-hidden="true"></span> Continuer avec Apple</button><button class="btn auth-google" data-oauth="google"><b aria-hidden="true">G</b> Continuer avec Google</button></div>
+      <div class="auth-or"><span>ou avec ton e-mail</span></div>
+      <div id="auMail"><div class="inrow"><input class="inp" id="auEmail" type="email" inputmode="email" autocomplete="email" placeholder="ton@email.com" aria-label="Adresse e-mail"><button class="btn primary" id="auSend">Recevoir un code</button></div></div>
+      <p class="pro-legal">En continuant, tu acceptes les <a href="${Pro.link("conditions")}" target="_blank" rel="noopener">conditions d'utilisation</a> et la <a href="${Pro.link("confidentialite")}" target="_blank" rel="noopener">politique de confidentialité</a>.</p>
+      <div class="row"><button class="btn ghost sm" data-close>Plus tard</button></div>`);
+    $$("[data-oauth]").forEach(b => b.onclick = () => this.oauth(b.dataset.oauth));
+    const send = async () => {
+      const email = $("#auEmail").value.trim();
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return toast("Adresse e-mail invalide.");
+      $("#auSend").disabled = true; $("#auSend").innerHTML = `<span class="spin"></span>Envoi…`;
+      const { error } = await this.sb.auth.signInWithOtp({ email, options: { shouldCreateUser: true, emailRedirectTo: this.native() ? undefined : location.origin + "/" } });
+      if (error) { toast(/rate|seconds/i.test(error.message || "") ? "Attends un peu avant de redemander un code." : "Envoi impossible. Vérifie l'adresse."); $("#auSend").disabled = false; $("#auSend").textContent = "Recevoir un code"; return; }
+      $("#auMail").innerHTML = `<p class="note">Code envoyé à <b style="color:var(--fg)">${esc(email)}</b>. Il peut mettre une minute à arriver (regarde aussi les indésirables).</p>
+        <div class="inrow"><input class="inp" id="auCode" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="Code reçu" aria-label="Code reçu par e-mail"><button class="btn primary" id="auOk">Valider</button></div>
+        <button class="btn ghost sm" id="auBack">Changer d'adresse</button>`;
+      $("#auCode").focus();
+      const ok = async () => {
+        const token = $("#auCode").value.replace(/\s/g, "");
+        if (token.length < 6) return toast("Entre le code reçu par e-mail.");
+        $("#auOk").disabled = true;
+        const { error: er } = await this.sb.auth.verifyOtp({ email, token, type: "email" });
+        if (er) { toast("Code incorrect ou expiré."); $("#auOk").disabled = false; }
+      };
+      $("#auOk").onclick = ok; $("#auCode").onkeydown = e => { if (e.key === "Enter") ok(); };
+      $("#auBack").onclick = () => this.open(reason);
+    };
+    $("#auSend").onclick = send; $("#auEmail").onkeydown = e => { if (e.key === "Enter") send(); };
+  },
+
+  async signOut() {
+    await L.op("docs", "readwrite", st => st.clear()); lsSet("mada-owner", "");
+    await this.sb.auth.signOut();
+    location.reload();
+  },
+
+  confirmDelete() {
+    Modal.open(`<h2>Supprimer ton compte ?</h2><p class="note">Ton compte, tes marques, créations et idées enregistrées en ligne, tes connexions Instagram et TikTok et les données de cet appareil seront effacés définitivement.${Pro.pro && Pro.native() ? " Ton abonnement MaDA Pro n'est pas annulé automatiquement : gère-le dans les réglages de ton compte Apple ou Google." : ""}</p>
+      <div class="fld"><label class="lbl" for="adConfirm">Écris SUPPRIMER pour confirmer</label><input class="inp" id="adConfirm" autocomplete="off"></div>
+      <div class="row"><button class="btn danger" id="adGo" disabled>Supprimer définitivement</button><button class="btn ghost" data-close>Annuler</button></div>`);
+    $("#adConfirm").oninput = e => $("#adGo").disabled = e.target.value.trim().toUpperCase() !== "SUPPRIMER";
+    $("#adGo").onclick = async () => {
+      $("#adGo").disabled = true; $("#adGo").innerHTML = `<span class="spin"></span>Suppression…`;
+      try { await MadaServer.post("/api/account"); }
+      catch (e) { toast("La suppression n'a pas abouti. Réessaie ou écris-nous."); $("#adGo").disabled = false; $("#adGo").textContent = "Supprimer définitivement"; return; }
+      try { await this.sb.auth.signOut({ scope: "local" }); } catch (e) { }
+      await wipeDevice();
+    };
+  },
+
+  card() {
+    if (!this.available) return "";
+    if (!this.user) return `<div class="card"><div class="sec-h"><h2>Mon compte</h2><span class="pill">Invité</span></div>
+      <p class="note">Crée ton compte gratuit pour retrouver tes créations sur tous tes appareils et publier sur Instagram et TikTok. Ce que tu as déjà créé ici sera ajouté à ton compte.</p>
+      <div class="row"><button class="btn primary" id="acLogin">Créer mon compte / Me connecter</button></div></div>`;
+    return `<div class="card"><div class="sec-h"><h2>Mon compte</h2><span class="pill ai">Connecté</span></div>
+      <p class="note">${esc(this.user.email || this.name())}. Tes marques, créations et idées sont synchronisées. Les images et vidéos importées restent sur l'appareil où tu les as ajoutées.</p>
+      <div class="row"><button class="btn" id="acOut">Se déconnecter</button><button class="btn ghost danger" id="acDel">Supprimer mon compte</button></div></div>`;
+  },
+  bindCard() {
+    const a = $("#acLogin"); if (a) a.onclick = () => this.open();
+    const o = $("#acOut"); if (o) o.onclick = () => this.signOut();
+    const d = $("#acDel"); if (d) d.onclick = () => this.confirmDelete();
+  }
+};
+
+// Cloud backend for Store when signed in, with the same small interface as Claude's db.
+const SupaDB = {
+  collection() {
+    const t = () => Auth.sb.from("mada_docs");
+    const ok = r => { if (r.error) throw r.error; return r; };
+    return {
+      where(field, op, value) {
+        return { get: async () => ({ docs: (ok(await t().select("data").eq("kind", value)).data || []).map(r => ({ data: () => r.data })) }) };
+      },
+      doc(key) {
+        return {
+          set: async body => { ok(await t().upsert({ user_id: Auth.user.id, key, kind: body.kind, data: body, updated_at: new Date().toISOString() })); },
+          delete: async () => { ok(await t().delete().eq("key", key)); }
+        };
+      }
+    };
+  }
+};
+
+/* ---------- First launch ---------- */
+const Onboard = {
+  STEPS: [
+    ["✦", "Dis ton idée, MaDA crée", "Écris ou dicte ce que tu veux : affiche, story, post, carrousel. MaDA compose 3 propositions à ton image en moins d'une minute."],
+    ["▶", "Monte tes Reels en musique", "Importe tes vidéos et photos, choisis une musique : MaDA coupe sur le rythme, ajoute les textes et les sous-titres."],
+    ["↗", "Publie sur Instagram et TikTok", "Connecte tes comptes et publie directement, puis suis tes statistiques avec les conseils de l'IA."]
+  ],
+  maybe() { if (!lsGet("mada-onboarded")) this.show(0); },
+  show(i) {
+    const [icon, title, text] = this.STEPS[i], last = i === this.STEPS.length - 1;
+    Modal.open(`<div class="onb"><div class="onb-ico" aria-hidden="true">${icon}</div><div class="eyebrow">${i + 1} / ${this.STEPS.length}</div><h2>${title}</h2><p class="note">${text}</p>
+      <div class="onb-dots" aria-hidden="true">${this.STEPS.map((_, k) => `<i class="${k === i ? "on" : ""}"></i>`).join("")}</div>
+      <div class="row" style="justify-content:center">${last
+        ? (Auth.available && !Auth.user ? `<button class="btn primary" id="obAcc">Créer mon compte</button><button class="btn ghost" id="obEnd">Plus tard</button>` : `<button class="btn primary" id="obEnd">C'est parti</button>`)
+        : `<button class="btn primary" id="obNext">Suivant</button><button class="btn ghost" id="obEnd">Passer</button>`}</div></div>`);
+    const end = () => { lsSet("mada-onboarded", "1"); Modal.close(); };
+    const n = $("#obNext"); if (n) n.onclick = () => this.show(i + 1);
+    $("#obEnd").onclick = end;
+    const a = $("#obAcc"); if (a) a.onclick = () => { lsSet("mada-onboarded", "1"); Auth.open(); };
+  }
+};
+
+/* ================= INSTAGRAM & TIKTOK ================= */
+// Official connection (OAuth on the platform's own page), direct publishing
+// and statistics, through the MaDA server (/api/social/*). Needs a MaDA account.
+const Social = {
+  NAMES: { instagram: "Instagram", tiktok: "TikTok" },
+  accounts: [], available: {}, loaded: false, cfg: null,
+
+  async init() {
+    const st = await Status.get();
+    this.cfg = st && st.social && st.social.enabled ? st.social : null;
+    const q = new URLSearchParams(location.search);
+    if (q.get("social")) { history.replaceState(null, "", location.pathname); this.returned(q.get("social"), q.get("ok") === "1"); }
+  },
+  enabled() { return !!this.cfg && Auth.available; },
+  providers() { return ["instagram", "tiktok"].filter(p => this.cfg && this.cfg[p]); },
+  acc(p) { return this.accounts.find(a => a.provider === p); },
+
+  async load(force) {
+    if (!this.enabled() || !Auth.user) { this.accounts = []; return this.accounts; }
+    if (this.loaded && !force) return this.accounts;
+    try { const r = await MadaServer.json("/api/social/accounts"); this.accounts = r.accounts || []; this.loaded = true; } catch (e) { }
+    return this.accounts;
+  },
+
+  async connect(p) {
+    if (!Auth.user) return Auth.open(`Crée ton compte MaDA pour connecter ${this.NAMES[p]}.`);
+    if (!Pro.allowed()) return Pro.paywall("La publication directe et les statistiques font partie de MaDA Pro.");
+    try {
+      const r = await MadaServer.post("/api/social/start", { provider: p, app: Auth.native() });
+      if (Auth.native()) await MadaNative.plugin("Browser").open({ url: r.url, presentationStyle: "popover" });
+      else location.href = r.url;
+    } catch (e) { toast("Connexion impossible pour l'instant."); }
+  },
+  async returned(p, ok) {
+    await this.load(true);
+    toast(ok ? `${this.NAMES[p] || "Compte"} est connecté ✦` : "La connexion n'a pas été terminée.", 3500);
+    if (["insta", "account"].includes(App.view)) App.go(App.view, { force: true });
+  },
+  async disconnect(p) {
+    try { await MadaServer.post("/api/social/disconnect", { provider: p }); } catch (e) { return toast("Déconnexion impossible pour l'instant."); }
+    await this.load(true); toast(`${this.NAMES[p]} est déconnecté`);
+    if (["insta", "account"].includes(App.view)) App.go(App.view, { force: true });
+  },
+
+  card() {
+    if (!this.enabled()) return "";
+    return `<div class="card"><div class="sec-h"><h2>Instagram et TikTok</h2></div>
+      <p class="note">Connecte tes comptes pour publier directement depuis MaDA et suivre tes statistiques. La connexion se fait sur la page officielle d'Instagram ou de TikTok : MaDA ne voit jamais ton mot de passe.</p>
+      <div class="soc-list">${this.providers().map(p => { const a = this.acc(p); return `<div class="soc-row"><span class="soc-ico ${p}" aria-hidden="true">${p === "instagram" ? "◎" : "♪"}</span><span class="grow"><b>${this.NAMES[p]}</b><small>${a ? "@" + esc(a.username || "connecté") : p === "instagram" ? "Compte professionnel ou créateur" : "Tous les comptes"}</small></span>
+        ${a ? `<button class="btn sm ghost" data-soc-off="${p}">Déconnecter</button>` : `<button class="btn sm primary" data-soc-on="${p}">Connecter</button>`}</div>`; }).join("")}</div></div>`;
+  },
+  bindCard(root) {
+    root.querySelectorAll("[data-soc-on]").forEach(b => b.onclick = () => this.connect(b.dataset.socOn));
+    root.querySelectorAll("[data-soc-off]").forEach(b => b.onclick = () => this.disconnect(b.dataset.socOff));
+  }
+};
+
+/* ---------- Publishing ---------- */
+const Publish = {
+  PRIVACY: { PUBLIC_TO_EVERYONE: "Tout le monde", MUTUAL_FOLLOW_FRIENDS: "Amis", FOLLOWER_OF_CREATOR: "Abonnés", SELF_ONLY: "Moi uniquement" },
+
+  // kind: "video" | "image"
+  async open({ blob, name, kind, caption = "", duration = 0 }) {
+    if (!Social.enabled()) return shareFile(name, blob, caption);
+    await Social.load();
+    const ext = (name.split(".").pop() || "").toLowerCase(), badFmt = kind === "video" ? !/mp4|mov/.test(ext) : !/jpe?g/.test(ext);
+    const provs = Social.providers().filter(p => kind === "video" || p === "instagram");
+    Modal.open(`<div class="sec-h"><h2>Publier</h2><button class="btn sm ghost" data-close style="margin-left:auto">Fermer</button></div>
+      ${!Auth.user ? `<p class="note">Connecte-toi à ton compte MaDA pour publier directement sur Instagram et TikTok.</p><div class="row"><button class="btn primary" id="pbLogin">Me connecter</button><button class="btn" id="pbShare">Partager autrement</button></div>` : `
+      <div class="pb-targets">${provs.map(p => { const a = Social.acc(p); return `<div class="pb-t" data-p="${p}">
+        <label class="soc-row"><span class="soc-ico ${p}" aria-hidden="true">${p === "instagram" ? "◎" : "♪"}</span><span class="grow"><b>${Social.NAMES[p]}</b><small>${a ? "@" + esc(a.username || "") : "Non connecté"}</small></span>
+        ${a ? `<input type="checkbox" class="pb-on" data-p="${p}" ${badFmt ? "disabled" : ""} aria-label="Publier sur ${Social.NAMES[p]}">` : `<button class="btn sm" data-soc-on="${p}">Connecter</button>`}</label>
+        <div class="pb-opts" id="pbo-${p}" hidden></div></div>`; }).join("")}
+      </div>
+      ${badFmt ? `<p class="note err">${kind === "video" ? "Cette vidéo est au format WebM, refusé par Instagram et TikTok. Exporte-la depuis l'app MaDA ou Safari pour obtenir un MP4." : "Exporte l'image en JPG pour la publier."}</p>` : ""}
+      <div class="fld"><label class="lbl" for="pbCap">Légende</label><textarea class="inp" id="pbCap" rows="4" maxlength="2200">${esc(caption)}</textarea></div>
+      <div id="pbState"></div>
+      <div class="row"><button class="btn primary" id="pbGo" disabled>Publier</button><button class="btn" id="pbShare">Partager autrement</button></div>`}`, false);
+    const share = $("#pbShare"); if (share) share.onclick = () => shareFile(name, blob, ($("#pbCap") || {}).value || caption);
+    const login = $("#pbLogin"); if (login) login.onclick = () => Auth.open("Connecte-toi pour publier directement.");
+    const card = $("#modalCard"); Social.bindCard(card);
+    if (!Auth.user) return;
+    const opts = {};
+    const sync = () => { $("#pbGo").disabled = !$$(".pb-on").some(c => c.checked) || $$(".pb-on").some(c => c.checked && c.dataset.p === "tiktok" && !opts.tiktok.privacy_level); };
+    card.querySelectorAll(".pb-on").forEach(c => c.onchange = async () => {
+      const p = c.dataset.p, box = $("#pbo-" + p); box.hidden = !c.checked;
+      if (c.checked && !box.dataset.ready) {
+        box.dataset.ready = "1";
+        if (p === "instagram") {
+          opts.instagram = { format: kind === "video" ? "reel" : "post" };
+          const f = kind === "video" ? [["reel", "Reel"], ["story", "Story"]] : [["post", "Publication"], ["story", "Story"]];
+          box.innerHTML = `<div class="segs">${f.map(([k, l]) => `<button data-f="${k}" aria-pressed="${k === opts.instagram.format}">${l}</button>`).join("")}</div>`;
+          box.querySelector(".segs").onclick = e => { const b = e.target.closest("[data-f]"); if (!b) return; opts.instagram.format = b.dataset.f; box.querySelectorAll("[data-f]").forEach(x => x.setAttribute("aria-pressed", x === b)); };
+        } else await this.tiktokOpts(box, opts, duration, sync);
+      }
+      sync();
+    });
+    $("#pbGo").onclick = () => this.run({ blob, ext, kind, opts });
+  },
+
+  // TikTok asks apps to show the creator, let them pick who can see the post (no default)
+  // and the interaction settings, and to state the Music Usage Confirmation.
+  async tiktokOpts(box, opts, duration, sync) {
+    box.innerHTML = `<p class="note"><span class="spin"></span>Lecture de ton compte TikTok…</p>`;
+    let ci;
+    try { ci = await MadaServer.json("/api/social/creator?provider=tiktok"); }
+    catch (e) { box.innerHTML = `<p class="note err">TikTok ne répond pas. ${e && e.code === "reconnect" ? "Reconnecte ton compte." : "Réessaie dans un instant."}</p>`; return; }
+    opts.tiktok = { privacy_level: "", disable_comment: !!ci.comment_disabled, disable_duet: !!ci.duet_disabled, disable_stitch: !!ci.stitch_disabled, brand_content: false, brand_organic: false };
+    const tooLong = ci.max_video_post_duration_sec && duration > ci.max_video_post_duration_sec;
+    box.innerHTML = `<p class="note">Publié sur le compte <b style="color:var(--fg)">${esc(ci.creator_nickname || "")}</b>.${tooLong ? ` <span class="err">Ta vidéo dépasse la durée maximale autorisée (${ci.max_video_post_duration_sec} s).</span>` : ""}</p>
+      <div class="fld"><label class="lbl" for="ttPriv">Qui peut voir cette vidéo ?</label><select class="sel" id="ttPriv"><option value="">Choisis…</option>${(ci.privacy_level_options || []).map(o => `<option value="${esc(o)}">${esc(this.PRIVACY[o] || o)}</option>`).join("")}</select></div>
+      <div class="pb-checks">
+        <label><input type="checkbox" id="ttCom" ${ci.comment_disabled ? "disabled" : "checked"}> Autoriser les commentaires</label>
+        <label><input type="checkbox" id="ttDuet" ${ci.duet_disabled ? "disabled" : "checked"}> Autoriser les Duos</label>
+        <label><input type="checkbox" id="ttStitch" ${ci.stitch_disabled ? "disabled" : "checked"}> Autoriser les Collages</label>
+        <label><input type="checkbox" id="ttBrand"> Contenu promotionnel</label>
+      </div>
+      <div class="pb-checks" id="ttBrandBox" hidden><label><input type="checkbox" id="ttOwn"> Ma propre marque</label><label><input type="checkbox" id="ttPaid"> Partenariat rémunéré</label></div>
+      <p class="pro-legal" id="ttLegal">En publiant, tu acceptes la <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noopener">confirmation d'utilisation de la musique</a> de TikTok.</p>`;
+    const t = opts.tiktok, upd = () => {
+      t.privacy_level = $("#ttPriv").value; t.disable_comment = !$("#ttCom").checked; t.disable_duet = !$("#ttDuet").checked; t.disable_stitch = !$("#ttStitch").checked;
+      $("#ttBrandBox").hidden = !$("#ttBrand").checked; t.brand_organic = $("#ttBrand").checked && $("#ttOwn").checked; t.brand_content = $("#ttBrand").checked && $("#ttPaid").checked;
+      // Branded content cannot be private on TikTok.
+      const self = $("#ttPriv").querySelector('option[value="SELF_ONLY"]'); if (self) self.disabled = t.brand_content;
+      if (t.brand_content && t.privacy_level === "SELF_ONLY") { $("#ttPriv").value = ""; t.privacy_level = ""; }
+      $("#ttLegal").innerHTML = t.brand_content ? `En publiant, tu acceptes la <a href="https://www.tiktok.com/legal/page/global/bc-policy/en" target="_blank" rel="noopener">politique sur le contenu de marque</a> et la <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noopener">confirmation d'utilisation de la musique</a> de TikTok.` : `En publiant, tu acceptes la <a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noopener">confirmation d'utilisation de la musique</a> de TikTok.`;
+      sync();
+    };
+    box.querySelectorAll("select,input").forEach(i => i.onchange = upd);
+    if (tooLong) $("#ttPriv").disabled = true;
+  },
+
+  async run({ blob, ext, kind, opts }) {
+    const targets = $$(".pb-on").filter(c => c.checked).map(c => c.dataset.p);
+    const caption = $("#pbCap").value, go = $("#pbGo"), S = $("#pbState");
+    go.disabled = true; $$(".pb-on").forEach(c => c.disabled = true);
+    const line = (p, html) => { let el = $("#pbs-" + p); if (!el) { el = document.createElement("p"); el.className = "note"; el.id = "pbs-" + p; S.appendChild(el); } el.innerHTML = `<b style="color:var(--fg)">${Social.NAMES[p]}</b> · ${html}`; };
+    targets.forEach(p => line(p, `<span class="spin"></span>En attente…`));
+    const path = `${Auth.user.id}/${Date.now()}-${uid()}.${ext}`;
+    const up = await Auth.sb.storage.from("publish").upload(path, blob, { contentType: blob.type || (kind === "video" ? "video/mp4" : "image/jpeg"), upsert: false });
+    if (up.error) { targets.forEach(p => line(p, `<span class="err">Envoi du fichier impossible${/size|large/i.test(up.error.message || "") ? " : fichier trop lourd" : ""}.</span>`)); go.disabled = false; return; }
+    let okCount = 0;
+    for (let i = 0; i < targets.length; i++) {
+      const p = targets[i];
+      line(p, `<span class="spin"></span>${kind === "video" ? "Publication (la vidéo est traitée par la plateforme, jusqu'à 3 minutes)…" : "Publication…"}`);
+      try {
+        const r = await MadaServer.post("/api/social/publish", { provider: p, path, kind, caption, format: opts.instagram && opts.instagram.format, tiktok: opts.tiktok, last: i === targets.length - 1 });
+        okCount++;
+        line(p, r.pending ? "Envoyée : TikTok finit de la traiter, elle apparaîtra dans quelques minutes." : `Publiée ✦ ${r.url ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">Voir</a>` : ""}`);
+        Store.put("post", { id: uid("pub"), ws: WS.cur.id, provider: p, kind, format: p === "instagram" ? opts.instagram.format : "video", url: r.url || "", caption: caption.slice(0, 300), at: Date.now() });
+      } catch (e) {
+        line(p, `<span class="err">${esc(this.err(e))}</span>`);
+      }
+    }
+    if (okCount) toast(okCount > 1 ? "Publié sur tes comptes ✦" : "Publié ✦", 3000);
+    go.textContent = "Terminé"; go.onclick = () => Modal.close(); go.disabled = false;
+  },
+
+  err(e) {
+    return ({ reconnect: "La connexion a expiré : reconnecte ton compte dans Statistiques.", not_connected: "Compte non connecté.", media_rejected: e.message || "La plateforme a refusé le fichier.", login_required: "Reconnecte-toi à ton compte MaDA.", timeout: "La plateforme traite encore la vidéo : vérifie dans quelques minutes.", unsupported: e.message || "Format non accepté." })[e && e.code] || "La publication n'a pas abouti. Réessaie.";
+  }
+};
+
+/* ---------- Statistics (in the Statistiques page) ---------- */
+const Stats = {
+  data: {},
+  num(v) { if (v == null || v === "") return "–"; v = +v; return v >= 1e6 ? (v / 1e6).toFixed(1).replace(".", ",") + " M" : v >= 1e4 ? Math.round(v / 1e3) + " k" : v >= 1e3 ? (v / 1e3).toFixed(1).replace(".", ",") + " k" : String(v); },
+
+  html() {
+    if (!Social.enabled()) return "";
+    const conn = Social.providers().filter(p => Social.acc(p));
+    return `${Social.card()}${conn.map(p => `<div class="card" id="st-${p}"><div class="sec-h"><h2>${Social.NAMES[p]}</h2><span class="note">@${esc(Social.acc(p).username || "")}</span><button class="btn sm ghost" data-st-reload="${p}" style="margin-left:auto">Actualiser</button></div><div class="st-body"><p class="note"><span class="spin"></span>Chargement des statistiques…</p></div></div>`).join("")}
+      ${conn.length ? `<div class="card"><div class="sec-h"><h2>Conseils de l'IA</h2></div><p class="note">L'IA lit tes statistiques et te dit ce qui marche, quand publier et quoi publier la semaine prochaine.</p><div class="row"><button class="btn ai" id="stAi">✦ Analyser mes statistiques</button><span class="note" id="stAiState"></span></div><div id="stAiOut">${WS.cur.statsAdvice ? this.adviceHtml(WS.cur.statsAdvice) : ""}</div></div>` : ""}`;
+  },
+
+  async bind(root) {
+    Social.bindCard(root);
+    root.querySelectorAll("[data-st-reload]").forEach(b => b.onclick = () => this.fill(b.dataset.stReload, true));
+    const ai = $("#stAi"); if (ai) ai.onclick = () => this.advise();
+    root.querySelectorAll("[data-adv]").forEach(b => b.onclick = () => this.make(+b.dataset.adv));
+    for (const p of Social.providers().filter(x => Social.acc(x))) this.fill(p);
+  },
+
+  async fill(p, force) {
+    const box = $(`#st-${p} .st-body`); if (!box) return;
+    if (force || !this.data[p]) {
+      box.innerHTML = `<p class="note"><span class="spin"></span>Chargement des statistiques…</p>`;
+      try { this.data[p] = await MadaServer.json("/api/social/stats?provider=" + p); }
+      catch (e) { box.innerHTML = `<p class="note err">${e && e.code === "reconnect" ? "La connexion a expiré : déconnecte puis reconnecte ce compte." : "Statistiques indisponibles pour l'instant."}</p>`; return; }
+    }
+    const d = this.data[p], pr = d.profile || {}, posts = d.posts || [];
+    const avg = k => { const v = posts.map(x => x[k]).filter(x => x != null); return v.length ? Math.round(v.reduce((a, b) => a + b, 0) / v.length) : null; };
+    const kpis = [["Abonnés", pr.followers], ["Publications", pr.posts], ...(pr.likes != null ? [["J'aime reçus", pr.likes]] : []), ["Vues moyennes", avg("views")], ["J'aime moyens", avg("likes")]];
+    box.innerHTML = `<div class="st-kpis">${kpis.map(([l, v]) => `<div><b>${this.num(v)}</b><small>${l}</small></div>`).join("")}</div>
+      ${posts.length ? `<div class="st-table" role="table"><div class="st-r st-h" role="row"><span>Publication</span><span>Vues</span><span>Portée</span><span>J'aime</span><span>Comm.</span><span>Partages</span><span>Enreg.</span></div>
+      ${posts.map(x => `<a class="st-r" role="row" href="${esc(x.url || "#")}" target="_blank" rel="noopener"><span class="st-post">${x.thumb ? `<img src="${esc(x.thumb)}" alt="" loading="lazy">` : `<i></i>`}<span><b>${esc(x.type)} · ${x.date ? fmtDate(x.date) : ""}</b><small>${esc((x.caption || "").slice(0, 70))}</small></span></span><span>${this.num(x.views)}</span><span>${this.num(x.reach)}</span><span>${this.num(x.likes)}</span><span>${this.num(x.comments)}</span><span>${this.num(x.shares)}</span><span>${this.num(x.saves)}</span></a>`).join("")}</div>` : `<p class="note">Aucune publication pour l'instant.</p>`}`;
+  },
+
+  async advise() {
+    if (!AI.ok()) return toast(AI.unavailableMsg(), 4000);
+    const st = $("#stAiState"), btn = $("#stAi"); btn.disabled = true; st.innerHTML = `<span class="spin"></span>Analyse…`;
+    try {
+      for (const p of Social.providers().filter(x => Social.acc(x))) if (!this.data[p]) this.data[p] = await MadaServer.json("/api/social/stats?provider=" + p);
+      const compact = Object.fromEntries(Object.entries(this.data).map(([p, d]) => [p, { profil: d.profile, publications: (d.posts || []).map(x => ({ type: x.type, date: x.date, legende: (x.caption || "").slice(0, 120), vues: x.views, portee: x.reach, likes: x.likes, commentaires: x.comments, partages: x.shares, enregistrements: x.saves, duree: x.duration })) }]));
+      const r = await AI.json(`Tu es stratège social media, expert Instagram et TikTok. Voici les statistiques réelles des comptes de cette marque (JSON) :
+${JSON.stringify(compact)}
+${brandContext()}
+Analyse-les comme un pro : compare les publications entre elles (vues, partages et enregistrements comptent plus que les j'aime), repère les formats, sujets, accroches et jours ou heures qui performent, et ce qui ne marche pas. Cite des publications précises. N'invente aucun chiffre.
+Réponds uniquement avec ce JSON :
+{"summary":"3 ou 4 phrases de diagnostic","works":["3 à 5 constats sur ce qui marche"],"improve":["3 à 5 points à corriger"],"best_times":"meilleurs jours et heures pour publier, déduits des données","hooks":["3 accroches à tester, adaptées à ce compte"],"plan":[{"day":"Lun","format":"Reel, post, story ou carrousel","idea":"idée concrète"}]} avec 5 à 7 éléments dans plan.`);
+      WS.cur.statsAdvice = { date: Date.now(), summary: String(r.summary || ""), works: (r.works || []).map(String), improve: (r.improve || []).map(String), best_times: String(r.best_times || ""), hooks: (r.hooks || []).map(String), plan: (r.plan || []).slice(0, 7) };
+      await WS.save();
+      $("#stAiOut").innerHTML = this.adviceHtml(WS.cur.statsAdvice); st.textContent = "";
+      $$("#stAiOut [data-adv]").forEach(b => b.onclick = () => this.make(+b.dataset.adv));
+    } catch (e) { st.innerHTML = `<span class="err">${esc(AI.err(e))}</span>`; }
+    btn.disabled = false;
+  },
+
+  adviceHtml(a) {
+    return `<div style="display:flex;flex-direction:column;gap:12px;margin-top:6px"><p style="margin:0;line-height:1.6">${esc(a.summary)}</p>
+      <div class="g2"><div><b>Ce qui marche</b><ul class="blist">${a.works.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div><div><b>À améliorer</b><ul class="blist">${a.improve.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div></div>
+      ${a.best_times ? `<p class="note"><b style="color:var(--fg)">Quand publier :</b> ${esc(a.best_times)}</p>` : ""}
+      ${a.hooks.length ? `<div><b>Accroches à tester</b><ul class="blist">${a.hooks.map(x => `<li>${esc(x)}</li>`).join("")}</ul></div>` : ""}
+      ${a.plan.length ? `<div class="plan">${a.plan.map((p, i) => `<div><b>${esc(p.day || "J" + (i + 1))} · ${esc(p.format || "")}</b>${esc(p.idea || "")}<button class="btn sm" data-adv="${i}" style="align-self:flex-start;margin-top:4px">Créer</button></div>`).join("")}</div>` : ""}
+      <p class="note">Analyse du ${fmtDate(a.date)}</p></div>`;
+  },
+
+  make(i) {
+    const p = WS.cur.statsAdvice.plan[i]; if (!p) return;
+    if (/reel|vid|tiktok/i.test(p.format || "")) { App.go("video", { force: true }); Video.prefill && Video.prefill(p.idea); return; }
+    Brief.prefill({ kind: guessKind(p.format || "post") === "video" ? "post" : guessKind(p.format || "post"), idea: String(p.idea || "") });
+    App.go("create", { force: true });
   }
 };
 
@@ -2835,7 +3291,7 @@ $("#v-exportOv").addEventListener("click", e => {
   if (id === "expGo") startExport();
   if (id === "expCancel") { expCancelled = true; exporting = false; pause(); try { rec && rec.stop(); } catch (er) { } $("#v-exportOv").hidden = true; requestDraw(); }
   if (id === "expSave") saveExport();
-  if (id === "expShare" && lastExport) shareFile(`mada-${new Date().toISOString().slice(0, 10)}.${lastExport.ext}`, lastExport.blob, state.caption);
+  if (id === "expShare" && lastExport) { const name = `mada-${new Date().toISOString().slice(0, 10)}.${lastExport.ext}`; typeof Publish !== "undefined" ? Publish.open({ blob: lastExport.blob, name, kind: "video", caption: state.caption, duration: total() }) : shareFile(name, lastExport.blob, state.caption); }
   if (id === "expCap") { navigator.clipboard.writeText(state.caption).then(() => vtoast("Légende copiée"), () => vtoast("Copie-la depuis le panneau de l'IA")); }
 });
 function startExport() {
@@ -2855,7 +3311,7 @@ function exportDone() {
   lastExport = { blob, ext };
   showExport(`<h2>Ta vidéo est prête</h2><video src="${URL.createObjectURL(blob)}" controls playsinline></video>
     <p class="note">${ext.toUpperCase()} · ${(blob.size / 1048576).toFixed(1)} Mo${ext === "webm" ? ". Instagram préfère le MP4 : exporte depuis Safari ou un Chrome récent pour l'obtenir." : ""}</p>
-    ${typeof shareFile !== "undefined" ? `<button class="btn primary" id="v-expShare">Partager sur Instagram / TikTok</button>` : ""}
+    ${typeof shareFile !== "undefined" ? `<button class="btn primary" id="v-expShare">Publier sur Instagram / TikTok</button>` : ""}
     ${downloads ? `<button class="btn" id="v-expSave">Enregistrer la vidéo</button>` : `<p class="note">L'enregistrement de fichiers n'est pas disponible dans cette vue.</p>`}
     ${state.caption ? `<button class="btn" id="v-expCap">Copier la légende Instagram</button>` : ""}
     <button class="btn ghost" id="v-expClose">Fermer</button>`);
@@ -2927,7 +3383,7 @@ const ICONS = {
   account: '<circle cx="12" cy="8.5" r="4"/><path d="M4.5 20.5c1.2-3.6 4-5.5 7.5-5.5s6.3 1.9 7.5 5.5"/>'
 };
 const ico = k => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICONS[k]}</svg>`;
-const NAV = [["dash", "Accueil"], ["create", "Créer un visuel"], ["video", "Monter une vidéo"], ["ideas", "Idées & veille"], ["insta", "Analyse Instagram"], ["brand", "Identité de marque"], ["gallery", "Mes créations"], ["account", "Compte"]];
+const NAV = [["dash", "Accueil"], ["create", "Créer un visuel"], ["video", "Monter une vidéo"], ["ideas", "Idées & veille"], ["insta", "Statistiques"], ["brand", "Identité de marque"], ["gallery", "Mes créations"], ["account", "Compte"]];
 
 const App = {
   view: "dash", me: null,
@@ -3111,7 +3567,9 @@ Garde les informations factuelles déjà fournies ; n'invente ni chiffres ni adr
 const Insta = {
   render() {
     const b = WS.cur, ig = b.ig, shots = Assets.list.filter(a => a.tag === "screenshot");
+    const live = Stats.html();
     $("#view-insta").innerHTML = `<div class="page">
+      ${live ? `<div class="page-h"><div class="grow"><div class="eyebrow">Statistiques</div><h1>Tes comptes en un coup d'œil</h1><p>Les chiffres officiels de tes publications Instagram et TikTok, et les conseils de l'IA pour faire mieux.</p></div></div>${live}<div class="sec-h" style="margin-top:8px"><h2>Analyse par captures d'écran</h2></div>` : ""}
       <div class="page-h"><div class="grow"><div class="eyebrow">Analyse Instagram</div><h1>Ce que ton compte dit de toi</h1><p>Ajoute des captures d'écran de ton profil, de ta grille, de tes meilleures publications et de tes statistiques (Insights). L'IA analyse ton style, tes performances visibles et te dit quoi changer.</p></div></div>
       <div class="card"><div class="sec-h"><h2>Captures d'écran</h2><span class="note">${shots.length} ajoutée${shots.length > 1 ? "s" : ""}${AI.imgMax ? ` · l'IA en lit ${AI.imgMax} au maximum` : ""}</span></div>
         <div class="assets">${`<button class="asset add" id="igAdd" aria-label="Ajouter des captures">+</button>` + shots.map(a => `<button class="asset" data-shot="${a.id}" style="background-image:url('${a.url}')" aria-label="Retirer ${esc(a.name)}" title="Retirer"></button>`).join("")}</div>
@@ -3119,8 +3577,9 @@ const Insta = {
         <div class="g2"><div class="fld"><label class="lbl" for="igHandle">Compte analysé</label><input class="inp" id="igHandle" value="${esc(b.handle)}" placeholder="@compte"></div>
         <div class="fld"><label class="lbl" for="igGoal">Objectif</label><input class="inp" id="igGoal" placeholder="Ex : gagner des abonnés locaux, remplir les soirées, vendre plus"></div></div>
         <div class="row"><button class="btn ai" id="igGo" ${shots.length ? "" : "disabled"}>✦ Analyser mon compte</button><span class="note" id="igState"></span></div></div>
-      <div class="card"><div class="sec-h"><h2>Connexion directe à Instagram</h2></div><p class="note">La lecture automatique des statistiques passe par l'API officielle de Meta, qu'une page ne peut pas appeler elle-même. Deux connecteurs Claude existent pour s'en approcher : <b>Metricool</b> (statistiques et planification) et <b>vidIQ</b> (recherche de tendances Instagram, TikTok, YouTube). Une fois l'un d'eux connecté dans Claude, je peux les brancher à cet écran.</p></div>
+      ${live ? "" : `<div class="card"><div class="sec-h"><h2>Connexion directe à Instagram</h2></div><p class="note">La lecture automatique des statistiques passe par l'API officielle de Meta, qu'une page ne peut pas appeler elle-même. Deux connecteurs Claude existent pour s'en approcher : <b>Metricool</b> (statistiques et planification) et <b>vidIQ</b> (recherche de tendances Instagram, TikTok, YouTube). Une fois l'un d'eux connecté dans Claude, je peux les brancher à cet écran.</p></div>`}
       <div id="igResult">${ig ? this.result(ig) : ""}</div></div>`;
+    if (live) Stats.bind($("#view-insta"));
     $("#igAdd").onclick = async () => { await importImages(await pickFiles(), "screenshot"); this.render(); };
     $("#view-insta").onclick = async e => {
       const s = e.target.closest("[data-shot]"); if (s) { await Assets.del(s.dataset.shot); return this.render(); }
@@ -3272,10 +3731,13 @@ const Gallery = {
 const Account = {
   render() {
     const SA = !!window.__RR_STANDALONE, n = (App.me && App.me.name) || "", cloud = Store.mode === "cloud" && !Store.readOnly;
+    if (SA && Social.enabled() && Auth.user && !Social.loaded) Social.load().then(() => App.view === "account" && this.render());
     $("#view-account").innerHTML = `<div class="page">
-      <div class="page-h"><div class="grow"><div class="eyebrow">Compte</div><h1>${esc(n || "Mon compte")}</h1><p>${SA ? "Version autonome : aucune connexion nécessaire. Tout ce que tu crées est enregistré dans ce navigateur, et l'IA fonctionne via le serveur de l'application." : "Chaque personne se connecte avec son propre compte Claude et retrouve son espace privé : ses marques, ses créations et ses idées ne sont visibles que par elle."}</p></div></div>
+      <div class="page-h"><div class="grow"><div class="eyebrow">Compte</div><h1>${esc(n || "Mon compte")}</h1><p>${SA ? (Auth.available ? "Ton compte, ton abonnement, tes réseaux et tes données." : "Version autonome : aucune connexion nécessaire. Tout ce que tu crées est enregistré dans ce navigateur, et l'IA fonctionne via le serveur de l'application.") : "Chaque personne se connecte avec son propre compte Claude et retrouve son espace privé : ses marques, ses créations et ses idées ne sont visibles que par elle."}</p></div></div>
       <div class="g2">
+        ${Auth.card()}
         ${Pro.card()}
+        ${Social.card()}
         <div class="card"><div class="sec-h"><h2>Sauvegarde</h2><span class="pill ${cloud ? "ai" : ""}">${cloud ? "En ligne" : "Sur cet appareil"}</span></div>
           <p class="note">${cloud ? "Tes marques, créations et idées sont synchronisées avec ton compte : tu les retrouves sur tous tes appareils. Les images importées, elles, restent dans le navigateur où tu les as ajoutées." : Store.mode === "cloud" ? "Ton niveau d'accès ne permet pas la sauvegarde en ligne : tout est enregistré dans ce navigateur. Demande au propriétaire de l'application de te passer en « Contributeur » dans le menu Partager." : "La sauvegarde en ligne n'est pas disponible dans cette vue : tout est enregistré dans ce navigateur."}</p></div>
         ${SA ? "" : `<div class="card"><div class="sec-h"><h2>Inviter d'autres personnes</h2></div>
@@ -3285,16 +3747,13 @@ const Account = {
       </div>
       <div class="card"><div class="sec-h"><h2>Mes données</h2></div><p class="note">Télécharge une copie de tes marques, créations et idées (sans les images).</p><div class="row"><button class="btn" id="acExp">Exporter mes données (JSON)</button><button class="btn ghost danger" id="acWipe">Supprimer toutes mes données</button></div>
         ${SA ? `<p class="pro-legal"><a href="${Pro.link("confidentialite")}" target="_blank" rel="noopener">Confidentialité</a> · <a href="${Pro.link("conditions")}" target="_blank" rel="noopener">Conditions d'utilisation</a></p>` : ""}</div></div>`;
-    Pro.bindCard();
+    Pro.bindCard(); Auth.bindCard(); Social.bindCard($("#view-account"));
     $("#acWipe").onclick = () => {
       Modal.open(`<h2>Supprimer toutes tes données ?</h2><p class="note">Tes espaces de marque, créations, idées, images, musiques et montages enregistrés sur cet appareil seront effacés définitivement. Exporte-les d'abord si tu veux les garder.${Pro.pro && Pro.native() ? " Ton abonnement MaDA Pro n'est pas annulé : gère-le dans les réglages de ton compte." : ""}</p><div class="row"><button class="btn danger" id="acWipeGo">Tout supprimer</button><button class="btn ghost" data-close>Annuler</button></div>`);
       $("#acWipeGo").onclick = async () => {
         $("#acWipeGo").disabled = true;
-        if (Store.mode === "cloud") { for (const k of ["brand", "design", "ideas"]) for (const d of await Store.all(k)) await Store.del(k, d.id); }
-        try { L.db && L.db.close(); } catch (e) { }
-        await Promise.all(["ryanreel-studio", "ryanreel"].map(n => new Promise(r => { try { const q = indexedDB.deleteDatabase(n); q.onsuccess = q.onerror = q.onblocked = () => r(); } catch (e) { r(); } })));
-        try { const keep = lsGet("mada-uid"); localStorage.clear(); if (keep) lsSet("mada-uid", keep); } catch (e) { }
-        location.reload();
+        if (Store.mode === "cloud") { for (const k of ["brand", "design", "ideas", "post"]) for (const d of await Store.all(k)) await Store.del(k, d.id); }
+        await wipeDevice(true);
       };
     };
     $("#acBrand").onclick = () => App.go("brand", { force: true }); $("#acNew").onclick = newSpaceModal;
@@ -3302,15 +3761,30 @@ const Account = {
   }
 };
 
+// Erases everything MaDA keeps on this device, then restarts. keepSession keeps the sign-in.
+async function wipeDevice(keepSession) {
+  try { L.db && L.db.close(); } catch (e) { }
+  await Promise.all(["ryanreel-studio", "ryanreel"].map(n => new Promise(r => { try { const q = indexedDB.deleteDatabase(n); q.onsuccess = q.onerror = q.onblocked = () => r(); } catch (e) { r(); } })));
+  try {
+    const keep = ["mada-uid", "mada-onboarded", "mada-supa", ...(keepSession ? Object.keys(localStorage).filter(k => /^sb-/.test(k)).concat("mada-owner") : [])].map(k => [k, localStorage.getItem(k)]);
+    localStorage.clear(); keep.forEach(([k, v]) => v != null && localStorage.setItem(k, v));
+  } catch (e) { }
+  location.reload();
+}
+
 /* ================= BOOT ================= */
 (async function boot() {
   await L.open();
+  await Auth.init();
+  if (Auth.user) await Store.init();
   await WS.load(); await Assets.refresh(WS.cur.id);
   App.renderSide();
   const v0 = lsGet("rr-view"); App.view = ""; App.go(NAV.some(n => n[0] === v0) && v0 !== "create" ? v0 : "dash");
   Pro.init();
   AI.init().then(() => { if (App.view === "create" && $("#editor").hidden) Brief.render(); if (App.view === "account") Account.render(); });
-  await Store.init();
+  if (!Auth.user) await Store.init();
+  Social.init().then(() => { if (App.view === "insta" || App.view === "account") App.go(App.view, { force: true }); });
+  if (window.__RR_STANDALONE) Onboard.maybe();
   if (Store.user) { try { App.me = await Store.user.me(); App.isOwner = await Store.user.isOwner(); } catch (e) { } }
   if (Store.mode === "cloud") { const cur = WS.cur.id; await WS.load(); if (WS.list.some(b => b.id === cur)) WS.cur = WS.list.find(b => b.id === cur); Designs.list = null; Ideas.doc = null; await Assets.refresh(WS.cur.id); App.go(App.view, { force: true }); }
   App.renderSide(); Veille.init();

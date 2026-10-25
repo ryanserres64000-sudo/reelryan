@@ -5,7 +5,7 @@ css = src[src.index("<style>") + 7: src.index("</style>")]
 markup = src[src.index("</style>") + 8: src.index("<script>")]
 js = src[src.index("<script>") + 8: src.rindex("</script>")]
 
-ids = set(re.findall(r'id="([A-Za-z][\w-]*)"', src)) | {"playhead", "expBar", "capOut", "capCopy", "speechIn", "musOff", "musDel", "expGo", "expClose", "expCancel", "expSave", "expCap"}
+ids = set(re.findall(r'id="([A-Za-z][\w-]*)"', src)) | {"playhead", "expBar", "capOut", "capCopy", "speechIn", "musOff", "musDel", "expGo", "expClose", "expCancel", "expSave", "expCap", "expShare"}
 ids.discard("v")
 
 # ---------- CSS ----------
@@ -125,7 +125,7 @@ head = f'''<title>MaDA</title>
 </style>
 '''
 body = open("body.html", encoding="utf-8").read().replace("<!--VIDEO-->", mk)
-scripts = "\n".join(open(f, encoding="utf-8").read() for f in ["core.js", "render.js", "aidesign.js", "editor.js"]) + "\n" + wrapper + "\n" + open("pages.js", encoding="utf-8").read()
+scripts = "\n".join(open(f, encoding="utf-8").read() for f in ["core.js", "render.js", "aidesign.js", "editor.js", "music.js", "pro.js", "auth.js", "social.js"]) + "\n" + wrapper + "\n" + open("pages.js", encoding="utf-8").read()
 out = head + body + "<script>\n" + scripts + "\n</script>\n"
 open("mada-studio.html", "w", encoding="utf-8").write(out)
 open("all.js", "w", encoding="utf-8").write(scripts)
@@ -139,7 +139,7 @@ meta = ('<!doctype html>\n<html lang="fr"><head><meta charset="utf-8"><meta name
   '<link rel="apple-touch-icon" href="/apple-touch-icon.png"><link rel="manifest" href="/manifest.webmanifest">'
   '<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="MaDA">'
   '<meta property="og:title" content="MaDA"><meta property="og:description" content="Ta directrice artistique IA : posts, Reels et stories en un clic.">'
-  '<script>window.__RR_STANDALONE=true</script><script src="/shim.js"></script>\n')
+  '<script>window.__RR_STANDALONE=true</script><script src="/shim.js"></script><script src="/vendor/supabase.js"></script>\n')
 sa = meta + head + "</head><body>\n" + body + "<script>\n" + scripts + "\n</script>\n</body></html>\n"
 open("../public/index.html", "w", encoding="utf-8").write(sa)
 print("public ok", len(sa))

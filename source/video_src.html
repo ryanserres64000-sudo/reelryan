@@ -220,7 +220,8 @@ details.more .in{padding:0 12px 12px;display:flex;flex-direction:column;gap:8px}
           <div class="thumbs" id="homeThumbs"></div>
           <div class="row" style="justify-content:center;flex-wrap:wrap">
             <button class="btn primary" id="homeImport">Choisir des fichiers</button>
-            <button class="btn" id="homeMusic">+ Musique (optionnel)</button>
+            <button class="btn" id="homeMusicLib">♪ Galerie de musique</button>
+            <button class="btn" id="homeMusic">+ Ma musique (optionnel)</button>
           </div>
           <p class="note" id="homeMusicName"></p>
         </div>
@@ -289,7 +290,7 @@ details.more .in{padding:0 12px 12px;display:flex;flex-direction:column;gap:8px}
       </div>
       <div class="pane" data-pane="audio" hidden>
         <div id="musicBox"></div>
-        <button class="btn" id="musicBtn">+ Importer une musique</button>
+        <div class="row"><button class="btn primary" id="musicLib">♪ Galerie de musique</button><button class="btn" id="musicBtn">+ Importer une musique</button></div>
         <div class="row"><span class="lbl" style="width:76px">Musique</span><input type="range" id="volMusic" min="0" max="1" step="0.05"></div>
         <div class="row"><span class="lbl" style="width:76px">Son vidéos</span><input type="range" id="volClips" min="0" max="1" step="0.05"></div>
         <div class="field"><label for="aspectSel">Format</label><select class="sel" id="aspectSel"><option value="9:16">9:16</option><option value="4:5">4:5</option><option value="1:1">1:1</option><option value="16:9">16:9</option></select></div>
@@ -806,6 +807,9 @@ function renderMusic() {
   $("#musDel").onclick = () => { pushUndo(); mu.el.pause(); state.music = null; state.beat = null; afterChange(); };
 }
 $("#musicBtn").onclick = () => $("#musicIn").click();
+const openMusicLib = () => { if (typeof MusicLib === "undefined") return $("#musicIn").click(); MusicLib.open(f => importFiles([f])); };
+$("#musicLib").onclick = openMusicLib;
+$("#homeMusicLib").onclick = openMusicLib;
 $("#homeMusic").onclick = () => $("#musicIn").click();
 $("#musicIn").onchange = e => { importFiles(e.target.files); e.target.value = ""; };
 $("#volMusic").oninput = e => { state.volMusic = +e.target.value; applyVolumes(); scheduleSave(); };
@@ -1109,6 +1113,7 @@ $("#exportOv").addEventListener("click", e => {
   if (id === "expGo") startExport();
   if (id === "expCancel") { expCancelled = true; exporting = false; pause(); try { rec && rec.stop(); } catch (er) { } $("#exportOv").hidden = true; requestDraw(); }
   if (id === "expSave") saveExport();
+  if (id === "expShare" && lastExport) { const name = `mada-${new Date().toISOString().slice(0, 10)}.${lastExport.ext}`; typeof Publish !== "undefined" ? Publish.open({ blob: lastExport.blob, name, kind: "video", caption: state.caption, duration: total() }) : shareFile(name, lastExport.blob, state.caption); }
   if (id === "expCap") { navigator.clipboard.writeText(state.caption).then(() => toast("Légende copiée"), () => toast("Copie-la depuis le panneau de l'IA")); }
 });
 function startExport() {
@@ -1128,7 +1133,8 @@ function exportDone() {
   lastExport = { blob, ext };
   showExport(`<h2>Ta vidéo est prête</h2><video src="${URL.createObjectURL(blob)}" controls playsinline></video>
     <p class="note">${ext.toUpperCase()} · ${(blob.size / 1048576).toFixed(1)} Mo${ext === "webm" ? ". Instagram préfère le MP4 : exporte depuis Safari ou un Chrome récent pour l'obtenir." : ""}</p>
-    ${downloads ? `<button class="btn primary" id="expSave">Enregistrer la vidéo</button>` : `<p class="note">L'enregistrement de fichiers n'est pas disponible dans cette vue.</p>`}
+    ${typeof shareFile !== "undefined" ? `<button class="btn primary" id="expShare">Publier sur Instagram / TikTok</button>` : ""}
+    ${downloads ? `<button class="btn" id="expSave">Enregistrer la vidéo</button>` : `<p class="note">L'enregistrement de fichiers n'est pas disponible dans cette vue.</p>`}
     ${state.caption ? `<button class="btn" id="expCap">Copier la légende Instagram</button>` : ""}
     <button class="btn ghost" id="expClose">Fermer</button>`);
   requestDraw();

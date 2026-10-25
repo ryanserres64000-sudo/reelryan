@@ -358,6 +358,7 @@ const Account = {
     $("#view-account").innerHTML = `<div class="page">
       <div class="page-h"><div class="grow"><div class="eyebrow">Compte</div><h1>${esc(n || "Mon compte")}</h1><p>${SA ? "Version autonome : aucune connexion nécessaire. Tout ce que tu crées est enregistré dans ce navigateur, et l'IA fonctionne via le serveur de l'application." : "Chaque personne se connecte avec son propre compte Claude et retrouve son espace privé : ses marques, ses créations et ses idées ne sont visibles que par elle."}</p></div></div>
       <div class="g2">
+        ${Pro.card()}
         <div class="card"><div class="sec-h"><h2>Sauvegarde</h2><span class="pill ${cloud ? "ai" : ""}">${cloud ? "En ligne" : "Sur cet appareil"}</span></div>
           <p class="note">${cloud ? "Tes marques, créations et idées sont synchronisées avec ton compte : tu les retrouves sur tous tes appareils. Les images importées, elles, restent dans le navigateur où tu les as ajoutées." : Store.mode === "cloud" ? "Ton niveau d'accès ne permet pas la sauvegarde en ligne : tout est enregistré dans ce navigateur. Demande au propriétaire de l'application de te passer en « Contributeur » dans le menu Partager." : "La sauvegarde en ligne n'est pas disponible dans cette vue : tout est enregistré dans ce navigateur."}</p></div>
         ${SA ? "" : `<div class="card"><div class="sec-h"><h2>Inviter d'autres personnes</h2></div>
@@ -365,7 +366,20 @@ const Account = {
         <div class="card"><div class="sec-h"><h2>Espaces gérés</h2></div><p class="note">${WS.list.length} espace${WS.list.length > 1 ? "s" : ""} : ${WS.list.map(b => esc(b.name)).join(", ")}.</p><div class="row"><button class="btn" id="acBrand">Gérer mes espaces</button><button class="btn" id="acNew">+ Nouvel espace</button></div></div>
         <div class="card"><div class="sec-h"><h2>Intelligence artificielle</h2><span class="pill ${AI.ok() ? "ai" : ""}">${AI.ok() ? "Active" : "Indisponible"}</span></div><p class="note">${SA ? "L'IA tourne sur le serveur de l'application : personne n'a besoin de compte." : "Chaque génération utilise ton propre compte Claude. La première fois, Claude te demande l'autorisation."}${AI.imgMax ? ` L'IA peut regarder jusqu'à ${AI.imgMax} images par demande.` : ""}</p></div>
       </div>
-      <div class="card"><div class="sec-h"><h2>Mes données</h2></div><p class="note">Télécharge une copie de tes marques, créations et idées (sans les images).</p><div class="row"><button class="btn" id="acExp">Exporter mes données (JSON)</button></div></div></div>`;
+      <div class="card"><div class="sec-h"><h2>Mes données</h2></div><p class="note">Télécharge une copie de tes marques, créations et idées (sans les images).</p><div class="row"><button class="btn" id="acExp">Exporter mes données (JSON)</button><button class="btn ghost danger" id="acWipe">Supprimer toutes mes données</button></div>
+        ${SA ? `<p class="pro-legal"><a href="${Pro.link("confidentialite")}" target="_blank" rel="noopener">Confidentialité</a> · <a href="${Pro.link("conditions")}" target="_blank" rel="noopener">Conditions d'utilisation</a></p>` : ""}</div></div>`;
+    Pro.bindCard();
+    $("#acWipe").onclick = () => {
+      Modal.open(`<h2>Supprimer toutes tes données ?</h2><p class="note">Tes espaces de marque, créations, idées, images, musiques et montages enregistrés sur cet appareil seront effacés définitivement. Exporte-les d'abord si tu veux les garder.${Pro.pro && Pro.native() ? " Ton abonnement MaDA Pro n'est pas annulé : gère-le dans les réglages de ton compte." : ""}</p><div class="row"><button class="btn danger" id="acWipeGo">Tout supprimer</button><button class="btn ghost" data-close>Annuler</button></div>`);
+      $("#acWipeGo").onclick = async () => {
+        $("#acWipeGo").disabled = true;
+        if (Store.mode === "cloud") { for (const k of ["brand", "design", "ideas"]) for (const d of await Store.all(k)) await Store.del(k, d.id); }
+        try { L.db && L.db.close(); } catch (e) { }
+        await Promise.all(["ryanreel-studio", "ryanreel"].map(n => new Promise(r => { try { const q = indexedDB.deleteDatabase(n); q.onsuccess = q.onerror = q.onblocked = () => r(); } catch (e) { r(); } })));
+        try { const keep = lsGet("mada-uid"); localStorage.clear(); if (keep) lsSet("mada-uid", keep); } catch (e) { }
+        location.reload();
+      };
+    };
     $("#acBrand").onclick = () => App.go("brand", { force: true }); $("#acNew").onclick = newSpaceModal;
     $("#acExp").onclick = async () => { const data = { exportedAt: new Date().toISOString(), brands: await Store.all("brand"), designs: (await Store.all("design")).map(d => ({ ...d, thumb: undefined })), ideas: await Store.all("ideas") }; saveFile("mada-donnees.json", JSON.stringify(data, null, 2)); };
   }
@@ -377,6 +391,7 @@ const Account = {
   await WS.load(); await Assets.refresh(WS.cur.id);
   App.renderSide();
   const v0 = lsGet("rr-view"); App.view = ""; App.go(NAV.some(n => n[0] === v0) && v0 !== "create" ? v0 : "dash");
+  Pro.init();
   AI.init().then(() => { if (App.view === "create" && $("#editor").hidden) Brief.render(); if (App.view === "account") Account.render(); });
   await Store.init();
   if (Store.user) { try { App.me = await Store.user.me(); App.isOwner = await Store.user.isOwner(); } catch (e) { } }

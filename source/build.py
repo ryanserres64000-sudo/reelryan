@@ -5,7 +5,7 @@ css = src[src.index("<style>") + 7: src.index("</style>")]
 markup = src[src.index("</style>") + 8: src.index("<script>")]
 js = src[src.index("<script>") + 8: src.rindex("</script>")]
 
-ids = set(re.findall(r'id="([A-Za-z][\w-]*)"', src)) | {"playhead", "expBar", "capOut", "capCopy", "speechIn", "musOff", "musDel", "expGo", "expClose", "expCancel", "expSave", "expCap"}
+ids = set(re.findall(r'id="([A-Za-z][\w-]*)"', src)) | {"playhead", "expBar", "capOut", "capCopy", "speechIn", "musOff", "musDel", "expGo", "expClose", "expCancel", "expSave", "expCap", "expShare"}
 ids.discard("v")
 
 # ---------- CSS ----------
@@ -125,7 +125,7 @@ head = f'''<title>MaDA</title>
 </style>
 '''
 body = open("body.html", encoding="utf-8").read().replace("<!--VIDEO-->", mk)
-scripts = "\n".join(open(f, encoding="utf-8").read() for f in ["core.js", "render.js", "aidesign.js", "editor.js"]) + "\n" + wrapper + "\n" + open("pages.js", encoding="utf-8").read()
+scripts = "\n".join(open(f, encoding="utf-8").read() for f in ["core.js", "render.js", "aidesign.js", "editor.js", "music.js", "pro.js"]) + "\n" + wrapper + "\n" + open("pages.js", encoding="utf-8").read()
 out = head + body + "<script>\n" + scripts + "\n</script>\n"
 open("mada-studio.html", "w", encoding="utf-8").write(out)
 open("all.js", "w", encoding="utf-8").write(scripts)

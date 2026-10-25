@@ -268,6 +268,23 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
 .mobile-ws{display:none;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
 @media (prefers-reduced-motion:reduce){.spin,.orb.work,.steps .st.now::before{animation:none}}
 
+/* ---- music gallery ---- */
+.mu-list{display:flex;flex-direction:column;gap:2px}
+.mu-row{display:flex;align-items:center;gap:12px;padding:8px;border-radius:12px}
+.mu-row:hover{background:var(--panel-2)}
+.mu-play{width:48px;height:48px;flex:none;border-radius:10px;border:0;background:var(--panel-3) center/cover no-repeat;color:#fff;font-size:15px;text-shadow:0 1px 4px #000c;box-shadow:inset 0 0 0 100px #0005}
+.mu-meta{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.mu-meta b,.mu-meta small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mu-meta small{color:var(--muted);font-size:12px}
+#muMoods{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+#muMoods .chip{flex:none}
+/* ---- Pro ---- */
+.pro-perks{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.pro-perks li{display:flex;gap:10px;align-items:baseline}
+.pro-perks li::before{content:"✦";color:var(--accent)}
+.pro-legal{font-size:11.5px;color:var(--muted);line-height:1.5}
+.pro-legal a{color:var(--muted)}
+
 /* ---- video studio (scoped) ---- */
 #view-video /* Layout: AI-first studio — home screen (import + request) → studio: [manual tools,#view-video hidden] | preview | AI assistant; timeline under. Stacks on phones: preview,#view-video assistant,#view-video timeline. */
 :root{
@@ -528,7 +545,8 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
           <div class="thumbs" id="v-homeThumbs"></div>
           <div class="row" style="justify-content:center;flex-wrap:wrap">
             <button class="btn primary" id="v-homeImport">Choisir des fichiers</button>
-            <button class="btn" id="v-homeMusic">+ Musique (optionnel)</button>
+            <button class="btn" id="v-homeMusicLib">♪ Galerie de musique</button>
+            <button class="btn" id="v-homeMusic">+ Ma musique (optionnel)</button>
           </div>
           <p class="note" id="v-homeMusicName"></p>
         </div>
@@ -597,7 +615,7 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
       </div>
       <div class="pane" data-pane="audio" hidden>
         <div id="v-musicBox"></div>
-        <button class="btn" id="v-musicBtn">+ Importer une musique</button>
+        <div class="row"><button class="btn primary" id="v-musicLib">♪ Galerie de musique</button><button class="btn" id="v-musicBtn">+ Importer une musique</button></div>
         <div class="row"><span class="lbl" style="width:76px">Musique</span><input type="range" id="v-volMusic" min="0" max="1" step="0.05"></div>
         <div class="row"><span class="lbl" style="width:76px">Son vidéos</span><input type="range" id="v-volClips" min="0" max="1" step="0.05"></div>
         <div class="field"><label for="v-aspectSel">Format</label><select class="sel" id="v-aspectSel"><option value="9:16">9:16</option><option value="4:5">4:5</option><option value="1:1">1:1</option><option value="16:9">16:9</option></select></div>
@@ -842,7 +860,7 @@ const AI = {
   err(e) {
     const c = e && e.code;
     if (["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"].includes(c)) { this.disabled = true; return "L'IA n'est pas autorisée sur cette page. Recharge la page et accepte quand Claude te le demande."; }
-    return ({ rate_limited: "Trop de demandes ou limite d'usage atteinte. Attends un peu, puis réessaie.", invalid_json: "La réponse de l'IA est arrivée incomplète. Réessaie.", refused: "L'IA ne peut pas traiter cette demande. Reformule-la.", session_expired: "Ta session Claude a expiré : reconnecte-toi.", prompt_too_large: "Trop d'éléments envoyés en une fois. Retire quelques images.", image_rejected: "Une image n'a pas pu être analysée. Essaie avec une autre.", empty_completion: "L'IA n'a rien produit. Précise ta demande.", cancelled: "Arrêté." })[c] || "L'IA n'a pas pu répondre. Réessaie dans un instant.";
+    return ({ rate_limited: "Trop de demandes ou limite d'usage atteinte. Attends un peu, puis réessaie.", pro_required: "Limite gratuite du jour atteinte : passe à MaDA Pro pour continuer.", invalid_json: "La réponse de l'IA est arrivée incomplète. Réessaie.", refused: "L'IA ne peut pas traiter cette demande. Reformule-la.", session_expired: "Ta session Claude a expiré : reconnecte-toi.", prompt_too_large: "Trop d'éléments envoyés en une fois. Retire quelques images.", image_rejected: "Une image n'a pas pu être analysée. Essaie avec une autre.", empty_completion: "L'IA n'a rien produit. Précise ta demande.", cancelled: "Arrêté." })[c] || "L'IA n'a pas pu répondre. Réessaie dans un instant.";
   },
   unavailableMsg() { return window.__RR_STANDALONE ? "Le serveur IA ne répond pas. Vérifie la clé API dans les réglages de l'hébergement." : "L'IA ne fonctionne que lorsque l'application est ouverte dans Claude : depuis la conversation ou ta liste d'artefacts sur claude.ai, connecté à ton compte, et pas dans un onglet séparé. Accepte ensuite l'autorisation demandée par Claude."; },
   json(prompt, o = {}) {
@@ -853,12 +871,29 @@ const AI = {
 
 /* ---------- Modal ---------- */
 const Modal = {
-  open(html, wide) { const c = $("#modalCard"); c.className = "modal-card" + (wide ? " wide" : ""); c.innerHTML = html; $("#modal").hidden = false; return c; },
-  close() { $("#modal").hidden = true; $("#modalCard").innerHTML = ""; }
+  onclose: null,
+  open(html, wide) { this.fireClose(); const c = $("#modalCard"); c.className = "modal-card" + (wide ? " wide" : ""); c.innerHTML = html; $("#modal").hidden = false; return c; },
+  close() { this.fireClose(); $("#modal").hidden = true; $("#modalCard").innerHTML = ""; },
+  fireClose() { const f = this.onclose; this.onclose = null; if (f) { try { f(); } catch (e) { } } }
 };
 $("#modal").addEventListener("click", e => { if (e.target.id === "modal" || e.target.closest("[data-close]")) Modal.close(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("#modal").hidden) Modal.close(); });
 
+// Share sheet (app: Instagram, TikTok, « Enregistrer la vidéo »…), else Web Share, else a plain download.
+// The caption is copied first: Instagram and TikTok ignore text passed with a file.
+async function shareFile(name, blob, caption) {
+  if (caption) { try { await navigator.clipboard.writeText(caption); } catch (e) { } }
+  const done = () => { if (caption) toast("Légende copiée : colle-la dans Instagram ou TikTok", 4500); return true; };
+  if (window.MadaNative) {
+    try { await MadaNative.share({ filename: name, data: blob, text: caption }); return done(); }
+    catch (e) { if (e && e.code === "cancelled") return false; }
+  }
+  try {
+    const f = new File([blob], name, { type: blob.type });
+    if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f] }); return done(); }
+  } catch (e) { if (e && e.name === "AbortError") return false; }
+  return saveFile(name, blob);
+}
 async function saveFile(name, data) {
   if (!AI.downloads) { toast("L'enregistrement de fichiers n'est pas disponible dans cette vue."); return false; }
   try { await AI.downloads.save({ filename: name, data }); toast("Fichier enregistré"); return true; }
@@ -1751,15 +1786,24 @@ const Exporter = {
       <div class="segs" id="xFmt"><button data-x="png" aria-pressed="true">PNG</button><button data-x="jpg" aria-pressed="false">JPG</button><button data-x="pdf" aria-pressed="false">PDF (impression)</button></div>
       <div class="segs" id="xScale"><button data-s="1" aria-pressed="true">Standard ×1</button><button data-s="2" aria-pressed="false">Haute définition ×2</button></div>
       <img class="prev" src="${doc.thumb || ""}" alt="Aperçu">
-      <div class="row"><button class="btn primary" id="xGo">Enregistrer le fichier</button><button class="btn ghost" data-close>Fermer</button></div>`);
+      <div class="row"><button class="btn primary" id="xGo">Enregistrer le fichier</button><button class="btn" id="xShare">Partager sur Instagram / TikTok</button><button class="btn ghost" data-close>Fermer</button></div>`);
     let fmt = "png", sc = 1;
     $("#xFmt").onclick = e => { const b = e.target.closest("[data-x]"); if (!b) return; fmt = b.dataset.x; $$("#xFmt button").forEach(x => x.setAttribute("aria-pressed", x === b)); };
     $("#xScale").onclick = e => { const b = e.target.closest("[data-s]"); if (!b) return; sc = +b.dataset.s; $$("#xScale button").forEach(x => x.setAttribute("aria-pressed", x === b)); };
+    const base = (doc.name || "creation").replace(/[^\w\- àâäéèêëïîôöùûüç]/gi, "").trim().replace(/\s+/g, "-").slice(0, 40) || "creation";
+    $("#xShare").onclick = async () => {
+      const b = $("#xShare"); b.disabled = true;
+      try {
+        await prepareDesign(d); const c = document.createElement("canvas"); c.width = d.w * 2; c.height = d.h * 2; renderDesign(c.getContext("2d"), d, 2);
+        const blob = await new Promise(r => c.toBlob(r, "image/jpeg", .93));
+        await shareFile(base + ".jpg", blob);
+      } catch (e) { toast("Le partage a échoué."); }
+      finally { if (b.isConnected) b.disabled = false; }
+    };
     $("#xGo").onclick = async () => {
       $("#xGo").disabled = true; $("#xGo").innerHTML = `<span class="spin"></span>Préparation…`;
       try {
         await prepareDesign(d); const c = document.createElement("canvas"); c.width = d.w * sc; c.height = d.h * sc; renderDesign(c.getContext("2d"), d, sc);
-        const base = (doc.name || "creation").replace(/[^\w\- àâäéèêëïîôöùûüç]/gi, "").trim().replace(/\s+/g, "-").slice(0, 40) || "creation";
         if (fmt === "pdf") {
           if (!window.jspdf) throw new Error("pdf");
           const { jsPDF } = window.jspdf, pdf = new jsPDF({ orientation: d.w > d.h ? "landscape" : "portrait", unit: "px", format: [d.w, d.h], hotfixes: ["px_scaling"] });
@@ -1768,6 +1812,235 @@ const Exporter = {
       } catch (e) { toast(e && e.message === "pdf" ? "Le module PDF n'a pas pu se charger. Exporte en PNG." : "L'export a échoué."); }
       finally { const b = $("#xGo"); if (b) { b.disabled = false; b.textContent = "Enregistrer le fichier"; } }
     };
+  }
+};
+
+/* ================= MUSIC GALLERY ================= */
+// Search a licensed catalogue through the MaDA server, preview, use in the
+// video, keep tracks offline in "Mes musiques" (IndexedDB, store kv, key music:<id>).
+const MusicLib = {
+  MOODS: [["tendance", "Tendance"], ["chill", "Chill"], ["energie", "Énergie"], ["soiree", "Soirée"], ["rap", "Rap"], ["electro", "Électro"], ["pop", "Pop"], ["luxe", "Luxe"], ["cinematique", "Cinématique"], ["acoustique", "Acoustique"]],
+  tab: "find", q: "", mood: "tendance", tracks: [], offset: 0, more: false, busy: false, err: "", lib: [], audio: null, playing: null, onPick: null, seq: 0,
+
+  server() { return window.MadaServer || null; },
+  credit(t) { return `Musique : ${t.title} – ${t.artist}${t.provider ? ` (${t.provider}${t.license ? `, ${t.license}` : ""})` : ""}`; },
+  dur(s) { s = Math.round(s || 0); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; },
+
+  async loadLib() { this.lib = ((await L.all("kv")) || []).filter(v => v && v.kind === "music").sort((a, b) => b.added - a.added); },
+  async keep(meta, blob) {
+    const rec = { kind: "music", ...meta, blob, added: Date.now() };
+    await L.put("kv", "music:" + meta.id, rec); await this.loadLib(); return rec;
+  },
+
+  async open(onPick) {
+    this.onPick = onPick || null;
+    await this.loadLib();
+    Modal.open(`<div class="sec-h"><h2>Musique</h2><button class="btn sm ghost" data-close style="margin-left:auto">Fermer</button></div>
+      <div class="segs" id="muTabs"><button data-mt="find">Découvrir</button><button data-mt="lib">Mes musiques</button></div>
+      <div id="muBody"></div>`, true);
+    Modal.onclose = () => this.stop();
+    $("#muTabs").onclick = e => { const b = e.target.closest("[data-mt]"); if (b) { this.tab = b.dataset.mt; this.render(); } };
+    this.render();
+    if (this.tab === "find" && !this.tracks.length) this.search();
+  },
+
+  render() {
+    const B = $("#muBody"); if (!B) return;
+    $$("#muTabs button").forEach(b => b.setAttribute("aria-pressed", b.dataset.mt === this.tab));
+    if (this.tab === "lib") return this.renderLib(B);
+    const S = this.server();
+    B.innerHTML = `<div class="inrow"><input class="inp" id="muQ" type="search" placeholder="Cherche un titre, un artiste, une ambiance…" value="${esc(this.q)}" aria-label="Rechercher une musique"><button class="send" id="muGo" aria-label="Rechercher">⌕</button></div>
+      <div class="chips" id="muMoods">${this.MOODS.map(([k, l]) => `<button class="chip" data-mood="${k}" aria-pressed="${!this.q && this.mood === k}">${l}</button>`).join("")}</div>
+      <div id="muList">${!S ? `<p class="note">La recherche de musique fonctionne dans l'app MaDA et sur le site. Ici, importe tes propres fichiers dans « Mes musiques ».</p>` : this.listHtml()}</div>
+      <p class="note">Musiques d'artistes indépendants sous licence. Respecte la licence indiquée et ajoute le crédit dans ta légende quand elle le demande.</p>`;
+    const go = () => { this.q = $("#muQ").value.trim(); this.search(); };
+    $("#muGo").onclick = go;
+    $("#muQ").onkeydown = e => { if (e.key === "Enter") go(); };
+    $("#muMoods").onclick = e => { const b = e.target.closest("[data-mood]"); if (!b) return; this.mood = b.dataset.mood; this.q = ""; $("#muQ").value = ""; this.search(); };
+    this.bindRows($("#muList"), id => this.tracks.find(t => t.id === id));
+    const m = $("#muMore"); if (m) m.onclick = () => this.search(true);
+  },
+
+  listHtml() {
+    if (this.busy && !this.tracks.length) return `<p class="note"><span class="spin"></span>Recherche…</p>`;
+    if (this.err) return `<p class="note">${esc(this.err)}</p>`;
+    if (!this.tracks.length) return `<p class="note">Aucune musique trouvée. Essaie un autre mot.</p>`;
+    const kept = new Set(this.lib.map(t => t.id));
+    return `<div class="mu-list">${this.tracks.map(t => this.rowHtml(t, kept.has(t.id))).join("")}</div>${this.more ? `<button class="btn sm" id="muMore" ${this.busy ? "disabled" : ""}>Plus de musiques</button>` : ""}`;
+  },
+
+  rowHtml(t, kept, local) {
+    const on = this.playing === t.id;
+    return `<div class="mu-row" data-id="${esc(t.id)}">
+      <button class="mu-play" data-mu="play" aria-label="${on ? "Pause" : "Écouter"} ${esc(t.title)}" style="${t.cover ? `background-image:url('${esc(t.cover)}')` : ""}">${on ? "❚❚" : "▶"}</button>
+      <div class="mu-meta"><b>${esc(t.title)}</b><small>${esc(t.artist || "")}${t.duration ? ` · ${this.dur(t.duration)}` : ""}${t.license ? ` · ${esc(t.license)}` : ""}</small></div>
+      <div class="row">${local ? `<button class="btn sm ghost" data-mu="credit" title="Copier le crédit">©</button><button class="btn sm ghost danger" data-mu="del" aria-label="Retirer">✕</button>`
+        : kept ? `<span class="pill">Enregistrée</span>` : t.downloadable === false ? "" : `<button class="btn sm ghost" data-mu="keep" title="Garder hors connexion">⬇</button>`}
+      ${this.onPick ? `<button class="btn sm primary" data-mu="use">Utiliser</button>` : ""}</div></div>`;
+  },
+
+  bindRows(box, find) {
+    if (!box) return;
+    box.onclick = async e => {
+      const b = e.target.closest("[data-mu]"); if (!b) return;
+      const t = find(b.closest("[data-id]").dataset.id); if (!t) return;
+      const act = b.dataset.mu;
+      if (act === "play") return this.toggle(t);
+      if (act === "credit") return copyText(this.credit(t));
+      if (act === "del") { await L.del("kv", "music:" + t.id); await this.loadLib(); return this.render(); }
+      if (!Pro.allowed()) return Pro.paywall("La galerie de musique complète fait partie de MaDA Pro.");
+      b.disabled = true; const label = b.textContent; b.innerHTML = `<span class="spin"></span>`;
+      try {
+        const rec = t.blob ? t : await this.keep(this.meta(t), await this.server().blob("/api/music?file=" + encodeURIComponent(t.id)));
+        if (act === "use") {
+          this.stop();
+          const file = new File([rec.blob], `${rec.artist ? rec.artist + " - " : ""}${rec.title}.mp3`.replace(/[\\/:*?"<>|]/g, ""), { type: rec.blob.type || "audio/mpeg" });
+          const pick = this.onPick; Modal.close();
+          await pick(file, rec);
+          if (rec.provider) toast(`Ajoutée. Crédit à mettre en légende : ${this.credit(rec)}`, 6000);
+        } else { toast("Gardée dans « Mes musiques »"); this.render(); }
+      } catch (er) {
+        toast(er && er.code === "unauthorized" ? "Code d'accès manquant : lance d'abord une création IA pour le saisir." : "Téléchargement impossible. Vérifie ta connexion.");
+        if (b.isConnected) { b.disabled = false; b.textContent = label; }
+      }
+    };
+  },
+
+  meta(t) { return { id: t.id, title: t.title, artist: t.artist, duration: t.duration, cover: t.cover, license: t.license, licenseUrl: t.licenseUrl, provider: t.provider }; },
+
+  renderLib(B) {
+    B.innerHTML = `<div class="row"><button class="btn" id="muImp">+ Importer mes musiques</button></div>
+      <p class="note">Importe uniquement des musiques que tu as le droit d'utiliser : Instagram et TikTok peuvent couper le son ou bloquer une vidéo qui utilise un titre protégé.</p>
+      ${this.lib.length ? `<div class="mu-list">${this.lib.map(t => this.rowHtml(t, true, true)).join("")}</div>` : `<p class="note">Aucune musique pour l'instant. Garde des titres depuis « Découvrir » (bouton ⬇) pour les utiliser sans connexion.</p>`}`;
+    $("#muImp").onclick = async () => {
+      const files = await pickFiles("audio/*", true);
+      for (const f of files) await this.keep({ id: uid("own"), title: f.name.replace(/\.[^.]+$/, ""), artist: "", duration: 0, cover: "", license: "Mon fichier", provider: "" }, f);
+      if (files.length) { toast(`${files.length} musique${files.length > 1 ? "s" : ""} importée${files.length > 1 ? "s" : ""}`); this.render(); }
+    };
+    this.bindRows(B, id => this.lib.find(t => t.id === id));
+  },
+
+  async search(more) {
+    const S = this.server(); if (!S) return this.render();
+    const n = ++this.seq;
+    this.busy = true; this.err = "";
+    if (!more) { this.tracks = []; this.offset = 0; }
+    const L0 = $("#muList"); if (L0 && !more) L0.innerHTML = this.listHtml();
+    try {
+      const p = new URLSearchParams({ offset: String(this.offset) });
+      if (this.q) p.set("q", this.q); else p.set("mood", this.mood);
+      const r = await S.json("/api/music?" + p);
+      if (n !== this.seq) return;
+      this.tracks = more ? this.tracks.concat(r.tracks || []) : (r.tracks || []);
+      this.offset += (r.tracks || []).length; this.more = (r.tracks || []).length >= 30;
+    } catch (e) {
+      if (n !== this.seq) return;
+      this.err = e && e.code === "music_not_configured" ? "Le catalogue de musique n'est pas encore activé sur le serveur MaDA." : e && e.code === "unauthorized" ? "Code d'accès manquant : lance d'abord une création IA pour le saisir." : "La recherche n'a pas répondu. Vérifie ta connexion et réessaie.";
+    }
+    this.busy = false;
+    if (this.tab === "find") this.render();
+  },
+
+  toggle(t) {
+    if (this.playing === t.id) { this.stop(); return this.paint(); }
+    this.stop();
+    const a = this.audio || (this.audio = new Audio());
+    if (t.blob) { a.src = URL.createObjectURL(t.blob); a._blob = true; }
+    else { const S = this.server(); if (!S) return; a.src = S.url("/api/music?file=" + encodeURIComponent(t.id)); a._blob = false; }
+    a.onended = () => { this.playing = null; this.paint(); };
+    a.play().catch(() => { this.playing = null; toast("Lecture impossible."); this.paint(); });
+    this.playing = t.id; this.paint();
+  },
+  paint() {
+    $$("#muBody .mu-row").forEach(r => { const on = r.dataset.id === this.playing, b = r.querySelector(".mu-play"); b.textContent = on ? "❚❚" : "▶"; b.setAttribute("aria-label", (on ? "Pause" : "Écouter") + " " + r.querySelector("b").textContent); });
+  },
+  stop() {
+    const a = this.audio; if (!a) return;
+    a.pause(); if (a._blob && a.src) URL.revokeObjectURL(a.src);
+    a.removeAttribute("src"); a.load(); this.playing = null;
+  }
+};
+
+/* ================= MADA PRO ================= */
+// In the iOS / Android app, purchases go through Apple / Google via the
+// RevenueCat plugin ("Purchases"); the server checks the same entitlement for
+// the AI quota. Without a gate on the server (or inside Claude) everyone has
+// full access and none of this is shown.
+const Pro = {
+  ENTITLEMENT: "pro",
+  on: false, pro: lsGet("mada-pro") === "1", freePerDay: 0, rc: null, pkgs: [], ready: false,
+
+  native() { return !!window.MadaNative; },
+  allowed() { return !this.on || this.pro; },
+  set(v) { this.pro = !!v; lsSet("mada-pro", v ? "1" : "0"); if (App.view === "account") Account.render(); },
+  apply(info) { const e = info && info.entitlements && info.entitlements.active; if (e) this.set(!!e[this.ENTITLEMENT]); },
+
+  async init() {
+    const S = window.MadaServer;
+    if (S) {
+      try { const st = await S.json("/api/status"); this.on = !!st.gated; this.freePerDay = st.freePerDay || 0; if (st.gated) this.set(!!st.pro || this.pro); }
+      catch (e) { }
+    }
+    const keys = window.MADA_RC_KEYS || {}, key = this.native() && keys[MadaNative.platform];
+    if (key) {
+      try {
+        this.rc = MadaNative.plugin("Purchases");
+        await this.rc.configure({ apiKey: key, appUserID: S ? S.user : undefined });
+        this.apply((await this.rc.getCustomerInfo()).customerInfo);
+        const o = await this.rc.getOfferings();
+        this.pkgs = (o && o.current && o.current.availablePackages) || [];
+      } catch (e) { this.rc = null; }
+    }
+    this.ready = true;
+    window.addEventListener("mada:pro-required", () => this.paywall(this.freePerDay ? `Tu as utilisé tes ${this.freePerDay} demandes IA gratuites d'aujourd'hui.` : "Limite gratuite du jour atteinte."));
+  },
+
+  priceLabel(p) {
+    const pr = p.product || {}, per = { MONTHLY: " / mois", ANNUAL: " / an", WEEKLY: " / semaine", LIFETIME: " à vie" }[p.packageType] || "";
+    return (pr.priceString || "") + per;
+  },
+
+  paywall(reason) {
+    const buy = this.native() && this.rc && this.pkgs.length;
+    Modal.open(`<div class="eyebrow">MaDA Pro</div><h2>Tout MaDA, sans limite</h2>
+      ${reason ? `<p class="note">${esc(reason)}</p>` : ""}
+      <ul class="pro-perks"><li>Créations et retouches IA illimitées</li><li>Galerie de musique complète, utilisable dans tes montages et hors connexion</li><li>Tous les formats d'export, en haute définition</li><li>Espaces de marque illimités</li><li>Les nouveautés en premier : publication directe, analyses détaillées</li></ul>
+      ${buy ? `<div class="row" id="proPkgs">${this.pkgs.map((p, i) => `<button class="btn ${i ? "" : "primary"}" data-pkg="${i}">${esc(this.priceLabel(p))}</button>`).join("")}</div>
+        <div class="row"><button class="btn sm ghost" id="proRestore">Restaurer mes achats</button><button class="btn sm ghost" data-close>Plus tard</button></div>
+        <p class="pro-legal">Paiement par ton compte ${MadaNative.platform === "ios" ? "Apple" : "Google Play"}. Un abonnement se renouvelle automatiquement sauf annulation au moins 24 h avant la fin de la période, depuis les réglages de ton compte. <a href="${this.link("conditions")}" target="_blank" rel="noopener">Conditions</a> · <a href="${this.link("confidentialite")}" target="_blank" rel="noopener">Confidentialité</a></p>`
+        : `<p class="note">${this.native() ? "Les achats ne sont pas encore disponibles. Réessaie dans un instant." : "MaDA Pro s'achète dans l'app MaDA sur iPhone et Android. Il est ensuite actif partout."}</p><div class="row"><button class="btn ghost" data-close>Fermer</button></div>`}`);
+    const P = $("#proPkgs");
+    if (P) P.onclick = async e => {
+      const b = e.target.closest("[data-pkg]"); if (!b) return;
+      $$("#proPkgs button").forEach(x => x.disabled = true); b.innerHTML = `<span class="spin"></span>Paiement…`;
+      try {
+        const r = await this.rc.purchasePackage({ aPackage: this.pkgs[+b.dataset.pkg] });
+        this.apply(r.customerInfo);
+        if (this.pro) { Modal.close(); toast("Bienvenue dans MaDA Pro ✦", 3500); return; }
+        toast("Paiement reçu, activation en cours…");
+      } catch (er) { if (!(er && (er.userCancelled || er.code === "1" || /cancel/i.test(er.message || "")))) toast("Le paiement n'a pas abouti."); }
+      if ($("#proPkgs")) { $$("#proPkgs button").forEach((x, i) => { x.disabled = false; x.textContent = this.priceLabel(this.pkgs[i]); }); }
+    };
+    const R = $("#proRestore");
+    if (R) R.onclick = async () => {
+      R.disabled = true;
+      try { this.apply((await this.rc.restorePurchases()).customerInfo); toast(this.pro ? "MaDA Pro est actif" : "Aucun achat à restaurer sur ce compte"); if (this.pro) Modal.close(); }
+      catch (e) { toast("Restauration impossible pour l'instant."); }
+      if (R.isConnected) R.disabled = false;
+    };
+  },
+
+  link(page) { const base = (window.MadaServer && MadaServer.base) || ""; return `${base}/${page}.html`; },
+
+  card() {
+    if (!this.on) return "";
+    return `<div class="card"><div class="sec-h"><h2>MaDA Pro</h2><span class="pill ${this.pro ? "ai" : ""}">${this.pro ? "Actif" : "Gratuit"}</span></div>
+      <p class="note">${this.pro ? "Merci ! Toutes les fonctions sont débloquées." : `Version gratuite : ${this.freePerDay} demandes IA par jour. Passe Pro pour tout débloquer.`}</p>
+      <div class="row">${this.pro ? (this.native() ? `<button class="btn" id="acSubs">Gérer mon abonnement</button>` : "") : `<button class="btn primary" id="acPro">Passer à MaDA Pro</button>`}</div></div>`;
+  },
+  bindCard() {
+    const a = $("#acPro"); if (a) a.onclick = () => this.paywall();
+    const s = $("#acSubs"); if (s) s.onclick = () => window.open(MadaNative.platform === "ios" ? "https://apps.apple.com/account/subscriptions" : "https://play.google.com/store/account/subscriptions", "_blank");
   }
 };
 
@@ -2252,6 +2525,9 @@ function renderMusic() {
   $("#v-musDel").onclick = () => { pushUndo(); mu.el.pause(); state.music = null; state.beat = null; afterChange(); };
 }
 $("#v-musicBtn").onclick = () => $("#v-musicIn").click();
+const openMusicLib = () => { if (typeof MusicLib === "undefined") return $("#v-musicIn").click(); MusicLib.open(f => importFiles([f])); };
+$("#v-musicLib").onclick = openMusicLib;
+$("#v-homeMusicLib").onclick = openMusicLib;
 $("#v-homeMusic").onclick = () => $("#v-musicIn").click();
 $("#v-musicIn").onchange = e => { importFiles(e.target.files); e.target.value = ""; };
 $("#v-volMusic").oninput = e => { state.volMusic = +e.target.value; applyVolumes(); scheduleSave(); };
@@ -2556,6 +2832,7 @@ $("#v-exportOv").addEventListener("click", e => {
   if (id === "expGo") startExport();
   if (id === "expCancel") { expCancelled = true; exporting = false; pause(); try { rec && rec.stop(); } catch (er) { } $("#v-exportOv").hidden = true; requestDraw(); }
   if (id === "expSave") saveExport();
+  if (id === "expShare" && lastExport) shareFile(`mada-${new Date().toISOString().slice(0, 10)}.${lastExport.ext}`, lastExport.blob, state.caption);
   if (id === "expCap") { navigator.clipboard.writeText(state.caption).then(() => vtoast("Légende copiée"), () => vtoast("Copie-la depuis le panneau de l'IA")); }
 });
 function startExport() {
@@ -2575,7 +2852,8 @@ function exportDone() {
   lastExport = { blob, ext };
   showExport(`<h2>Ta vidéo est prête</h2><video src="${URL.createObjectURL(blob)}" controls playsinline></video>
     <p class="note">${ext.toUpperCase()} · ${(blob.size / 1048576).toFixed(1)} Mo${ext === "webm" ? ". Instagram préfère le MP4 : exporte depuis Safari ou un Chrome récent pour l'obtenir." : ""}</p>
-    ${downloads ? `<button class="btn primary" id="v-expSave">Enregistrer la vidéo</button>` : `<p class="note">L'enregistrement de fichiers n'est pas disponible dans cette vue.</p>`}
+    ${typeof shareFile !== "undefined" ? `<button class="btn primary" id="v-expShare">Partager sur Instagram / TikTok</button>` : ""}
+    ${downloads ? `<button class="btn" id="v-expSave">Enregistrer la vidéo</button>` : `<p class="note">L'enregistrement de fichiers n'est pas disponible dans cette vue.</p>`}
     ${state.caption ? `<button class="btn" id="v-expCap">Copier la légende Instagram</button>` : ""}
     <button class="btn ghost" id="v-expClose">Fermer</button>`);
   requestDraw();
@@ -2994,6 +3272,7 @@ const Account = {
     $("#view-account").innerHTML = `<div class="page">
       <div class="page-h"><div class="grow"><div class="eyebrow">Compte</div><h1>${esc(n || "Mon compte")}</h1><p>${SA ? "Version autonome : aucune connexion nécessaire. Tout ce que tu crées est enregistré dans ce navigateur, et l'IA fonctionne via le serveur de l'application." : "Chaque personne se connecte avec son propre compte Claude et retrouve son espace privé : ses marques, ses créations et ses idées ne sont visibles que par elle."}</p></div></div>
       <div class="g2">
+        ${Pro.card()}
         <div class="card"><div class="sec-h"><h2>Sauvegarde</h2><span class="pill ${cloud ? "ai" : ""}">${cloud ? "En ligne" : "Sur cet appareil"}</span></div>
           <p class="note">${cloud ? "Tes marques, créations et idées sont synchronisées avec ton compte : tu les retrouves sur tous tes appareils. Les images importées, elles, restent dans le navigateur où tu les as ajoutées." : Store.mode === "cloud" ? "Ton niveau d'accès ne permet pas la sauvegarde en ligne : tout est enregistré dans ce navigateur. Demande au propriétaire de l'application de te passer en « Contributeur » dans le menu Partager." : "La sauvegarde en ligne n'est pas disponible dans cette vue : tout est enregistré dans ce navigateur."}</p></div>
         ${SA ? "" : `<div class="card"><div class="sec-h"><h2>Inviter d'autres personnes</h2></div>
@@ -3001,7 +3280,20 @@ const Account = {
         <div class="card"><div class="sec-h"><h2>Espaces gérés</h2></div><p class="note">${WS.list.length} espace${WS.list.length > 1 ? "s" : ""} : ${WS.list.map(b => esc(b.name)).join(", ")}.</p><div class="row"><button class="btn" id="acBrand">Gérer mes espaces</button><button class="btn" id="acNew">+ Nouvel espace</button></div></div>
         <div class="card"><div class="sec-h"><h2>Intelligence artificielle</h2><span class="pill ${AI.ok() ? "ai" : ""}">${AI.ok() ? "Active" : "Indisponible"}</span></div><p class="note">${SA ? "L'IA tourne sur le serveur de l'application : personne n'a besoin de compte." : "Chaque génération utilise ton propre compte Claude. La première fois, Claude te demande l'autorisation."}${AI.imgMax ? ` L'IA peut regarder jusqu'à ${AI.imgMax} images par demande.` : ""}</p></div>
       </div>
-      <div class="card"><div class="sec-h"><h2>Mes données</h2></div><p class="note">Télécharge une copie de tes marques, créations et idées (sans les images).</p><div class="row"><button class="btn" id="acExp">Exporter mes données (JSON)</button></div></div></div>`;
+      <div class="card"><div class="sec-h"><h2>Mes données</h2></div><p class="note">Télécharge une copie de tes marques, créations et idées (sans les images).</p><div class="row"><button class="btn" id="acExp">Exporter mes données (JSON)</button><button class="btn ghost danger" id="acWipe">Supprimer toutes mes données</button></div>
+        ${SA ? `<p class="pro-legal"><a href="${Pro.link("confidentialite")}" target="_blank" rel="noopener">Confidentialité</a> · <a href="${Pro.link("conditions")}" target="_blank" rel="noopener">Conditions d'utilisation</a></p>` : ""}</div></div>`;
+    Pro.bindCard();
+    $("#acWipe").onclick = () => {
+      Modal.open(`<h2>Supprimer toutes tes données ?</h2><p class="note">Tes espaces de marque, créations, idées, images, musiques et montages enregistrés sur cet appareil seront effacés définitivement. Exporte-les d'abord si tu veux les garder.${Pro.pro && Pro.native() ? " Ton abonnement MaDA Pro n'est pas annulé : gère-le dans les réglages de ton compte." : ""}</p><div class="row"><button class="btn danger" id="acWipeGo">Tout supprimer</button><button class="btn ghost" data-close>Annuler</button></div>`);
+      $("#acWipeGo").onclick = async () => {
+        $("#acWipeGo").disabled = true;
+        if (Store.mode === "cloud") { for (const k of ["brand", "design", "ideas"]) for (const d of await Store.all(k)) await Store.del(k, d.id); }
+        try { L.db && L.db.close(); } catch (e) { }
+        await Promise.all(["ryanreel-studio", "ryanreel"].map(n => new Promise(r => { try { const q = indexedDB.deleteDatabase(n); q.onsuccess = q.onerror = q.onblocked = () => r(); } catch (e) { r(); } })));
+        try { const keep = lsGet("mada-uid"); localStorage.clear(); if (keep) lsSet("mada-uid", keep); } catch (e) { }
+        location.reload();
+      };
+    };
     $("#acBrand").onclick = () => App.go("brand", { force: true }); $("#acNew").onclick = newSpaceModal;
     $("#acExp").onclick = async () => { const data = { exportedAt: new Date().toISOString(), brands: await Store.all("brand"), designs: (await Store.all("design")).map(d => ({ ...d, thumb: undefined })), ideas: await Store.all("ideas") }; saveFile("mada-donnees.json", JSON.stringify(data, null, 2)); };
   }
@@ -3013,6 +3305,7 @@ const Account = {
   await WS.load(); await Assets.refresh(WS.cur.id);
   App.renderSide();
   const v0 = lsGet("rr-view"); App.view = ""; App.go(NAV.some(n => n[0] === v0) && v0 !== "create" ? v0 : "dash");
+  Pro.init();
   AI.init().then(() => { if (App.view === "create" && $("#editor").hidden) Brief.render(); if (App.view === "account") Account.render(); });
   await Store.init();
   if (Store.user) { try { App.me = await Store.user.me(); App.isOwner = await Store.user.isOwner(); } catch (e) { } }

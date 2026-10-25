@@ -190,7 +190,7 @@ const AI = {
   err(e) {
     const c = e && e.code;
     if (["not_granted", "sampling_disabled", "not_declared", "capability_disabled", "capability_removed"].includes(c)) { this.disabled = true; return "L'IA n'est pas autorisée sur cette page. Recharge la page et accepte quand Claude te le demande."; }
-    return ({ rate_limited: "Trop de demandes ou limite d'usage atteinte. Attends un peu, puis réessaie.", invalid_json: "La réponse de l'IA est arrivée incomplète. Réessaie.", refused: "L'IA ne peut pas traiter cette demande. Reformule-la.", session_expired: "Ta session Claude a expiré : reconnecte-toi.", prompt_too_large: "Trop d'éléments envoyés en une fois. Retire quelques images.", image_rejected: "Une image n'a pas pu être analysée. Essaie avec une autre.", empty_completion: "L'IA n'a rien produit. Précise ta demande.", cancelled: "Arrêté." })[c] || "L'IA n'a pas pu répondre. Réessaie dans un instant.";
+    return ({ rate_limited: "Trop de demandes ou limite d'usage atteinte. Attends un peu, puis réessaie.", pro_required: "Limite gratuite du jour atteinte : passe à MaDA Pro pour continuer.", invalid_json: "La réponse de l'IA est arrivée incomplète. Réessaie.", refused: "L'IA ne peut pas traiter cette demande. Reformule-la.", session_expired: "Ta session Claude a expiré : reconnecte-toi.", prompt_too_large: "Trop d'éléments envoyés en une fois. Retire quelques images.", image_rejected: "Une image n'a pas pu être analysée. Essaie avec une autre.", empty_completion: "L'IA n'a rien produit. Précise ta demande.", cancelled: "Arrêté." })[c] || "L'IA n'a pas pu répondre. Réessaie dans un instant.";
   },
   unavailableMsg() { return window.__RR_STANDALONE ? "Le serveur IA ne répond pas. Vérifie la clé API dans les réglages de l'hébergement." : "L'IA ne fonctionne que lorsque l'application est ouverte dans Claude : depuis la conversation ou ta liste d'artefacts sur claude.ai, connecté à ton compte, et pas dans un onglet séparé. Accepte ensuite l'autorisation demandée par Claude."; },
   json(prompt, o = {}) {
@@ -201,12 +201,29 @@ const AI = {
 
 /* ---------- Modal ---------- */
 const Modal = {
-  open(html, wide) { const c = $("#modalCard"); c.className = "modal-card" + (wide ? " wide" : ""); c.innerHTML = html; $("#modal").hidden = false; return c; },
-  close() { $("#modal").hidden = true; $("#modalCard").innerHTML = ""; }
+  onclose: null,
+  open(html, wide) { this.fireClose(); const c = $("#modalCard"); c.className = "modal-card" + (wide ? " wide" : ""); c.innerHTML = html; $("#modal").hidden = false; return c; },
+  close() { this.fireClose(); $("#modal").hidden = true; $("#modalCard").innerHTML = ""; },
+  fireClose() { const f = this.onclose; this.onclose = null; if (f) { try { f(); } catch (e) { } } }
 };
 $("#modal").addEventListener("click", e => { if (e.target.id === "modal" || e.target.closest("[data-close]")) Modal.close(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && !$("#modal").hidden) Modal.close(); });
 
+// Share sheet (app: Instagram, TikTok, « Enregistrer la vidéo »…), else Web Share, else a plain download.
+// The caption is copied first: Instagram and TikTok ignore text passed with a file.
+async function shareFile(name, blob, caption) {
+  if (caption) { try { await navigator.clipboard.writeText(caption); } catch (e) { } }
+  const done = () => { if (caption) toast("Légende copiée : colle-la dans Instagram ou TikTok", 4500); return true; };
+  if (window.MadaNative) {
+    try { await MadaNative.share({ filename: name, data: blob, text: caption }); return done(); }
+    catch (e) { if (e && e.code === "cancelled") return false; }
+  }
+  try {
+    const f = new File([blob], name, { type: blob.type });
+    if (navigator.canShare && navigator.canShare({ files: [f] })) { await navigator.share({ files: [f] }); return done(); }
+  } catch (e) { if (e && e.name === "AbortError") return false; }
+  return saveFile(name, blob);
+}
 async function saveFile(name, data) {
   if (!AI.downloads) { toast("L'enregistrement de fichiers n'est pas disponible dans cette vue."); return false; }
   try { await AI.downloads.save({ filename: name, data }); toast("Fichier enregistré"); return true; }

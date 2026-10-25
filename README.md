@@ -26,6 +26,25 @@ Réglages optionnels : `RR_MODEL` (modèle Claude, par défaut `claude-opus-5-5`
 
 Conseil : fixe aussi un plafond de dépenses mensuel dans la console Anthropic (*Limits*).
 
+## Galerie de musique et MaDA Pro (serveur)
+
+- `JAMENDO_CLIENT_ID` : active la recherche de musique (clé gratuite sur https://developer.jamendo.com). L'usage commercial dans une app payante demande un contrat de licence (Jamendo Licensing, Epidemic Sound ou Soundstripe) avant la sortie publique.
+- `REVENUECAT_SECRET_KEY` : active MaDA Pro. Sans abonnement, chaque appareil a `FREE_PER_DAY` demandes IA par jour (15 par défaut). Sans cette clé, tout le monde a tout.
+
+## Application iPhone et Android
+
+L'app mobile est la même application, emballée avec Capacitor (`ios/`, `android/`). Elle appelle ton serveur Vercel.
+
+1. Dans `.env`, renseigne `MADA_API_BASE` (adresse de ton site Vercel) et, pour les achats, `MADA_RC_IOS_KEY` / `MADA_RC_ANDROID_KEY` (clés publiques RevenueCat).
+2. `npm install`, puis :
+   - iPhone (sur un Mac avec Xcode) : `npm run ios`, choisis ton équipe dans *Signing & Capabilities*, puis *Product → Archive* pour l'envoyer sur TestFlight.
+   - Android (avec Android Studio) : `npm run android`, puis *Build → Generate Signed App Bundle* pour Google Play.
+3. Après chaque modification de l'app : `cd source && python3 build.py`, puis `npm run mobile:build`.
+
+L'identifiant de l'app est `com.madastudio.app` (dans `capacitor.config.json`) : change-le avant la première soumission si tu préfères un autre nom, il ne pourra plus changer ensuite. Les icônes viennent de `assets/` (`npm run mobile:icons` pour les régénérer).
+
+Pages obligatoires pour les stores : `/confidentialite.html` et `/conditions.html` (complète le nom de l'éditeur et l'e-mail de contact).
+
 ## Tester en local
 
 ```bash

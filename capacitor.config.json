@@ -1,0 +1,8 @@
+{
+  "appId": "com.madastudio.app",
+  "appName": "MaDA",
+  "webDir": "www",
+  "backgroundColor": "#0F0D12",
+  "ios": { "contentInset": "never", "backgroundColor": "#0F0D12" },
+  "android": { "backgroundColor": "#0F0D12" }
+}

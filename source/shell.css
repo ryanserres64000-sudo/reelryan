@@ -261,3 +261,20 @@ input[type=checkbox]{accent-color:var(--accent);width:16px;height:16px}
 @media (max-width:520px){ .g2{grid-template-columns:minmax(0,1fr)} .vgrid{grid-template-columns:minmax(0,1fr)} }
 .mobile-ws{display:none;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
 @media (prefers-reduced-motion:reduce){.spin,.orb.work,.steps .st.now::before{animation:none}}
+
+/* ---- music gallery ---- */
+.mu-list{display:flex;flex-direction:column;gap:2px}
+.mu-row{display:flex;align-items:center;gap:12px;padding:8px;border-radius:12px}
+.mu-row:hover{background:var(--panel-2)}
+.mu-play{width:48px;height:48px;flex:none;border-radius:10px;border:0;background:var(--panel-3) center/cover no-repeat;color:#fff;font-size:15px;text-shadow:0 1px 4px #000c;box-shadow:inset 0 0 0 100px #0005}
+.mu-meta{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.mu-meta b,.mu-meta small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mu-meta small{color:var(--muted);font-size:12px}
+#muMoods{flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+#muMoods .chip{flex:none}
+/* ---- Pro ---- */
+.pro-perks{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:8px}
+.pro-perks li{display:flex;gap:10px;align-items:baseline}
+.pro-perks li::before{content:"✦";color:var(--accent)}
+.pro-legal{font-size:11.5px;color:var(--muted);line-height:1.5}
+.pro-legal a{color:var(--muted)}

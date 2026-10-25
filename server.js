@@ -4,14 +4,20 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { handleGenerate, readJson } from "./lib/claude.js";
+import { handleMusic } from "./lib/music.js";
+import { handleStatus } from "./lib/pro.js";
+import { cors } from "./lib/cors.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "public");
 const PORT = Number(process.env.PORT) || 3000;
-const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css", ".json": "application/json", ".png": "image/png", ".svg": "image/svg+xml", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json" };
+const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css", ".json": "application/json", ".png": "image/png", ".svg": "image/svg+xml", ".ico": "image/x-icon", ".webmanifest": "application/manifest+json", ".mp3": "audio/mpeg" };
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");
+  if (url.pathname.startsWith("/api/") && cors(req, res)) return;
+  if (url.pathname === "/api/music") return handleMusic(req, res, url);
+  if (url.pathname === "/api/status") return handleStatus(req, res);
   if (url.pathname === "/api/generate") {
     if (req.method !== "POST") { res.statusCode = 405; return res.end(); }
     let body;

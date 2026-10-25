@@ -4,12 +4,28 @@
   "private": true,
   "description": "MaDA : ta directrice artistique IA pour posts, vidéos et stories",
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node server.js",
-    "dev": "node --env-file-if-exists=.env server.js"
+    "dev": "node --env-file-if-exists=.env server.js",
+    "mobile:build": "node --env-file-if-exists=.env scripts/build-mobile.mjs && cap sync",
+    "mobile:icons": "capacitor-assets generate --iconBackgroundColor '#0F0D12' --splashBackgroundColor '#0F0D12'",
+    "ios": "npm run mobile:build && cap open ios",
+    "android": "npm run mobile:build && cap open android"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.133.0"
+    "@anthropic-ai/sdk": "^0.133.0",
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/filesystem": "^8.1.5",
+    "@capacitor/ios": "^8.5.3",
+    "@capacitor/share": "^8.0.3",
+    "@revenuecat/purchases-capacitor": "^13.7.6"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^8.5.3"
   }
 }

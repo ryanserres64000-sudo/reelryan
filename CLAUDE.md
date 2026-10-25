@@ -6,19 +6,21 @@ Ma Da est une application iOS (App Store) de création et de montage vidéo assi
 
 Conséquences pour le code : les clés d'IA restent côté serveur (jamais dans l'appli), l'utilisateur ne crée qu'un compte MaDA, et chaque espace de marque (compte) a ses propres médias, couleurs et historique.
 
-## Décisions de Ryan (25 octobre 2026, après le questionnaire « grill-me »)
+## Décisions de Ryan (25 octobre 2026, réponses révisées au questionnaire « grill-me »)
 
-Ces décisions priment sur `source/MISSION.md` (qui visait React Native + Expo) et sur la PR #1 (Capacitor, Android, offre à vie).
+Ces décisions priment sur `source/MISSION.md` et sur la PR #1 (Capacitor, Android, offre à vie).
 
-- **Plateforme** : iOS uniquement, en Swift natif (SwiftUI + AVFoundation) dès la v1. Pas d'Android pour l'instant.
-- **Rendu vidéo** : sur l'iPhone avec AVFoundation. Le serveur ne sert qu'à l'IA. Pas de Remotion ni de rendu serveur dans l'appli.
-- **IA** : images clés en basse résolution et en nombre limité ; un modèle léger analyse les plans, le modèle puissant ne sert qu'aux décisions de montage. Estimation du coût par montage : `docs/cout-ia-et-grille-qualite.md`.
-- **Cible n°1** : les petits établissements et les événements (bars, restaurants, hôtels, organisateurs de soirées, BDE). Ils ont une marque, publient beaucoup, n'ont pas de graphiste. Ryan y a son réseau pour tester. L'offre multi-comptes ou agence viendra plus tard.
-- **Différence face à Edits, CapCut et Canva** : le montage fait à la place de l'utilisateur à partir d'une phrase, avec l'identité de marque de l'établissement.
-- **Modèle économique** : abonnement uniquement, **pas d'offre à vie** (l'IA coûte à chaque usage). Offre « Pro » : une marque, sa charte, posts + flyers + vidéos. Montage manuel gratuit et illimité (tout se fait sur l'appareil). 3 montages IA gratuits, puis paywall avec essai de 7 jours via l'App Store. Quota mensuel de montages IA.
-- **App Store** : « Se connecter avec Apple », suppression du compte depuis l'appli, étiquettes de confidentialité complètes, mention claire de l'usage de l'IA.
-- **Musique** : v1 = import de ses propres sons et export d'une version sans musique, pour ajouter le son tendance dans Instagram. Licence de catalogue (Epidemic Sound) à chiffrer, v2 au plus tôt.
-- **Qualité** : 20 briefs réels du réseau de Ryan (bars, soirées BDE, hôtel), notés avec la grille sur 5 critères de `docs/cout-ia-et-grille-qualite.md` avant d'écrire l'appli.
+- **Priorité absolue, avant toute ligne de code mobile** : un prototype sur ordinateur, un simple script (rushes → tri → Claude → timeline JSON → rendu FFmpeg). Test à l'aveugle sur 20 briefs réels contre le montage automatique de CapCut et contre Edits. Objectif fixé à l'avance : **au moins 70 % de préférence** pour MaDA. Si on ne bat pas CapCut, le reste n'a pas d'intérêt. Protocole : `docs/cout-ia-et-grille-qualite.md`.
+- **Plateforme** : iOS uniquement en v1. Interface en React Native avec Expo (dev build), et un module natif AVFoundation pour l'aperçu **et** l'export dès la v1. Les deux passent par le même `AVComposition` : on exporte exactement ce qu'on voit à l'écran.
+- **Rôle de l'IA** : elle ne renvoie qu'une timeline en JSON (plans retenus, coupes, textes, transitions). Le téléphone fait tout le rendu ; le serveur ne sert qu'à l'IA.
+- **Coût à la source** : le tri se fait sur l'appareil avec le framework Vision d'Apple (changements de plan, visages, flou, plans ratés). Seules 15 à 30 images basse résolution déjà triées partent vers Claude, réduites sur l'appareil. Un petit modèle étiquette, un gros modèle décide du montage.
+- **Promesse** : « Tu donnes tes rushes et une phrase, tu récupères un Reel publiable en 2 minutes, dans TON style, sans template. » La charte (couleurs, polices, logo) fait partie de « ton style ».
+- **Cible n°1** : les indépendants qui font leur propre contenu pour leur activité (coachs, restaurateurs, artisans, commerçants, freelances). Ils ont besoin d'une identité de marque, ne savent pas monter et paient pour gagner du temps. L'offre Agence viendra plus tard, en plus, pas comme position de repli.
+- **Défense face à Edits, CapCut et Canva** : le multi-plateforme (export pour Reels, TikTok et Shorts, quand Edits reste centré sur Instagram) et la mémoire du style. L'appli apprend des corrections de chaque utilisateur, et ces corrections nourrissent son style. C'est ce que les concurrents ne pourront pas copier.
+- **Prix** : 9,99 €/mois ou 59,99 €/an (4,99 € est trop bas vu le coût de l'IA). Pas d'offre à vie au lancement ; si un jour il y en a une, prix élevé et quota mensuel.
+- **Gratuit et paywall** : montage manuel gratuit (rendu sur l'appareil). Montages IA gratuits limités à des rushes de 60 à 90 s. Le paywall s'affiche juste après le premier très bon résultat. Protection contre les comptes multiples (App Attest et identifiant d'appareil).
+- **App Store** : achats intégrés StoreKit dès la v1, « Se connecter avec Apple » (Google en plus, en option), suppression du compte depuis l'appli, étiquettes de confidentialité complètes, mention claire de l'usage de l'IA.
+- **Musique** : coupes calées sur le rythme, puis export d'une vidéo prête à recevoir un son tendance, que l'utilisateur ajoute dans Instagram au moment de publier (légal). À côté : import de ses propres sons, et un catalogue sous licence (comparer les tarifs d'API d'Epidemic Sound, Artlist et Soundstripe).
 
 ## Le produit aujourd'hui
 
@@ -58,20 +60,26 @@ Ne jamais modifier `public/index.html` à la main : modifier les modules, puis l
 
 ## Prochaines étapes
 
-1. Tester la qualité sur les 20 briefs réels avec le prototype web actuel et la grille de notation, avant d'écrire l'appli.
-2. Mesurer le coût réel par montage (champ `usage` des réponses de l'API) et fixer le quota mensuel.
-3. Appli SwiftUI : import depuis la photothèque, timeline et aperçu AVFoundation, export 1080 × 1920 sur l'appareil, éditeur de visuels qui dessine le JSON des calques.
-4. Serveur : l'API IA existante (clés côté serveur), comptes avec « Se connecter avec Apple », espaces de marque, quotas.
-5. Abonnement Pro par achat intégré Apple (StoreKit, éventuellement via RevenueCat), essai de 7 jours.
-6. Dossier App Store : suppression du compte, étiquettes de confidentialité, mention de l'IA.
+1. **Prototype sur ordinateur** : script rushes → tri des plans → Claude (étiquetage puis décision) → timeline JSON → rendu FFmpeg. Mesurer le coût réel de chaque montage (champ `usage` des réponses de l'API).
+2. **Test à l'aveugle** sur 20 briefs réels contre CapCut et Edits, objectif de 70 % de préférence. Rien d'autre ne démarre avant le résultat.
+3. **Appli Expo (iOS)** : import depuis la photothèque, tri avec Vision, module natif AVFoundation pour l'aperçu et l'export (un seul `AVComposition`), éditeur de visuels qui dessine le JSON des calques.
+4. **Serveur** : l'API IA existante (clés côté serveur), comptes avec « Se connecter avec Apple », quotas, protection contre les comptes multiples (App Attest).
+5. **Abonnement** StoreKit (9,99 €/mois, 59,99 €/an), paywall après le premier très bon résultat.
+6. **Mémoire du style** : enregistrer les corrections de chaque utilisateur et les réinjecter dans les consignes du directeur artistique.
+7. **Dossier App Store** : suppression du compte, étiquettes de confidentialité, mention de l'IA.
 
-Le prototype web reste la référence de la logique : `render.js` (rendu des calques) et `aidesign.js` (consignes du directeur artistique, schéma JSON, relecture critique) sont à porter en Swift, le JSON `{w, h, background, fx, layers[]}` restant le format pivot entre l'IA et le moteur de rendu.
+Le prototype web reste la référence de la logique : `render.js` (rendu des calques) et `aidesign.js` (consignes du directeur artistique, schéma JSON, relecture critique) se portent en TypeScript dans l'appli Expo, et le JSON `{w, h, background, fx, layers[]}` reste le format pivot entre l'IA et le moteur de rendu. La timeline vidéo aura son propre schéma JSON, défini pendant le prototype.
 
 ## Stack technique retenue
 
-Swift natif, iOS uniquement : SwiftUI pour l'interface, AVFoundation (`AVComposition`, `AVVideoComposition`, `AVAssetExportSession`) pour la timeline et l'export, Core Image ou Metal pour les effets, reconnaissance vocale d'Apple pour la transcription. Le serveur Node actuel (`api/generate.js`, `lib/claude.js`) garde les clés de l'API Anthropic et applique les quotas.
+- **Appli** : React Native avec Expo (dev build, pas Expo Go), iOS uniquement en v1.
+- **Vidéo** : module natif Swift (Expo Modules API) autour d'AVFoundation : `AVComposition` et `AVVideoComposition` partagés entre l'aperçu (`AVPlayer`) et l'export (`AVAssetExportSession`), 1080 × 1920.
+- **Tri des plans** : framework Vision d'Apple sur l'appareil.
+- **IA** : le serveur Node actuel (`api/generate.js`, `lib/claude.js`) garde les clés de l'API Anthropic et applique les quotas.
+- **Achats** : StoreKit (éventuellement via RevenueCat).
+- **Prototype de test** : script Node ou Python sur ordinateur + FFmpeg.
 
-Options écartées par Ryan le 25 octobre 2026 : Capacitor (l'aperçu vidéo vivrait dans une WebView, notre point faible) et React Native + Expo (inutile sans Android).
+Options écartées par Ryan le 25 octobre 2026 : Capacitor (l'aperçu dans une WebView ne correspondrait pas à l'export natif) et Android en v1.
 
 ## Skills et plugins installés (portée projet)
 
@@ -79,8 +87,9 @@ Plugins officiels (marketplace `claude-plugins-official`, activés dans `.claude
 
 | Plugin | Quand l'utiliser |
 | --- | --- |
-| `swift-lsp` | Navigation et diagnostics dans le code Swift (nécessite Xcode, qui fournit SourceKit-LSP). |
-| `frontend-design` | Direction visuelle d'une page ou d'un écran web (site vitrine, prototype) ; ses principes anti-générique valent aussi pour les consignes du directeur artistique IA. |
+| `expo` | Créer, configurer, compiler et publier l'appli Expo (dev build, modules natifs, envoi sur l'App Store). |
+| `swift-lsp` | Navigation et diagnostics dans le module natif Swift (nécessite Xcode, qui fournit SourceKit-LSP). |
+| `frontend-design` | Direction visuelle d'un écran ou d'une page ; ses principes anti-générique valent aussi pour les consignes du directeur artistique IA. |
 | `skill-creator` | Écrire un skill propre à MaDA (par exemple le style maison du directeur artistique IA) ou améliorer un skill existant. |
 | `claude-md-management` | Relire et tenir à jour ce fichier CLAUDE.md après une session de travail. |
 | `claude-code-setup` | Proposer des automatisations pour le dépôt (hooks, sous-agents, serveurs MCP). |
@@ -91,9 +100,9 @@ Skills communautaires (copiés dans `.claude/skills/`, provenance et vérificati
 
 | Skill | Quand l'utiliser |
 | --- | --- |
-| `ui-ux-pro-max` | Choisir palette, typographie, styles et règles d'ergonomie, ou relire un écran pour l'accessibilité et la cohérence. Il a une base dédiée à SwiftUI. |
-| `design-taste-frontend` | Quand une page web fait « générique », « fait par une IA » : direction artistique stricte et boucle capture d'écran → corrections. Utile pour le site vitrine et le prototype web. Remplace `minimalist-ui`. |
+| `ui-ux-pro-max` | Choisir palette, typographie, styles et règles d'ergonomie, ou relire un écran pour l'accessibilité et la cohérence. Il a des bases dédiées à React Native et SwiftUI. |
+| `design-taste-frontend` | Quand un écran ou une page fait « générique », « fait par une IA » : direction artistique stricte et boucle capture d'écran → corrections. Remplace `minimalist-ui`. |
 | `grill-me` (+ `grilling`) | Avant de coder une fonction ou de trancher un choix : se faire challenger question par question. Se lance avec `/grill-me`. |
 | `content-strategy` | Planifier les sujets et piliers de contenu des comptes de Ryan et de MaDA. |
 | `social` | Posts, scripts de vidéos courtes et calendrier pour TikTok, Instagram et YouTube. |
-| `pricing` | Revoir la grille Pro, l'essai gratuit, le quota de montages IA et l'annuel face au mensuel. |
+| `pricing` | Revoir le prix, l'essai gratuit, le quota de montages IA et l'annuel face au mensuel. |

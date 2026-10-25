@@ -2,7 +2,7 @@
 // keyframes and drop blurry, dark or burnt ones. On the iPhone this will be Apple Vision.
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { readFile, mkdir } from "node:fs/promises";
+import { readFile, mkdir, access } from "node:fs/promises";
 import path from "node:path";
 
 const run = promisify(execFile);
@@ -86,13 +86,22 @@ function candidateTimes(duration, scenes, every = 2, spacing = 0.8) {
 
 // Small vertical-friendly JPEG (fits in 288x512) plus blur and brightness measures.
 // Blur is measured at 720 px: after the final downscale every frame looks sharp.
-async function extractFrame(file, t, out) {
-  const { stderr } = await run("ffmpeg", ["-hide_banner", "-nostats", "-y", "-ss", String(t), "-i", file, "-frames:v", "1",
-    "-vf", "scale=720:720:force_original_aspect_ratio=decrease,blurdetect,signalstats,scale=288:512:force_original_aspect_ratio=decrease,metadata=print",
+// A photo (`still`) is read without seeking: some ffmpeg builds return no frame for a seek
+// on a single image. If the analysis filters still yield nothing, the photo is kept unmeasured.
+async function extractFrame(file, t, out, still = false) {
+  const seek = still ? [] : ["-ss", String(t)];
+  const small = "scale=288:512:force_original_aspect_ratio=decrease";
+  const { stderr } = await run("ffmpeg", ["-hide_banner", "-nostats", "-y", ...seek, "-i", file, "-frames:v", "1",
+    "-vf", `scale=720:720:force_original_aspect_ratio=decrease,format=yuv420p,blurdetect,signalstats,${small},metadata=print`,
     "-q:v", "4", out], { maxBuffer: MAX_BUFFER });
+  if (still && !(await exists(out))) {
+    await run("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", file, "-frames:v", "1", "-vf", small, "-q:v", "4", out], { maxBuffer: MAX_BUFFER });
+  }
   const num = re => { const v = Number(stderr.match(re)?.[1]); return Number.isFinite(v) ? v : null; };
   return { blur: num(/lavfi\.blur=([\d.]+)/), luma: num(/lavfi\.signalstats\.YAVG=([\d.]+)/) };
 }
+
+async function exists(f) { try { await access(f); return true; } catch { return false; } }
 
 // Probes every rush, keeps at most `maxFrames` usable keyframes spread across rushes.
 export async function sortRushes(files, workDir, { maxFrames = 30, onProgress = () => {} } = {}) {
@@ -108,7 +117,7 @@ export async function sortRushes(files, workDir, { maxFrames = 30, onProgress = 
     const own = [];
     for (const t of info.still ? [0] : candidateTimes(info.duration, scenes)) {
       const out = path.join(workDir, `${id}_${t.toFixed(1)}.jpg`);
-      const m = await extractFrame(info.file, t, out);
+      const m = await extractFrame(info.file, t, out, info.still);
       own.push({ id: `f${++n}`, clip: id, time: Math.round(t * 10) / 10, file: out, blur: m.blur, luma: m.luma, scene: scenes.some(s => Math.abs(s - t) < 0.5) });
     }
     // Blur depends on the content, so compare each frame with the sharpest quarter of its rush.

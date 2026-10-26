@@ -39,6 +39,8 @@ Prototype de montage sur ordinateur dans `prototype/` (mode d'emploi : `prototyp
 
 App iPhone dans `app/` (Expo SDK 58, TypeScript) : design system « Atelier de nuit » dans `app/src/design/`, textes dans `app/src/copy/fr.ts`. Les jetons viennent de `design/tokens.json` (`node design/build.mjs` régénère `app/src/design/tokens.ts`) ; `npm test` vérifie les contrastes WCAG AA, `node design/check-hardcoded.mjs` refuse couleurs, tailles et textes en dur dans l'app. Mode d'emploi : `app/README.md`.
 
+Logique commune dans `core/` (TypeScript lu tel quel par Node ≥ 22.18 et par Metro) : `core/timeline.ts` est la timeline JSON v1 (schéma pour l'IA, validation `sanitizeTimeline`), partagée par l'app et le serveur. Route `POST /api/montage` (`lib/montage.js`) : l'iPhone envoie brief, rushes et 15 à 30 images clés ; Haiku étiquette, Sonnet écrit 2 ou 3 variantes puis les relit, réponse en flux NDJSON (une ligne par étape). Elle reprend les consignes du prototype (`prototype/lib/ai.mjs`), pour que l'app reçoive ce que le test à l'aveugle a mesuré. `npm test` lance tous les tests (prototype, design, core, serveur).
+
 Ne jamais modifier `public/index.html` à la main : modifier les modules, puis lancer `cd source && python3 build.py && node --check all.js`.
 
 ## Fichiers sources

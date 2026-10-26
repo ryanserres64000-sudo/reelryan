@@ -120,6 +120,76 @@ export const fr = {
 
   consent: "Pour monter, j'envoie 15 à 30 petites images de tes vidéos à Claude (Anthropic). Elles ne sont ni gardées ni utilisées pour entraîner l'IA.",
 
+  nav: { back: "Retour", next: "Continuer", retry: "Réessayer", restart: "Recommencer" },
+
+  import: {
+    title: "Choisis tes rushes",
+    detail: "3 à 25 vidéos ou photos de ta journée. Je les trie pendant que tu écris ton brief.",
+    pick: "Ajouter depuis la photothèque",
+    pickError: "Je n'ai pas pu ouvrir ta photothèque. Réessaie, ou vérifie l'accès dans Réglages.",
+    sample: "Ce sont des rushes d'exemple : ajoute les tiens quand tu veux.",
+    count: (n: number, total: string, max: string) => `${plural(n, "rush", "rushes")} · ${total} sur ${max}`,
+    countPro: (n: number, total: string) => `${plural(n, "rush", "rushes")} · ${total}`,
+    tooFew: (n: number) => `Encore ${plural(n, "rush", "rushes")} et je peux monter.`,
+    tooMany: "25 rushes au maximum : retire-en un pour en ajouter un autre.",
+    tooLong: "En gratuit, je monte jusqu'à 1 min 30 de rushes. Retire un rush, ou passe en Pro pour aller plus loin.",
+    triage: "Tri en cours sur ton iPhone",
+  },
+
+  brief: {
+    title: "Qu'est-ce qu'on montre ?",
+    detail: "Une phrase, comme à un ami. Mets un texte entre « guillemets » et je le garde mot pour mot.",
+    trade: "Ton métier",
+    trades: {
+      coach: { label: "Coach", example: "Ma séance du samedi au parc, l'énergie du groupe, et finir sur « Premier cours offert »." },
+      restaurant: { label: "Restaurant", example: "Le nouveau burger du jeudi, du grill à l'assiette, termine sur « Ouvert dès 11h »." },
+      artisan: { label: "Artisan", example: "La restauration de cette commode, avant et après, avec mes mains au travail." },
+      commerce: { label: "Commerce", example: "Les nouveautés de la boutique cette semaine, ambiance douce, « 12 rue Thiers » à la fin." },
+      freelance: { label: "Freelance", example: "Une journée de tournage pour un client, du café du matin au rendu final." },
+    },
+    useExample: "Prendre l'exemple",
+    field: "Ton brief",
+    dictate: "Dicter",
+    dictateHint: "Touche le micro du clavier et parle : j'écris pour toi.",
+    goal: "Objectif",
+    goals: ["Faire venir du monde", "Vendre un produit", "Montrer mon savoir-faire", "Annoncer une nouveauté"],
+    tone: "Ton",
+    tones: ["Chaleureux", "Drôle", "Haut de gamme", "Direct"],
+    duration: "Durée",
+    durations: [15, 30, 60] as const,
+    durationValue: (s: number) => `${s} s`,
+    platforms: "Où tu publies",
+    platformNames: { reels: "Reels", tiktok: "TikTok", shorts: "Shorts" },
+    platformsMin: "Choisis au moins une plateforme.",
+    cta: "Appel à l'action",
+    ctas: ["Réserve", "Passe nous voir", "Lien en bio", "Écris-moi", "Aucun"],
+    imposed: "Gardé mot pour mot",
+    empty: "Écris au moins quelques mots, ou prends l'exemple.",
+    compose: { goal: "Objectif", tone: "Ton", cta: "Appel à l'action à la fin" },
+  },
+
+  musicScreen: {
+    detail: "Je cale les coupes sur le rythme. Tu peux aussi monter sans musique.",
+    linkSaved: (host: string) => `Son ajouté depuis ${host}. Je le vérifie au moment de monter.`,
+  },
+
+  generationScreen: {
+    title: "Je monte ton Reel",
+    error: "Le montage n'a pas abouti. Ton brief et tes rushes sont gardés.",
+  },
+
+  resultScreen: {
+    title: "Tes versions",
+    swipe: "Balaye pour comparer",
+    corrections: "Ce que j'ai corrigé",
+    shot: (i: number, raison: string) => `Plan ${i} : ${raison}`,
+    missing: "À vérifier",
+    preview: "Aperçu",
+    chosen: "Version gardée. L'export arrive juste après.",
+  },
+
+  dev: { catalogue: "Voir le design system", demo: "Données d'exemple" },
+
   catalogue: {
     title: "Design system",
     intro: "Tous les composants de MaDa, en mode clair et sombre.",

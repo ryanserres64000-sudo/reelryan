@@ -2,7 +2,7 @@ import { Platform, Text as RNText, type TextProps, type TextStyle } from "react-
 import { tokens, type ColorName, type TypeName } from "./tokens";
 import { useTheme } from "./theme";
 
-type Tone = Extract<ColorName, "text" | "textMuted" | "actionStrong" | "ai" | "danger" | "ok" | "onAction" | "onAi">;
+type Tone = Extract<ColorName, "text" | "textMuted" | "actionStrong" | "ai" | "danger" | "ok" | "onAction" | "onAi" | "onMedia">;
 
 export function typeStyle(variant: TypeName): TextStyle {
   const v = tokens.type[variant];

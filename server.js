@@ -4,6 +4,7 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { handleGenerate, readJson } from "./lib/claude.js";
+import { handleMontage } from "./lib/montage.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "public");
@@ -12,14 +13,14 @@ const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; ch
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");
-  if (url.pathname === "/api/generate") {
+  if (url.pathname === "/api/generate" || url.pathname === "/api/montage") {
     if (req.method !== "POST") { res.statusCode = 405; return res.end(); }
     let body;
-    try { body = await readJson(req); } catch {
+    try { body = await readJson(req, url.pathname === "/api/montage" ? 4_500_000 : undefined); } catch {
       res.statusCode = 413; res.setHeader("content-type", "application/json");
       return res.end(JSON.stringify({ error: "prompt_too_large", message: "Images trop lourdes." }));
     }
-    return handleGenerate(req, res, body);
+    return url.pathname === "/api/montage" ? handleMontage(req, res, body) : handleGenerate(req, res, body);
   }
   let p = path.normalize(decodeURIComponent(url.pathname)).replace(/^([/\\])+/, "");
   let file = path.join(root, p || "index.html");

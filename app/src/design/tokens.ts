@@ -18,7 +18,8 @@ export const tokens = {
       "danger": "#E5847A",
       "ok": "#7FC7A6",
       "scrim": "#0F0D12B3",
-      "media": "#000000"
+      "media": "#000000",
+      "onMedia": "#FFFFFF"
     },
     "light": {
       "bg": "#FBF8F3",
@@ -36,7 +37,8 @@ export const tokens = {
       "danger": "#B3261E",
       "ok": "#1F7A55",
       "scrim": "#FBF8F3B3",
-      "media": "#000000"
+      "media": "#000000",
+      "onMedia": "#FFFFFF"
     }
   },
   "font": {

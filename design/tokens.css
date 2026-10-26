@@ -16,6 +16,7 @@
   --c-ok: #7FC7A6;
   --c-scrim: #0F0D12B3;
   --c-media: #000000;
+  --c-on-media: #FFFFFF;
   --r-chip: 8px;
   --r-button: 12px;
   --r-card: 16px;
@@ -50,5 +51,6 @@
   --c-ok: #1F7A55;
   --c-scrim: #FBF8F3B3;
   --c-media: #000000;
+  --c-on-media: #FFFFFF;
   color-scheme: light;
 }

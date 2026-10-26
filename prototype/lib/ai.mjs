@@ -29,7 +29,7 @@ export function costOf(model, usage) {
 
 // One streamed call returning parsed JSON; `fallback` adds the server-side refusal fallback
 // (not available on Haiku). Retries once without it if the account rejects the beta.
-async function callJson({ model, system, content, schema, effort, maxTokens = 32000, fallback = false, step, ledger }) {
+export async function callJson({ model, system, content, schema, effort, maxTokens = 32000, fallback = false, step, ledger, signal }) {
   const build = withFallback => {
     const req = {
       model, max_tokens: maxTokens,
@@ -42,10 +42,10 @@ async function callJson({ model, system, content, schema, effort, maxTokens = 32
   };
   let msg;
   try {
-    msg = await getClient().beta.messages.stream(build(fallback)).finalMessage();
+    msg = await getClient().beta.messages.stream(build(fallback), { signal }).finalMessage();
   } catch (e) {
     if (!(fallback && e instanceof Anthropic.BadRequestError && /fallback/i.test(e.message || ""))) throw e;
-    msg = await getClient().beta.messages.stream(build(false)).finalMessage();
+    msg = await getClient().beta.messages.stream(build(false), { signal }).finalMessage();
   }
   const cost = costOf(msg.model, msg.usage);
   ledger.push({ etape: step, modele: msg.model, entree: msg.usage.input_tokens, cache_lu: msg.usage.cache_read_input_tokens || 0,
@@ -56,7 +56,7 @@ async function callJson({ model, system, content, schema, effort, maxTokens = 32
   return JSON.parse(text);
 }
 
-const TAG_SCHEMA = {
+export const TAG_SCHEMA = {
   type: "object", additionalProperties: false, required: ["images"],
   properties: {
     images: {
@@ -79,7 +79,7 @@ const TAG_SCHEMA = {
   }
 };
 
-const TAG_SYSTEM = `Tu étiquettes des images clés extraites des rushes vidéo d'un indépendant (coach, restaurateur, artisan, commerçant, freelance) qui veut un Reel.
+export const TAG_SYSTEM = `Tu étiquettes des images clés extraites des rushes vidéo d'un indépendant (coach, restaurateur, artisan, commerçant, freelance) qui veut un Reel.
 Pour chaque image, décris factuellement ce qu'on voit et note-la. Sois exigeant : 5 = image qu'un monteur professionnel garderait sans hésiter.
 Réponds pour chaque identifiant reçu, dans le même ordre.`;
 
@@ -100,7 +100,7 @@ export async function tagFrames(frames, ledger, { batch = 10, onProgress = () =>
   return tags;
 }
 
-const DIRECTOR_SYSTEM = `Tu es la directrice artistique et la monteuse de MaDA. Tu montes un Reel vertical (1080 × 1920) à partir des rushes d'un indépendant, pour Instagram Reels, TikTok et YouTube Shorts.
+export const DIRECTOR_SYSTEM = `Tu es la directrice artistique et la monteuse de MaDA. Tu montes un Reel vertical (1080 × 1920) à partir des rushes d'un indépendant, pour Instagram Reels, TikTok et YouTube Shorts.
 Tu ne vois pas les vidéos : tu reçois la liste des rushes (durée), des images clés étiquetées avec leur position dans chaque rush, quelques vignettes, le brief et le style de la personne.
 
 Ce qui fait un bon montage MaDA :
@@ -127,7 +127,9 @@ const imposedBlock = brief => {
   return list.length ? `\nTextes imposés par la personne (tous obligatoires, mot pour mot, aucun raccourci) :\n${list.map(t => `- « ${t} »`).join("\n")}\n` : "";
 };
 
-export async function decideEdit({ brief, style, clips, frames, tags, duration, beat, model }, ledger) {
+// The decision prompt, shared with the server route (lib/montage.js) so the app gets exactly what the
+// blind test measured. `image(frame)` returns the base64 JPEG of a keyframe.
+export async function decisionContent({ brief, style, clips, frames, tags, duration, beat, ask = "Monte le Reel." }, image = frameAsBase64) {
   const rushes = Object.values(clips).map(c => c.still ? `- ${c.id} : photo, ${c.duration} s au maximum, ${c.width}×${c.height}`
     : `- ${c.id} : ${c.duration.toFixed(1)} s, ${c.width}×${c.height}${!c.hasAudio ? ", sans son" : c.voix?.length ? `, voix ou son fort de ${c.voix.map(([a, b]) => `${a} à ${b} s`).join(", ")}` : ", son d'ambiance seulement"}`).join("\n");
   const labelled = frames.map(f => {
@@ -139,7 +141,7 @@ export async function decideEdit({ brief, style, clips, frames, tags, duration, 
   const content = [];
   for (const f of best) {
     content.push({ type: "text", text: `Vignette ${f.id} (${f.clip} à ${f.time} s) :` });
-    content.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: await frameAsBase64(f) } });
+    content.push({ type: "image", source: { type: "base64", media_type: "image/jpeg", data: await image(f) } });
   }
   const corrections = (style.corrections || []).slice(-15).map(c => `- ${c}`).join("\n") || "aucune pour l'instant";
   content.push({ type: "text", text: `Brief : ${brief}
@@ -159,7 +161,12 @@ ${rushes}
 Images clés triées et étiquetées :
 ${labelled}
 
-Monte le Reel.` });
+${ask}` });
+  return content;
+}
+
+export async function decideEdit({ brief, style, clips, frames, tags, duration, beat, model }, ledger) {
+  const content = await decisionContent({ brief, style, clips, frames, tags, duration, beat });
   return callJson({ model, system: DIRECTOR_SYSTEM, content, schema: TIMELINE_SCHEMA, effort: "medium", fallback: true, step: "decision", ledger });
 }
 

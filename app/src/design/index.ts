@@ -12,3 +12,4 @@ export { MusicPicker, type MusicChoice } from "./components/MusicPicker";
 export { Paywall } from "./components/Paywall";
 export { SavedPill } from "./components/SavedPill";
 export { GenerationView } from "./components/GenerationView";
+export { Screen } from "./components/Screen";

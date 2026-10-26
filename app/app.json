@@ -1,0 +1,22 @@
+{
+  "expo": {
+    "name": "Ma DA",
+    "slug": "madastudio",
+    "scheme": "madastudio",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#0F0D12",
+    "ios": {
+      "bundleIdentifier": "com.madastudio.app",
+      "supportsTablet": false
+    },
+    "plugins": [
+      ["expo-splash-screen", { "image": "./assets/splash-icon.png", "imageWidth": 160, "backgroundColor": "#FBF8F3", "dark": { "backgroundColor": "#0F0D12" } }]
+    ],
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
+}

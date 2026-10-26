@@ -1,0 +1,54 @@
+/* Fichier généré par design/build.mjs depuis design/tokens.json : ne pas modifier à la main. */
+:root {
+  --c-bg: #0F0D12;
+  --c-surface: #17141C;
+  --c-surface-raised: #211D27;
+  --c-line: #2F2937;
+  --c-text: #F0EBF5;
+  --c-text-muted: #9C93A8;
+  --c-action: #E8C27A;
+  --c-on-action: #1C1509;
+  --c-action-strong: #E8C27A;
+  --c-ai: #B9A6F0;
+  --c-ai-fill: #B9A6F0;
+  --c-on-ai: #1C1509;
+  --c-danger: #E5847A;
+  --c-ok: #7FC7A6;
+  --c-scrim: #0F0D12B3;
+  --c-media: #000000;
+  --r-chip: 8px;
+  --r-button: 12px;
+  --r-card: 16px;
+  --r-sheet: 24px;
+  --r-full: 999px;
+  --s-xxs: 4px;
+  --s-xs: 8px;
+  --s-sm: 12px;
+  --s-md: 16px;
+  --s-lg: 24px;
+  --s-xl: 32px;
+  --s-xxl: 48px;
+  --m-fast: 200ms;
+  --m-base: 280ms;
+  --m-slow: 350ms;
+  color-scheme: dark;
+}
+:root[data-theme="light"] {
+  --c-bg: #FBF8F3;
+  --c-surface: #FFFFFF;
+  --c-surface-raised: #F3EEE6;
+  --c-line: #E7E1D8;
+  --c-text: #1A1620;
+  --c-text-muted: #6B6275;
+  --c-action: #E8C27A;
+  --c-on-action: #1C1509;
+  --c-action-strong: #8A6516;
+  --c-ai: #5B47A8;
+  --c-ai-fill: #5B47A8;
+  --c-on-ai: #FFFFFF;
+  --c-danger: #B3261E;
+  --c-ok: #1F7A55;
+  --c-scrim: #FBF8F3B3;
+  --c-media: #000000;
+  color-scheme: light;
+}

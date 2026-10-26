@@ -9,7 +9,8 @@
     "start": "node server.js",
     "dev": "node --env-file-if-exists=.env server.js",
     "montage": "node prototype/mada-montage.mjs",
-    "test": "node --test prototype/test/*.test.mjs"
+    "test": "node --test prototype/test/*.test.mjs design/test/*.test.mjs",
+    "design": "node design/build.mjs && node design/check-hardcoded.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.133.0"

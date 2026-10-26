@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Icône « D-frise » (étude, ch. 6 §3) : un D dont le dos est fait de 4 segments de frise de montage. Or #E8C27A sur prune #0F0D12. -->
+  <rect width="1024" height="1024" fill="#0F0D12"/>
+  <defs>
+    <mask id="frise">
+      <rect width="1024" height="1024" fill="#fff"/>
+      <rect x="382" y="230" width="30" height="560" fill="#000"/>
+      <rect x="412" y="374" width="500" height="26" fill="#000"/>
+      <rect x="412" y="499" width="500" height="26" fill="#000"/>
+      <rect x="412" y="624" width="500" height="26" fill="#000"/>
+    </mask>
+  </defs>
+  <path mask="url(#frise)" fill="#E8C27A" d="M312 250 H500 A262 262 0 0 1 500 774 H312 A20 20 0 0 1 292 754 V270 A20 20 0 0 1 312 250 Z"/>
+</svg>

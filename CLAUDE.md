@@ -37,6 +37,8 @@ Prototype fonctionnel en une seule page HTML, assemblée à partir des modules d
 
 Prototype de montage sur ordinateur dans `prototype/` (mode d'emploi : `prototype/README.md`) : `npm run montage -- monter <dossier> --brief "…"`. Tri des plans avec FFmpeg (`lib/sort.mjs`), étiquetage Haiku 5.5 puis décision Sonnet 5.5 ou Opus 5.5 (`lib/ai.mjs`), timeline JSON validée et calée sur le tempo (`lib/timeline.mjs`), rendu FFmpeg 1080 × 1920 (`lib/render.mjs`), coût réel dans `cout.json`. Le schéma de `lib/timeline.mjs` est celui que lira l'appli iPhone.
 
+App iPhone dans `app/` (Expo SDK 58, TypeScript) : design system « Atelier de nuit » dans `app/src/design/`, textes dans `app/src/copy/fr.ts`. Les jetons viennent de `design/tokens.json` (`node design/build.mjs` régénère `app/src/design/tokens.ts`) ; `npm test` vérifie les contrastes WCAG AA, `node design/check-hardcoded.mjs` refuse couleurs, tailles et textes en dur dans l'app. Mode d'emploi : `app/README.md`.
+
 Ne jamais modifier `public/index.html` à la main : modifier les modules, puis lancer `cd source && python3 build.py && node --check all.js`.
 
 ## Fichiers sources

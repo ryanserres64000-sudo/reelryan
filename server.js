@@ -10,6 +10,7 @@ import { handleRetouche } from "./lib/retouche.js";
 import { handleVisuel } from "./lib/visuel.js";
 import { handleCompte, handleOffres, handleQuota } from "./lib/quota.js";
 import { checkAccess } from "./lib/claude.js";
+import { handleAchat, handleNotification } from "./lib/apple.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "public");
@@ -28,6 +29,13 @@ http.createServer(async (req, res) => {
     if (req.method !== "POST") { res.statusCode = 405; return res.end(); }
     if (!checkAccess(req)) { res.statusCode = 401; return res.end(); }
     return handleQuota(req, res);
+  }
+  if (url.pathname === "/api/achat" || url.pathname === "/api/apple/notifications") {
+    if (req.method !== "POST") { res.statusCode = 405; return res.end(); }
+    if (url.pathname === "/api/achat" && !checkAccess(req)) { res.statusCode = 401; return res.end(); }
+    let body;
+    try { body = await readJson(req, 100_000); } catch { res.statusCode = 413; return res.end(); }
+    return url.pathname === "/api/achat" ? handleAchat(req, res, body) : handleNotification(req, res, body);
   }
   if (url.pathname === "/api/generate" || url.pathname === "/api/montage" || url.pathname === "/api/adn" || url.pathname === "/api/retouche" || url.pathname === "/api/visuel") {
     if (req.method !== "POST") { res.statusCode = 405; return res.end(); }

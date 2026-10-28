@@ -40,4 +40,4 @@ Quand « Se connecter avec Apple » arrivera : ajouter « Coordonnées → Adres
 
 - Anthropic : demandes et réponses effacées sous 30 jours (2 ans en cas d'abus), aucun entraînement sur l'API commerciale ; DPA à accepter et à archiver, option « zéro rétention » à demander (voir `docs/legal/a-completer.md`).
 - Serveur Vercel à Paris (`vercel.json`, `cdg1`) ; base des compteurs à créer dans l'Union européenne.
-- Le statut Pro « déclaré par l'app » doit être remplacé par la vérification des transactions StoreKit 2 (App Store Server API) avant le lancement.
+- Pro : le serveur vérifie les transactions StoreKit 2 signées par Apple (`lib/apple.js`). Dans App Store Connect, renseigner l'URL des notifications serveur V2 : `https://<site>/api/apple/notifications` (production et sandbox), et sur Vercel `MADA_APPLE_BUNDLE_ID`.

@@ -22,8 +22,8 @@ d'exemple et le dit à l'écran.
 1. **Tri** : importer 5 vidéos (portrait, paysage, une floue, une sombre) et 2 photos. Les badges flou, sombre, visage et parole doivent être justes. Régler `SCENE_THRESHOLD` dans `src/flow/triage.ts` si les changements de plan sont mal repérés.
 2. **Aperçu** : sur l'écran de résultat, la vidéo doit être droite (pas couchée), remplir le 9:16 et montrer textes et logo dans la zone sûre.
 3. **Export** : les 3 fichiers arrivent dans Photos, avec la même image que l'aperçu. Vérifier la mention dans les métadonnées : `exiftool fichier.mp4 | grep -i description`.
-4. **Achat** : avec un fichier StoreKit de test dans Xcode (produits `mada.pro.an`, `mada.pro.mois`, `mada.pro.semaine`), puis en bac à sable.
+4. **Achat** : avec un fichier StoreKit de test dans Xcode (produits `mada.pro.an`, `mada.pro.mois`, `mada.pro.semaine`), puis en bac à sable. Les achats du fichier de test sont signés par Xcode, pas par Apple : le serveur les refuse (normal). Ceux du bac à sable passent par `POST /api/achat` ; vérifier que `/api/quota` renvoie `pro: true`.
 5. **Mesures** (étude, ch. 9) : montage en moins de 60 s, export en moins de 20 s pour 30 s de vidéo, moins de 3 % de batterie.
 
-Pas encore fait : les sous-titres (il faudra la transcription sur l'appareil avec `Speech`), App Attest, et
-la vérification des JWS par le serveur (App Store Server API).
+Pas encore fait : les sous-titres (il faudra la transcription sur l'appareil avec `Speech`) et App Attest.
+La vérification des achats par le serveur est faite (`lib/apple.js`).

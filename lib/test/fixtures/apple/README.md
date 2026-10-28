@@ -1,0 +1,1 @@
+Chaîne de certificats de test (racine, intermédiaire, feuille avec les OID marqueurs d'Apple), créée avec openssl (`ext.cnf`). Elle ne vient pas d'Apple et ne sert qu'aux tests de `lib/apple.js`, qui reçoivent son empreinte à la place de celle d'Apple Root CA - G3. `leaf.key` signe les faux JWS des tests : ce n'est pas un secret.

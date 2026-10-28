@@ -3,8 +3,8 @@ import StoreKit
 
 // StoreKit 2 for the offers of core/plans.ts (app/src/plans/storekit.ts is the JS side). Apple shows
 // its own sheet and charges the price set in App Store Connect. Each transaction carries the anonymous
-// device id as appAccountToken, and its signed JWS is returned so the server can check it with the App
-// Store Server API instead of trusting `x-mada-pro` (lib/quota.js, à faire). Not compiled yet.
+// device id as appAccountToken, and its signed JWS is returned so the server checks it with Apple's
+// certificates (lib/apple.js, POST /api/achat) instead of trusting `x-mada-pro`. Not compiled yet.
 public class MadaStoreModule: Module {
   private var updates: Task<Void, Never>?
 
@@ -49,7 +49,7 @@ public class MadaStoreModule: Module {
     // « Restaurer mes achats » (règle 3.1.1): asks the App Store to sync, then reads the rights.
     AsyncFunction("restore") { () async throws -> [String: Any] in
       try await AppStore.sync()
-      return ["active": await activeIds()]
+      return ["active": await activeIds(), "jws": await activeJws()]
     }
 
     AsyncFunction("entitlements") { () async -> [String: Any] in

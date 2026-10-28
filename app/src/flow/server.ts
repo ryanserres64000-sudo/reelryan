@@ -9,7 +9,8 @@ export const SERVER = { url: process.env.EXPO_PUBLIC_MADA_API || null, access: p
 export const aiUrl = () => (aiAllowed() ? SERVER.url : null);
 
 // Every call to the server: the access code, the anonymous device id that counts the free creations,
-// and whether the person is Pro (lib/quota.js).
+// and whether the person is Pro (lib/quota.js; the server reads that header only in development,
+// MADA_PRO_HEADER=1, and otherwise trusts the Apple-signed purchases sent to /api/achat).
 let pro = false;
 export const serverHeaders = {
   setPro: (p: boolean) => { pro = p; },

@@ -38,3 +38,5 @@ const FACES: Record<Font, [string, string]> = {
 };
 export const face = (font: Font, weight: number) => (FACES[font] ?? FACES["DM Sans"])[weight >= 600 ? 1 : 0];
 export const useVisualFonts = () => useFonts(FILES)[0];
+// The font file itself, for the native video render (app/modules/mada-video registers it by URL).
+export const fontModule = (font: Font, weight: number) => FILES[face(font, weight) as keyof typeof FILES];

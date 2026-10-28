@@ -8,13 +8,14 @@ import type { Brand } from "../brand/types";
 import { fr } from "../copy/fr";
 import { Button, Card, Chip, MadaSays, Screen, Text, tokens, typeStyle, useTheme } from "../design";
 import { canExportVideo, exportVideos } from "../export/video";
+import type { Sources } from "../video/sources";
 
-type Props = { timeline: TimelineV1; brief: string; brand: Brand | null; rushes: Record<string, string>; onBack: () => void; byAi?: boolean };
+type Props = { timeline: TimelineV1; brief: string; brand: Brand | null; sources: () => Promise<Sources>; onBack: () => void; byAi?: boolean };
 const t = fr.exportScreen;
 
 // Step 6 (étude, ch. 5 §7) : the three files with their safe zones, the caption in the brand's tone
 // copied in one tap per platform, the trending-sound reminder, then Photos and the share sheet.
-export function ExportScreen({ timeline, brief, brand, rushes, onBack, byAi = true }: Props) {
+export function ExportScreen({ timeline, brief, brand, sources, onBack, byAi = true }: Props) {
   const { c } = useTheme();
   const { width } = useWindowDimensions();
   const start = timeline.legende.texte || timeline.legende.hashtags.length ? timeline.legende : offlineCaption(brief, brand?.dna ?? null, brand?.answers);
@@ -39,7 +40,7 @@ export function ExportScreen({ timeline, brief, brand, rushes, onBack, byAi = tr
     await Clipboard.setStringAsync(captionFor(timeline, plan[0].plateforme, legende));
     if (!canExportVideo()) { setSay(t.native); setBusy(false); return; }
     try {
-      const uris = await exportVideos(timeline, plan, rushes, i => setSay(t.saving(i + 1, plan.length)));
+      const uris = await exportVideos(timeline, plan, await sources(), i => setSay(t.saving(i + 1, plan.length)));
       setFiles(uris); setSay(t.saved);
     } catch { setSay(t.error); }
     finally { setBusy(false); }

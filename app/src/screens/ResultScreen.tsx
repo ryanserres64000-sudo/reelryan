@@ -1,16 +1,19 @@
-import { useRef, useState, type ComponentRef } from "react";
+import { useMemo, useRef, useState, type ComponentRef } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { TRANSITION_SECONDS } from "../../../core/timeline";
 import { fr } from "../copy/fr";
 import { Button, Card, Chip, Frise, SavedPill, Screen, Text, tokens, useTheme } from "../design";
+import { exportPlan } from "../../../core/export";
 import type { MontageResult, Variant } from "../flow/types";
+import type { Sources } from "../video/sources";
+import { VideoPreview } from "../video/Preview";
 
-type Props = { result: MontageResult; seconds: number; onBack: () => void; onRestart: () => void; onEdit?: (i: number) => void; onExport?: (i: number) => void; kept?: number | null; onKeep?: (i: number) => void };
+type Props = { result: MontageResult; seconds: number; onBack: () => void; onRestart: () => void; onEdit?: (i: number) => void; onExport?: (i: number) => void; kept?: number | null; onKeep?: (i: number) => void; sources?: (i: number) => Promise<Sources> };
 const LABELS = { "accroche-forte": fr.result.variants.hook, posee: fr.result.variants.calm, rythmee: fr.result.variants.rhythm } as const;
 
 // Step 5 (étude, ch. 5 §5 ; ch. 4 « relecture visible »): 2 or 3 versions to swipe, what MaDa corrected
 // before showing them, why this edit, and the shots to film next time.
-export function ResultScreen({ result, seconds, onBack, onRestart, onEdit, onExport, kept, onKeep }: Props) {
+export function ResultScreen({ result, seconds, onBack, onRestart, onEdit, onExport, kept, onKeep, sources }: Props) {
   const [index, setIndex] = useState(0);
   const [page, setPage] = useState(0);
   // The kept version can live in the flow (the paywall shows in between, lot 8).
@@ -18,6 +21,8 @@ export function ResultScreen({ result, seconds, onBack, onRestart, onEdit, onExp
   const chosen = kept !== undefined ? kept : own;
   const setChosen = (i: number) => { setOwn(i); onKeep?.(i); };
   const pager = useRef<ComponentRef<typeof ScrollView>>(null);
+  // The native preview of the version on screen only, built once per version.
+  const shown = useMemo(() => sources?.(index) ?? null, [index, result]);
   const go = (i: number) => { setIndex(i); pager.current?.scrollTo({ x: i * page, animated: true }); };
 
   return (
@@ -36,7 +41,7 @@ export function ResultScreen({ result, seconds, onBack, onRestart, onEdit, onExp
       <View onLayout={e => setPage(e.nativeEvent.layout.width)}>
         <ScrollView ref={pager} horizontal pagingEnabled showsHorizontalScrollIndicator={false}
           onMomentumScrollEnd={e => page && setIndex(Math.round(e.nativeEvent.contentOffset.x / page))}>
-          {page ? result.variantes.map((v, i) => <Page key={i} variant={v} width={page} seconds={seconds} />) : null}
+          {page ? result.variantes.map((v, i) => <Page key={i} variant={v} width={page} seconds={seconds} sources={i === index ? shown : null} />) : null}
         </ScrollView>
       </View>
       {onEdit ? <Button variant="secondary" label={fr.editor.open} onPress={() => onEdit(index)} /> : null}
@@ -45,7 +50,7 @@ export function ResultScreen({ result, seconds, onBack, onRestart, onEdit, onExp
   );
 }
 
-function Page({ variant, width, seconds }: { variant: Variant; width: number; seconds: number }) {
+function Page({ variant, width, seconds, sources }: { variant: Variant; width: number; seconds: number; sources: Promise<Sources> | null }) {
   const { c } = useTheme();
   const t = variant.timeline;
   const corrections = t.relecture.corrections;
@@ -56,10 +61,11 @@ function Page({ variant, width, seconds }: { variant: Variant; width: number; se
   return (
     <View style={[styles.page, { width }]}>
       <View style={styles.previewRow}>
-        <View style={[styles.preview, { backgroundColor: c.media }]} accessibilityLabel={`${fr.resultScreen.preview}, ${t.titre}`}>
-          <Text variant="headline" tone="onMedia" style={styles.previewTitle}>{t.titre}</Text>
-          {first ? <Text variant="callout" tone="onMedia" style={styles.previewText} numberOfLines={2}>{first.texte}</Text> : null}
-        </View>
+        <VideoPreview timeline={t} file={exportPlan(t)[0]} sources={sources} style={[styles.preview, { backgroundColor: c.media }]}
+          fallback={<View style={[styles.preview, { backgroundColor: c.media }]} accessibilityLabel={`${fr.resultScreen.preview}, ${t.titre}`}>
+            <Text variant="headline" tone="onMedia" style={styles.previewTitle}>{t.titre}</Text>
+            {first ? <Text variant="callout" tone="onMedia" style={styles.previewText} numberOfLines={2}>{first.texte}</Text> : null}
+          </View>} />
         <View style={styles.previewSide}>
           <Text variant="mono" tone="textMuted">{fr.rush.duration(variant.duration)}</Text>
           <Text variant="caption" tone="ai">{fr.generation.madeIn(seconds)}</Text>

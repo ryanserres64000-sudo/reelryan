@@ -9,6 +9,7 @@ import { aiAllowed, consent, loadConsent, setConsent } from "../consent";
 import { initDevice } from "../plans/device";
 import { ConsentScreen } from "../screens/ConsentScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
+import { videoSources } from "../video/sources";
 import { loadPlans, proHeader, record, savePlans, verdict, type Plans } from "../plans/state";
 import { PaywallScreen } from "../screens/PaywallScreen";
 import { createVisual } from "../visual/api";
@@ -30,6 +31,9 @@ import type { VisualBrief } from "../../../core/design";
 import type { Photo, VisualResult } from "../visual/api";
 import { loadVisuals, saveVisual, type SavedVisual } from "../visual/store";
 import { SAMPLE_RUSHES, fakeMontage } from "./fake";
+import { streamMontage } from "./api";
+import { aiUrl } from "./server";
+import { canTriage, montageBody, triageRush } from "./triage";
 import { Onboarding } from "./Onboarding";
 import type { Brief, MontageResult, Music, Rush, Trade } from "./types";
 
@@ -69,6 +73,13 @@ export function Flow() {
   // The AI permission (lot 9), asked where it is first needed, with where each answer leads.
   const [ask, setAsk] = useState<{ back: Step; yes: () => void; no: () => void } | null>(null);
   const askConsent = (back: Step, yes: () => void, no: () => void) => { setAsk({ back, yes, no }); setStep("consent"); };
+  // Each new rush is measured on the iPhone as soon as it is picked (Vision, lot 2 native part).
+  useEffect(() => {
+    if (!canTriage()) return;
+    for (const r of rushes.filter(x => x.uri && !x.triage)) {
+      triageRush(r).then(t => setRushes(list => list.map(x => (x.id === t.id ? t : x)))).catch(() => {});
+    }
+  }, [rushes]);
   const chosen = selected.map(id => rushes.find(r => r.id === id)).filter((r): r is Rush => !!r);
   // Shots worth keeping light up during the wait; Vision will provide them (lot 2, native part).
   const kept = chosen.map((r, i) => (r.badges.includes("blur") || r.badges.includes("dark") ? -1 : i)).filter(i => i >= 0);
@@ -102,9 +113,17 @@ export function Flow() {
       else setStep("generation");
     }} />;
     case "generation": return <GenerationScreen rushes={chosen.length} kept={kept} variants={3}
-      run={(onStep, signal) => fakeMontage(chosen, brief, music, onStep, signal)}
+      run={(onStep, signal) => {
+        // The real montage once the iPhone has measured the rushes and the person agreed to the AI;
+        // the sample answer otherwise (web preview, no server).
+        const url = aiUrl();
+        if (!url || demo || !chosen.every(r => r.triage)) return fakeMontage(chosen, brief, music, onStep, signal);
+        onStep(1);
+        return montageBody(chosen, brief, music, brand ?? null, brand?.memory?.rules.map(r => r.text) ?? []).then(body => streamMontage(url, body, onStep, signal));
+      }}
       onDone={(r, s) => { if (plans) updatePlans(record(plans, "montage")); setKeptVersion(null); setResult({ r, s }); setStep("result"); }} onCancel={() => setStep("music")} />;
     case "result": return result ? <ResultScreen result={result.r} seconds={result.s} onBack={() => setStep("brief")} onRestart={() => { setResult(null); setStep("import"); }}
+      sources={i => videoSources(result.r.variantes[i].timeline, chosen, brand ?? null, music)}
       onEdit={i => { setEditing(i); setStep("editor"); }} onExport={i => { setEditing(i); setStep("export"); }}
       kept={keptVersion} onKeep={i => {
         setKeptVersion(i);
@@ -124,7 +143,7 @@ export function Flow() {
     case "export": {
       const v = result?.r.variantes[editing];
       return v ? <ExportScreen timeline={v.timeline} byAi={!result?.r.manuel} brief={composeBrief(brief)} brand={brand ?? null} onBack={() => setStep("result")}
-        rushes={Object.fromEntries(chosen.flatMap(r => (r.uri ? [[r.id, r.uri]] : [])))} /> : null;
+        sources={() => videoSources(v.timeline, chosen, brand ?? null, music)} /> : null;
     }
     case "editor": {
       const v = result?.r.variantes[editing];

@@ -1,0 +1,191 @@
+import AVFoundation
+import CoreImage
+import ImageIO
+import UniformTypeIdentifiers
+
+// One AVComposition for the preview and the export (CLAUDE.md : « on exporte exactement ce qu'on voit
+// à l'écran »). Shots alternate between two video tracks so that a transition can overlap two shots;
+// MadaCompositor draws every frame (framing, motion, colour, transition, texts, logo) with Core Image.
+final class Shot {
+  let index: Int; let start: Double; let end: Double; let plan: Timeline.Plan
+  let track: CMPersistentTrackID; let still: CIImage?; let orient: CGImagePropertyOrientation; let size: CGSize
+  init(index: Int, start: Double, end: Double, plan: Timeline.Plan, track: CMPersistentTrackID, still: CIImage?, orient: CGImagePropertyOrientation, size: CGSize) {
+    self.index = index; self.start = start; self.end = end; self.plan = plan; self.track = track; self.still = still; self.orient = orient; self.size = size
+  }
+}
+
+final class RenderPlan {
+  let size: CGSize; var shots: [Shot] = []; var overlays: [Overlay] = []
+  init(size: CGSize) { self.size = size }
+}
+
+struct Built { let composition: AVMutableComposition; let video: AVMutableVideoComposition; let audio: AVMutableAudioMix; let duration: CMTime }
+
+enum Composer {
+  static let A: CMPersistentTrackID = 1, B: CMPersistentTrackID = 2
+
+  static func build(_ t: Timeline, file: ExportFile, sources: Sources) async throws -> Built {
+    let size = CGSize(width: file.w, height: file.h)
+    let comp = AVMutableComposition()
+    guard let va = comp.addMutableTrack(withMediaType: .video, preferredTrackID: A),
+          let vb = comp.addMutableTrack(withMediaType: .video, preferredTrackID: B) else { throw RenderError.composition }
+    let aa = comp.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)
+    let ab = comp.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)
+    let plan = RenderPlan(size: size)
+    let filler = try await Filler.clip()
+    var at = 0.0, voice: [(Double, Double)] = []
+
+    for (i, p) in t.plans.enumerated() {
+      guard let uriString = sources.rushes[p.source], let uri = URL(string: uriString) else { throw RenderError.missingRush(p.source) }
+      let speed = p.vitesse > 0 ? p.vitesse : 1
+      let length = (p.fin - p.debut) / speed
+      if i > 0 && p.transition != "coupe" { at -= TRANSITION_SECONDS }
+      let start = at, track = i % 2 == 0 ? va : vb, audioTrack = i % 2 == 0 ? aa : ab
+      let target = CMTimeRange(start: time(start), duration: time(length))
+
+      if isImage(uri) {
+        // A photo: the filler clip keeps time on the track, the compositor draws the photo instead.
+        guard let image = CIImage(contentsOf: uri, options: [.applyOrientationProperty: true]) else { throw RenderError.unreadable(p.source) }
+        try insertFiller(filler.track, length: filler.duration, into: track, range: target)
+        plan.shots.append(Shot(index: i, start: start, end: start + length, plan: p, track: track.trackID, still: image, orient: .up, size: image.extent.size))
+      } else {
+        let asset = AVURLAsset(url: uri)
+        guard let src = try await asset.loadTracks(withMediaType: .video).first else { throw RenderError.unreadable(p.source) }
+        let (natural, transform) = try await src.load(.naturalSize, .preferredTransform)
+        let range = CMTimeRange(start: time(p.debut), end: time(p.fin))
+        try track.insertTimeRange(range, of: src, at: target.start)
+        if speed != 1 { track.scaleTimeRange(CMTimeRange(start: target.start, duration: range.duration), toDuration: target.duration) }
+        if p.garder_son, let audioTrack, let srcAudio = try await asset.loadTracks(withMediaType: .audio).first {
+          try audioTrack.insertTimeRange(range, of: srcAudio, at: target.start)
+          if speed != 1 { audioTrack.scaleTimeRange(CMTimeRange(start: target.start, duration: range.duration), toDuration: target.duration) }
+          voice.append((start, start + length))
+        }
+        let shown = CGRect(origin: .zero, size: natural).applying(transform)
+        plan.shots.append(Shot(index: i, start: start, end: start + length, plan: p, track: track.trackID, still: nil, orient: orientation(transform), size: CGSize(width: abs(shown.width), height: abs(shown.height))))
+      }
+      at = start + length
+    }
+
+    let duration = min(at, file.duree)
+    plan.overlays = try Overlay.make(t, file: file, sources: sources, duration: duration)
+
+    // Music (mode « fichier »): the chosen passage from 0, lowered under voices, faded out at the end.
+    // In « son tendance » mode there is no music: the person adds the sound in Instagram (ch. 9).
+    var params: [AVMutableAudioMixInputParameters] = []
+    if t.musique.mode == "fichier", let m = sources.music, let url = URL(string: m.uri),
+       let srcMusic = try await AVURLAsset(url: url).loadTracks(withMediaType: .audio).first,
+       let music = comp.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {
+      let length = min(m.fin - m.debut, duration)
+      try music.insertTimeRange(CMTimeRange(start: time(m.debut), duration: time(length)), of: srcMusic, at: .zero)
+      let p = AVMutableAudioMixInputParameters(track: music), v = Float(t.musique.volume)
+      p.setVolume(v, at: .zero)
+      if t.musique.ducking_voix {
+        for (a, b) in voice where b > a + 0.4 {
+          p.setVolumeRamp(fromStartVolume: v, toEndVolume: v * 0.3, timeRange: CMTimeRange(start: time(max(0, a - 0.2)), duration: time(0.2)))
+          p.setVolumeRamp(fromStartVolume: v * 0.3, toEndVolume: v, timeRange: CMTimeRange(start: time(b), duration: time(0.3)))
+        }
+      }
+      let fade = min(t.musique.fondu_sortie, length)
+      if fade > 0 { p.setVolumeRamp(fromStartVolume: v, toEndVolume: 0, timeRange: CMTimeRange(start: time(length - fade), duration: time(fade))) }
+      params.append(p)
+    }
+    // The voices kept from the rushes play as recorded.
+    for track in [aa, ab].compactMap({ $0 }) where !track.segments.isEmpty { params.append(AVMutableAudioMixInputParameters(track: track)) }
+    let mix = AVMutableAudioMix(); mix.inputParameters = params
+
+    let video = AVMutableVideoComposition()
+    video.customVideoCompositorClass = MadaCompositor.self
+    video.renderSize = size
+    video.frameDuration = CMTime(value: 1, timescale: CMTimeScale(file.fps))
+    // The instructions cover the whole composition (AVFoundation refuses gaps); the file is cut later.
+    video.instructions = instructions(plan, duration: at)
+    return Built(composition: comp, video: video, audio: mix, duration: time(duration))
+  }
+
+  // One instruction per span where the same shots are on screen: one shot, or two during a transition.
+  static func instructions(_ plan: RenderPlan, duration: Double) -> [MadaInstruction] {
+    var cuts = Set<Double>([0, duration])
+    for s in plan.shots { cuts.insert(min(s.start, duration)); cuts.insert(min(s.end, duration)) }
+    let times = cuts.sorted()
+    var out: [MadaInstruction] = []
+    for (a, b) in zip(times, times.dropFirst()) where b - a > 0.0005 {
+      let mid = (a + b) / 2
+      let on = plan.shots.filter { $0.start <= mid && mid < $0.end }
+      out.append(MadaInstruction(range: CMTimeRange(start: time(a), end: time(b)), shots: on, plan: plan))
+    }
+    return out
+  }
+
+  static func insertFiller(_ filler: AVAssetTrack, length: CMTime, into track: AVMutableCompositionTrack, range: CMTimeRange) throws {
+    var cursor = range.start
+    while cursor < range.end {
+      let piece = min(length, range.end - cursor)
+      try track.insertTimeRange(CMTimeRange(start: .zero, duration: piece), of: filler, at: cursor)
+      cursor = cursor + piece
+    }
+  }
+}
+
+// The four rotations an iPhone writes in preferredTransform.
+func orientation(_ t: CGAffineTransform) -> CGImagePropertyOrientation {
+  if t.a == 0 && t.b == 1 && t.c == -1 && t.d == 0 { return .right }
+  if t.a == 0 && t.b == -1 && t.c == 1 && t.d == 0 { return .left }
+  if t.a == -1 && t.d == -1 { return .down }
+  return .up
+}
+
+func time(_ s: Double) -> CMTime { CMTime(seconds: max(0, s), preferredTimescale: 600) }
+
+func isImage(_ url: URL) -> Bool {
+  guard let type = UTType(filenameExtension: url.pathExtension) else { return false }
+  return type.conforms(to: .image)
+}
+
+enum RenderError: LocalizedError {
+  case composition, missingRush(String), unreadable(String), export(String)
+  var errorDescription: String? {
+    switch self {
+    case .composition: return "Composition impossible."
+    case .missingRush(let id): return "Rush introuvable : \(id)."
+    case .unreadable(let id): return "Rush illisible : \(id)."
+    case .export(let why): return "Export impossible : \(why)."
+    }
+  }
+}
+
+// A 2 s black 1080 × 1920 clip, written once to the cache: photos need a track segment to exist.
+enum Filler {
+  static func clip() async throws -> (track: AVAssetTrack, duration: CMTime) {
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent("mada-filler-v1.mp4")
+    if !FileManager.default.fileExists(atPath: url.path) { try await write(url) }
+    guard let track = try await AVURLAsset(url: url).loadTracks(withMediaType: .video).first else { throw RenderError.composition }
+    return (track, try await track.load(.timeRange).duration)
+  }
+
+  static func write(_ url: URL) async throws {
+    let tmp = url.deletingLastPathComponent().appendingPathComponent(UUID().uuidString + ".mp4")
+    let writer = try AVAssetWriter(outputURL: tmp, fileType: .mp4)
+    let input = AVAssetWriterInput(mediaType: .video, outputSettings: [AVVideoCodecKey: AVVideoCodecType.h264, AVVideoWidthKey: 1080, AVVideoHeightKey: 1920])
+    let adaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: input, sourcePixelBufferAttributes: [
+      kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA, kCVPixelBufferWidthKey as String: 1080, kCVPixelBufferHeightKey as String: 1920,
+    ])
+    writer.add(input)
+    guard writer.startWriting() else { throw writer.error ?? RenderError.composition }
+    writer.startSession(atSourceTime: .zero)
+    var buffer: CVPixelBuffer?
+    CVPixelBufferCreate(nil, 1080, 1920, kCVPixelFormatType_32BGRA, nil, &buffer)
+    guard let buffer else { throw RenderError.composition }
+    CVPixelBufferLockBaseAddress(buffer, [])
+    memset(CVPixelBufferGetBaseAddress(buffer), 0, CVPixelBufferGetDataSize(buffer))
+    CVPixelBufferUnlockBaseAddress(buffer, [])
+    for frame in 0..<60 {
+      while !input.isReadyForMoreMediaData { try await Task.sleep(nanoseconds: 2_000_000) }
+      adaptor.append(buffer, withPresentationTime: CMTime(value: CMTimeValue(frame), timescale: 30))
+    }
+    input.markAsFinished()
+    await writer.finishWriting()
+    guard writer.status == .completed else { throw writer.error ?? RenderError.composition }
+    try? FileManager.default.removeItem(at: url)
+    try FileManager.default.moveItem(at: tmp, to: url)
+  }
+}

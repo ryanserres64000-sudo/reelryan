@@ -13,6 +13,7 @@ L'inscription (lot 4 : profil, questionnaire, logo, carnet de marque), puis le p
 - `src/export/` : export PNG d'un visuel (capture à taille réelle, Photos en écriture seule, feuille de partage) et pont vers le futur module natif `MadaVideo` (AVFoundation), absent tant que l'app n'est pas compilée sur Mac.
 - `src/plans/` : offres et compteur des créations IA offertes (copie locale de `core/plans.ts`, le vrai compte est sur le serveur), identifiant d'appareil anonyme dans le trousseau (`expo-secure-store`), pont vers le futur module natif StoreKit `MadaStore`. `src/legal.ts` : liens Conditions et Confidentialité (`EXPO_PUBLIC_MADA_SITE`).
 - `src/consent.ts` : accord daté avant tout envoi à l'IA, demandé au premier besoin (`ConsentScreen`), modifiable dans Réglages ; sans accord, `aiUrl()` renvoie null et l'app passe à la main ou hors ligne. `src/account.ts` : suppression du compte (iPhone et serveur).
+- `src/video/` : aperçu natif (`VideoPreview`, même composition que l'export) et fichiers à donner au rendu (`videoSources` : rushes, logo, musique, polices). `src/flow/triage.ts` : tri Vision puis corps de `/api/montage`. Les modules Swift sont dans `modules/` (voir `modules/README.md`).
 - `src/screens/` : les écrans. Aucune couleur, taille ni texte en dur : `node ../design/check-hardcoded.mjs` le vérifie.
 
 Serveur : `EXPO_PUBLIC_MADA_API` (adresse du serveur) et `EXPO_PUBLIC_MADA_ACCESS` (code `APP_PASSWORD`) dans `app/.env`. Sans eux, l'app fonctionne hors ligne avec des réponses d'exemple.

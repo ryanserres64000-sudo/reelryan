@@ -100,3 +100,11 @@ test("without the server, every profile still gets a full carnet", () => {
   }
   assert.equal(offlineDna("debutant", {}, kit).idees.length, 10);
 });
+
+test("the carnet's colours and fonts become the timeline's charte", async () => {
+  const { charteOf } = await import("../brand.ts");
+  const { sanitizeTimeline } = await import("../timeline.ts");
+  const c = charteOf({ couleurs: ["#C2562F", "#1F1B16"], polices: { titres: "Fraunces", texte: "Inter" } } as never, true);
+  const t = sanitizeTimeline({ plans: [{ source: "a", debut: 0, fin: 3 }], charte: c }, { a: { duration: 5 } }).timeline;
+  assert.deepEqual([t.charte.couleurs.principale, t.charte.polices.titre, t.charte.polices.texte, t.charte.logo?.position], ["#C2562F", "Fraunces", "Inter", "fin"]);
+});

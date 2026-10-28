@@ -277,3 +277,11 @@ const BASES: Record<Profil, Base> = {
 export function offlineDna(profil: Profil, answers: Answers, kit: Kit): Dna {
   return sanitizeDna({ ...BASES[profil], style_maison: STYLE_PAR_PROFIL[profil] }, profil, answers, kit);
 }
+
+// The brand's colours, fonts and logo as the timeline holds them (core/timeline.ts, Charte): the
+// montage and the native render use the same ones (lot 4, carnet → chaque montage).
+export const charteOf = (d: Dna | null, logo: boolean) => ({
+  couleurs: { principale: d?.couleurs[0] ?? null, texte: null },
+  polices: { titre: d?.polices.titres ?? "Bricolage Grotesque", texte: d?.polices.texte ?? "DM Sans" },
+  logo: logo ? { asset: "logo", position: "fin", taille: 0.18 } : null,
+});

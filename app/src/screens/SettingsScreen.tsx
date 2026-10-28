@@ -62,7 +62,7 @@ export function SettingsScreen({ plans, onPlans, onDeleted, onBack }: Props) {
       <Card>
         <View style={styles.block}>
           <Text variant="headline">{t.docs}</Text>
-          {[link(t.terms, LEGAL.terms), link(t.privacy, LEGAL.privacy), link(t.help, LEGAL.support), link(t.rights, LEGAL.rights)]}
+          {[link(t.terms, LEGAL.terms), link(t.privacy, LEGAL.privacy), link(t.notices, LEGAL.notices), link(t.help, LEGAL.support), link(t.rights, LEGAL.rights)]}
           {!LEGAL.terms ? <Text variant="caption" tone="textMuted">{t.noSite}</Text> : null}
         </View>
       </Card>

@@ -1,0 +1,19 @@
+{
+  "_aide": "Remplis chaque valeur, puis lance : node scripts/legal.mjs. null = pas encore rempli (le texte orange reste sur le site). \"\" = volontairement vide (par exemple pas de capital pour un entrepreneur individuel). Voir docs/legal/a-completer.md.",
+  "editeur_nom": null,
+  "editeur_forme": null,
+  "editeur_capital": null,
+  "editeur_adresse": null,
+  "editeur_siren": null,
+  "editeur_tva": null,
+  "contact_email": null,
+  "contact_tel": null,
+  "directeur_publication": null,
+  "mediateur": null,
+  "email_donnees": null,
+  "email_support": null,
+  "email_droits": null,
+  "email_contact_dsa": null,
+  "compteurs": null,
+  "compteurs_region": null
+}

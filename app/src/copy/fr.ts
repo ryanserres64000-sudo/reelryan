@@ -153,7 +153,7 @@ export const fr = {
 
   consent: {
     title: "Avant de passer la main à l'IA",
-    lead: "Pour monter, j'envoie 15 à 30 petites images de tes vidéos à Claude (Anthropic). Elles ne sont ni gardées ni utilisées pour entraîner l'IA.",
+    lead: "Pour monter, j'envoie 15 à 30 petites images de tes vidéos à Claude (Anthropic). Ma DA ne les garde pas. Anthropic les efface sous 30 jours et ne s'en sert pas pour entraîner son IA.",
     sent: "Ce qui part : ces petites images, ta phrase, ton carnet de style et, pour un visuel, tes photos en petit.",
     notSent: "Ce qui reste sur ton iPhone : tes vidéos entières, ta photothèque, ton nom et ton e-mail.",
     promise: "Aucun entraînement sur tes vidéos, ni par Ma DA ni par ses fournisseurs.",
@@ -182,6 +182,7 @@ export const fr = {
     docs: "Documents",
     terms: "Conditions d'utilisation",
     privacy: "Politique de confidentialité",
+    notices: "Mentions légales",
     help: "Aide et contact",
     rights: "Signaler un son (ayants droit)",
     noSite: "Les pages légales s'ouvriront une fois le site en ligne.",
@@ -219,7 +220,7 @@ export const fr = {
         "J'écris ton carnet de marque. Tu le lis, tu le corriges, il guide chaque création.",
       ],
       start: "Faire connaissance",
-      privacy: "Tes réponses servent seulement à écrire ton carnet. Rien n'est gardé sur le serveur.",
+      privacy: "Tes réponses servent seulement à écrire ton carnet. Le serveur de Ma DA n'en garde rien.",
     },
     profile: {
       title: "Tu crées pour qui ?",

@@ -36,8 +36,8 @@ Quand « Se connecter avec Apple » arrivera : ajouter « Coordonnées → Adres
 - Marquage IA (AI Act, art. 50) : métadonnées `com.apple.quicktime.description` « Montage assisté par IA » sur chaque vidéo (`core/export.ts`, `provenance`).
 - Textes des autorisations iOS : `expo-image-picker` (photothèque, sélection seulement) et `expo-media-library` (enregistrement dans Photos), dans `app.json`.
 
-## Points [À VÉRIFIER]
+## Points vérifiés et restants
 
-- Durée de conservation des journaux de l'API Anthropic et option « zéro rétention » ; signer le DPA.
-- Région d'hébergement Vercel et des compteurs (Upstash) ; transfert hors UE.
+- Anthropic : demandes et réponses effacées sous 30 jours (2 ans en cas d'abus), aucun entraînement sur l'API commerciale ; DPA à accepter et à archiver, option « zéro rétention » à demander (voir `docs/legal/a-completer.md`).
+- Serveur Vercel à Paris (`vercel.json`, `cdg1`) ; base des compteurs à créer dans l'Union européenne.
 - Le statut Pro « déclaré par l'app » doit être remplacé par la vérification des transactions StoreKit 2 (App Store Server API) avant le lancement.

@@ -1,4 +1,5 @@
 import { fetch } from "expo/fetch";
+import { serverHeaders } from "../flow/server";
 import { offlineDna, sanitizeDna, type Dna } from "../../../core/brand";
 import { fr } from "../copy/fr";
 import type { Brand } from "./types";
@@ -11,7 +12,7 @@ export async function writeDna(b: Brand, logo: string, url: string | null, signa
   try {
     const res = await fetch(`${url}/api/adn`, {
       method: "POST", signal,
-      headers: { "content-type": "application/json", ...(access ? { "x-rr-access": access } : {}) },
+      headers: serverHeaders.get(),
       body: JSON.stringify({ profil: b.profil, libelle_profil: fr.dna.profile.names[b.profil], reponses: b.answers, kit: b.kit, logo: logo || undefined }),
     });
     if (!res.ok) return offline;

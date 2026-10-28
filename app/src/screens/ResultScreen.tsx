@@ -5,15 +5,18 @@ import { fr } from "../copy/fr";
 import { Button, Card, Chip, Frise, SavedPill, Screen, Text, tokens, useTheme } from "../design";
 import type { MontageResult, Variant } from "../flow/types";
 
-type Props = { result: MontageResult; seconds: number; onBack: () => void; onRestart: () => void; onEdit?: (i: number) => void; onExport?: (i: number) => void };
+type Props = { result: MontageResult; seconds: number; onBack: () => void; onRestart: () => void; onEdit?: (i: number) => void; onExport?: (i: number) => void; kept?: number | null; onKeep?: (i: number) => void };
 const LABELS = { "accroche-forte": fr.result.variants.hook, posee: fr.result.variants.calm, rythmee: fr.result.variants.rhythm } as const;
 
 // Step 5 (étude, ch. 5 §5 ; ch. 4 « relecture visible »): 2 or 3 versions to swipe, what MaDa corrected
 // before showing them, why this edit, and the shots to film next time.
-export function ResultScreen({ result, seconds, onBack, onRestart, onEdit, onExport }: Props) {
+export function ResultScreen({ result, seconds, onBack, onRestart, onEdit, onExport, kept, onKeep }: Props) {
   const [index, setIndex] = useState(0);
   const [page, setPage] = useState(0);
-  const [chosen, setChosen] = useState<number | null>(null);
+  // The kept version can live in the flow (the paywall shows in between, lot 8).
+  const [own, setOwn] = useState<number | null>(null);
+  const chosen = kept !== undefined ? kept : own;
+  const setChosen = (i: number) => { setOwn(i); onKeep?.(i); };
   const pager = useRef<ComponentRef<typeof ScrollView>>(null);
   const go = (i: number) => { setIndex(i); pager.current?.scrollTo({ x: i * page, animated: true }); };
 

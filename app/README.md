@@ -11,6 +11,7 @@ L'inscription (lot 4 : profil, questionnaire, logo, carnet de marque), puis le p
 - `modules/mada-audio/` : module natif Swift qui décode un son avec AVAudioFile. Pas encore compilé : il faut Xcode. Sans lui, l'app propose « Tape le rythme ».
 - `src/visual/` : les visuels (lot 6) : rendu des calques `{w, h, background, fx, layers[]}` en vues natives (`DesignView.tsx`, SVG pour formes et photos, vrais `Text` pour les textes), les 12 polices OFL, l'appel à `POST /api/visuel` avec mise en page hors ligne, et les 20 derniers visuels gardés sur l'iPhone.
 - `src/export/` : export PNG d'un visuel (capture à taille réelle, Photos en écriture seule, feuille de partage) et pont vers le futur module natif `MadaVideo` (AVFoundation), absent tant que l'app n'est pas compilée sur Mac.
+- `src/plans/` : offres et compteur des créations IA offertes (copie locale de `core/plans.ts`, le vrai compte est sur le serveur), identifiant d'appareil anonyme dans le trousseau (`expo-secure-store`), pont vers le futur module natif StoreKit `MadaStore`. `src/legal.ts` : liens Conditions et Confidentialité (`EXPO_PUBLIC_MADA_SITE`).
 - `src/screens/` : les écrans. Aucune couleur, taille ni texte en dur : `node ../design/check-hardcoded.mjs` le vérifie.
 
 Serveur : `EXPO_PUBLIC_MADA_API` (adresse du serveur) et `EXPO_PUBLIC_MADA_ACCESS` (code `APP_PASSWORD`) dans `app/.env`. Sans eux, l'app fonctionne hors ligne avec des réponses d'exemple.

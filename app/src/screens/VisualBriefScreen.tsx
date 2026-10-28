@@ -9,14 +9,14 @@ import { assetsOf, createVisual, type Photo, type VisualResult } from "../visual
 import { DesignView } from "../visual/DesignView";
 import type { SavedVisual } from "../visual/store";
 
-type Props = { brand: Brand | null; saved: SavedVisual[]; initial?: { brief: VisualBrief; photos: Photo[] } | null; onCreated: (r: VisualResult, brief: VisualBrief, photos: Photo[]) => void; onOpen: (v: SavedVisual) => void; onBack: () => void };
+type Props = { brand: Brand | null; saved: SavedVisual[]; initial?: { brief: VisualBrief; photos: Photo[] } | null; onCreated: (r: VisualResult, brief: VisualBrief, photos: Photo[]) => void; onOpen: (v: SavedVisual) => void; onBack: () => void; canAi?: boolean; onBlocked?: (brief: VisualBrief, photos: Photo[]) => void };
 const t = fr.visual;
 const KIND_KEYS = Object.keys(KINDS) as Kind[];
 const MAX_PHOTOS = 3;
 
 // Posters, posts, stories, flyers and menus (étude, ch. 5 §7) : the kind, one idea, the exact texts,
 // and the person's own photos. The house style comes from the brand carnet (ch. 6 §5).
-export function VisualBriefScreen({ brand, saved, initial, onCreated, onOpen, onBack }: Props) {
+export function VisualBriefScreen({ brand, saved, initial, onCreated, onOpen, onBack, canAi = true, onBlocked }: Props) {
   const { c } = useTheme();
   const { width } = useWindowDimensions();
   // Back from the editor, the last brief is still there, to try another format.
@@ -39,6 +39,8 @@ export function VisualBriefScreen({ brand, saved, initial, onCreated, onOpen, on
     setBusy(true);
     ctl.current = new AbortController();
     const brief: VisualBrief = { kind, idee, infos, style: STYLE_OF(brand?.dna) };
+    // Free visuals used up: the paywall, with the layout without AI as a free way on (lot 8).
+    if (!canAi && onBlocked) { setBusy(false); onBlocked(brief, photos); return; }
     try { onCreated(await createVisual(brief, brand, photos, ctl.current.signal), brief, photos); }
     finally { setBusy(false); }
   };

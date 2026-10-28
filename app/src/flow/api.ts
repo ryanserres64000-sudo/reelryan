@@ -1,11 +1,12 @@
 import { fetch } from "expo/fetch";
+import { serverHeaders } from "./server";
 import { readLine } from "./stream";
 import type { MontageResult } from "./types";
 
 export async function streamMontage(url: string, body: unknown, onStep: (s: number) => void, signal: AbortSignal, access?: string): Promise<MontageResult> {
   const res = await fetch(`${url}/api/montage`, {
     method: "POST", signal, body: JSON.stringify(body),
-    headers: { "content-type": "application/json", ...(access ? { "x-rr-access": access } : {}) },
+    headers: serverHeaders.get(),
   });
   if (!res.ok || !res.body) {
     const err = await res.json().catch(() => ({}));

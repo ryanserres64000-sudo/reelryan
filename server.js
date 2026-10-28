@@ -8,6 +8,8 @@ import { handleMontage } from "./lib/montage.js";
 import { handleAdn } from "./lib/adn.js";
 import { handleRetouche } from "./lib/retouche.js";
 import { handleVisuel } from "./lib/visuel.js";
+import { handleOffres, handleQuota } from "./lib/quota.js";
+import { checkAccess } from "./lib/claude.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "public");
@@ -16,6 +18,12 @@ const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; ch
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");
+  if (url.pathname === "/api/offres") return req.method === "GET" ? handleOffres(req, res) : ((res.statusCode = 405), res.end());
+  if (url.pathname === "/api/quota") {
+    if (req.method !== "POST") { res.statusCode = 405; return res.end(); }
+    if (!checkAccess(req)) { res.statusCode = 401; return res.end(); }
+    return handleQuota(req, res);
+  }
   if (url.pathname === "/api/generate" || url.pathname === "/api/montage" || url.pathname === "/api/adn" || url.pathname === "/api/retouche" || url.pathname === "/api/visuel") {
     if (req.method !== "POST") { res.statusCode = 405; return res.end(); }
     let body;

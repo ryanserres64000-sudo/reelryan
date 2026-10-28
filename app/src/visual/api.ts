@@ -3,7 +3,7 @@ import { fetch } from "expo/fetch";
 import { compactDna } from "../../../core/brand";
 import { KINDS, keepLockedLayers, naturalDesign, offlineDesign, sanitizeDesign, type BrandLook, type Design, type VisualBrief } from "../../../core/design";
 import type { Brand } from "../brand/types";
-import { SERVER } from "../flow/server";
+import { SERVER, serverHeaders } from "../flow/server";
 
 export type Photo = { id: string; uri: string };
 export type VisualResult = { design: Design; concept: string; relecture: string[]; byAi: boolean };
@@ -25,7 +25,7 @@ async function small(uri: string, logo: boolean) {
 async function call(body: object, signal?: AbortSignal) {
   const res = await fetch(`${SERVER.url}/api/visuel`, {
     method: "POST", signal,
-    headers: { "content-type": "application/json", ...(SERVER.access ? { "x-rr-access": SERVER.access } : {}) },
+    headers: serverHeaders.get(),
     body: JSON.stringify(body),
   });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -40,13 +40,13 @@ async function images(photos: Photo[], b: Brand | null) {
 
 // POST /api/visuel (lib/visuel.js). Without a server, or when it fails, a hand-made layout at the
 // brand's colours, so the person always gets a visual to work on.
-export async function createVisual(brief: VisualBrief, brand: Brand | null, photos: Photo[], signal?: AbortSignal): Promise<VisualResult> {
+export async function createVisual(brief: VisualBrief, brand: Brand | null, photos: Photo[], signal?: AbortSignal, ai = true): Promise<VisualResult> {
   const look = lookOf(brand), assets = Object.keys(assetsOf(photos, brand));
   const offline = (): VisualResult => {
     const r = naturalDesign(offlineDesign(brief, look, { photo: photos.length > 0, logo: !!brand?.logoUri }), look);
     return { design: r.design, concept: "", relecture: r.fixes, byAi: false };
   };
-  if (!SERVER.url) return offline();
+  if (!SERVER.url || !ai) return offline();
   try {
     const out = await call({ brief, adn: brand?.dna ? compactDna(brand.dna) : "", couleurs: look.couleurs, polices: look.polices, images: await images(photos, brand) }, signal);
     const { w, h } = KINDS[brief.kind];

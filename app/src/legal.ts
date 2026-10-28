@@ -1,0 +1,8 @@
+import * as Linking from "expo-linking";
+import { SERVER } from "./flow/server";
+
+// The legal pages (lot 9) are served by the website next to the API: public/conditions.html and
+// public/confidentialite.html. EXPO_PUBLIC_MADA_SITE points elsewhere if they move.
+const SITE = process.env.EXPO_PUBLIC_MADA_SITE || SERVER.url;
+export const LEGAL = { terms: SITE && `${SITE}/conditions.html`, privacy: SITE && `${SITE}/confidentialite.html`, support: SITE && `${SITE}/aide.html` };
+export const open = (url: string | null) => { if (url) Linking.openURL(url).catch(() => {}); };

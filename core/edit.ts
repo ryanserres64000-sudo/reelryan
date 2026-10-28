@@ -158,3 +158,17 @@ export function keepLocked(before: EditDoc, ai: TimelineV1): EditDoc {
   };
   return settle({ timeline, planIds: ids, texteIds: tids, locked: before.locked });
 }
+
+// ---------- Manual montage (free, no AI: étude, ch. 8 §2 « montage manuel illimité ») ----------
+
+// The chosen rushes in the order they were picked, about the target length, cut plainly; the person
+// then edits everything by hand in the editor.
+export function manualTimeline(rushes: { id: string; duration: number; photo?: boolean }[], target: number, sanitize: (raw: unknown, clips: Clips) => TimelineV1): TimelineV1 {
+  const per = Math.max(1, Math.min(4, target / Math.max(1, rushes.length)));
+  const plans = rushes.map(r => {
+    const len = Math.min(r.photo ? 2.5 : per, r.duration);
+    const debut = r.photo ? 0 : Math.max(0, Math.min(r.duration - len, r.duration * 0.25));
+    return { source: r.id, debut: round(debut), fin: round(debut + len), transition: "coupe", cadrage: "centre", vitesse: 1, etalonnage: "naturel", mouvement: r.photo ? "zoom-avant" : "aucun", garder_son: !r.photo, raison: "" };
+  });
+  return sanitize({ titre: "Mon montage", intention: "", plans, textes: [], musique: { mode: "aucune" } }, Object.fromEntries(rushes.map(r => [r.id, { duration: r.duration }])));
+}

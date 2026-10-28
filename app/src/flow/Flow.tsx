@@ -2,6 +2,13 @@ import * as Linking from "expo-linking";
 import { useEffect, useState } from "react";
 import type { Profil } from "../../../core/brand";
 import { emptyMemory } from "../../../core/corrections";
+import { manualTimeline } from "../../../core/edit";
+import { paywallFor } from "../../../core/plans";
+import { sanitizeTimeline } from "../../../core/timeline";
+import { initDevice } from "../plans/device";
+import { loadPlans, proHeader, record, savePlans, verdict, type Plans } from "../plans/state";
+import { PaywallScreen } from "../screens/PaywallScreen";
+import { createVisual } from "../visual/api";
 import { montageStyle } from "../../../core/brand";
 import { loadBrand, saveBrand } from "../brand/store";
 import { EditorScreen } from "../screens/EditorScreen";
@@ -23,7 +30,7 @@ import { SAMPLE_RUSHES, fakeMontage } from "./fake";
 import { Onboarding } from "./Onboarding";
 import type { Brief, MontageResult, Music, Rush, Trade } from "./types";
 
-type Step = "brand" | "import" | "brief" | "music" | "generation" | "result" | "editor" | "catalogue" | "visual" | "visual-editor" | "export";
+type Step = "brand" | "import" | "brief" | "music" | "generation" | "result" | "editor" | "catalogue" | "visual" | "visual-editor" | "export" | "paywall";
 // The brief's trade chips (lot 2) start from the sign-up profile.
 const TRADE_OF: Record<Profil, Trade> = { commerce: "commerce", restaurant: "restaurant", "petite-entreprise": "artisan", "grande-entreprise": "freelance", ecole: "freelance", createur: "freelance", debutant: "freelance" };
 const START_BRIEF: Brief = { text: "", trade: "restaurant", goal: null, tone: null, duration: 30, platforms: ["reels", "tiktok", "shorts"], cta: null };
@@ -50,6 +57,12 @@ export function Flow() {
   const [visuals, setVisuals] = useState<SavedVisual[]>([]);
   useEffect(() => { loadVisuals().then(setVisuals); }, []);
   const [visual, setVisual] = useState<{ id: string; result: VisualResult; brief: VisualBrief; photos: Photo[] } | null>(null);
+  // Subscription (lot 8): offers and counters, and the paywall with where it came from.
+  const [plans, setPlans] = useState<Plans | null>(null);
+  useEffect(() => { initDevice().then(loadPlans).then(p => { proHeader(p); setPlans(p); }); }, []);
+  const updatePlans = (p: Plans) => { proHeader(p); setPlans(p); savePlans(p); };
+  const [paywall, setPaywall] = useState<{ mode: "doux" | "bloquant"; back: Step; manual?: boolean; offline?: { brief: VisualBrief; photos: Photo[] } } | null>(null);
+  const [keptVersion, setKeptVersion] = useState<number | null>(null);
   const chosen = selected.map(id => rushes.find(r => r.id === id)).filter((r): r is Rush => !!r);
   // Shots worth keeping light up during the wait; Vision will provide them (lot 2, native part).
   const kept = chosen.map((r, i) => (r.badges.includes("blur") || r.badges.includes("dark") ? -1 : i)).filter(i => i >= 0);
@@ -59,20 +72,42 @@ export function Flow() {
     case "catalogue": return <DesignCatalogue />;
     case "brand": return <Onboarding initial={brand ?? null} onDone={b => { setBrand(b); setBrief(x => ({ ...x, trade: TRADE_OF[b.profil] })); setStep("import"); }} />;
     case "visual": return <VisualBriefScreen brand={brand ?? null} saved={visuals} initial={visual} onBack={() => setStep("import")}
-      onCreated={(r, b, photos) => { setVisual({ id: Date.now().toString(36), result: r, brief: b, photos }); setStep("visual-editor"); }}
+      canAi={!plans || verdict(plans, "visuel").ok} onBlocked={(b, photos) => { setVisual(v => (v ? { ...v, brief: b, photos } : v)); setPaywall({ mode: "bloquant", back: "visual", offline: { brief: b, photos } }); setStep("paywall"); }}
+      onCreated={(r, b, photos) => { if (plans && r.byAi) updatePlans(record(plans, "visuel")); setVisual({ id: Date.now().toString(36), result: r, brief: b, photos }); setStep("visual-editor"); }}
       onOpen={v => { setVisual({ id: v.id, result: { design: v.design, concept: "", relecture: [], byAi: true }, brief: v.brief, photos: v.photos }); setStep("visual-editor"); }} />;
     case "visual-editor": return visual ? <VisualEditorScreen key={visual.id} result={visual.result} brief={visual.brief} photos={visual.photos} brand={brand ?? null}
       onBack={() => setStep("visual")}
       onSave={d => { saveVisual({ id: visual.id, brief: visual.brief, design: d, photos: visual.photos, at: new Date().toISOString() }).then(setVisuals); setStep("visual"); }} /> : null;
-    case "import": return <ImportScreen onBrand={() => setStep("brand")} onVisual={() => setStep("visual")} rushes={rushes} selected={selected} pro={false} demo={demo}
+    case "import": return <ImportScreen onBrand={() => setStep("brand")} onVisual={() => setStep("visual")} rushes={rushes} selected={selected} pro={!!plans?.pro} demo={demo}
+      freeLeft={plans && !plans.pro ? verdict(plans, "montage").restant : null}
       onRushes={r => { setRushes(r); setDemo(false); }} onSelect={setSelected} onNext={() => setStep("brief")} />;
     case "brief": return <BriefScreen brief={brief} onChange={b => { setBrief(b); if (b.duration !== brief.duration) setMusic(m => ({ ...m, length: b.duration })); }} onBack={() => setStep("import")} onNext={() => setStep("music")} />;
-    case "music": return <MusicScreen music={music} onChange={setMusic} briefDuration={brief.duration} incoming={incoming} onBack={() => setStep("brief")} onNext={() => setStep("generation")} />;
+    case "music": return <MusicScreen music={music} onChange={setMusic} briefDuration={brief.duration} incoming={incoming} onBack={() => setStep("brief")} onNext={() => {
+      const v = plans && verdict(plans, "montage");
+      if (plans && paywallFor("nouvelle_creation", { pro: plans.pro, seen: plans.paywallSeen, verdict: v ?? undefined }) === "bloquant") { setPaywall({ mode: "bloquant", back: "music", manual: true }); setStep("paywall"); }
+      else setStep("generation");
+    }} />;
     case "generation": return <GenerationScreen rushes={chosen.length} kept={kept} variants={3}
       run={(onStep, signal) => fakeMontage(chosen, brief, music, onStep, signal)}
-      onDone={(r, s) => { setResult({ r, s }); setStep("result"); }} onCancel={() => setStep("music")} />;
+      onDone={(r, s) => { if (plans) updatePlans(record(plans, "montage")); setKeptVersion(null); setResult({ r, s }); setStep("result"); }} onCancel={() => setStep("music")} />;
     case "result": return result ? <ResultScreen result={result.r} seconds={result.s} onBack={() => setStep("brief")} onRestart={() => { setResult(null); setStep("import"); }}
-      onEdit={i => { setEditing(i); setStep("editor"); }} onExport={i => { setEditing(i); setStep("export"); }} /> : null;
+      onEdit={i => { setEditing(i); setStep("editor"); }} onExport={i => { setEditing(i); setStep("export"); }}
+      kept={keptVersion} onKeep={i => {
+        setKeptVersion(i);
+        // Right after the first result the person keeps: the soft paywall, once (ch. 8 §1).
+        if (plans && paywallFor("version_gardee", { pro: plans.pro, seen: plans.paywallSeen }) === "doux") { updatePlans({ ...plans, paywallSeen: true }); setPaywall({ mode: "doux", back: "result" }); setStep("paywall"); }
+      }} /> : null;
+    case "paywall": return plans && paywall ? <PaywallScreen plans={plans} mode={paywall.mode} onClose={() => setStep(paywall.back)}
+      onPro={p => { updatePlans(p); setStep(paywall.back); }}
+      onManual={paywall.manual ? () => {
+        // The free way on: the rushes in order, then everything by hand (ch. 8 §2).
+        const tl = manualTimeline(chosen.map(r => ({ id: r.id, duration: r.duration, photo: r.photo })), brief.duration, (raw, c) => sanitizeTimeline(raw, c).timeline);
+        setResult({ r: { variantes: [{ timeline: tl, duration: tl.duree, warnings: [] }], cout_usd: 0, temps_s: 0 }, s: 0 }); setEditing(0); setStep("editor");
+      } : undefined}
+      onOffline={paywall.offline ? () => {
+        const o = paywall.offline!;
+        createVisual(o.brief, brand ?? null, o.photos, undefined, false).then(r => { setVisual({ id: Date.now().toString(36), result: r, brief: o.brief, photos: o.photos }); setStep("visual-editor"); });
+      } : undefined} /> : null;
     case "export": {
       const v = result?.r.variantes[editing];
       return v ? <ExportScreen timeline={v.timeline} brief={composeBrief(brief)} brand={brand ?? null} onBack={() => setStep("result")}

@@ -122,3 +122,12 @@ test("style memory writes a rule after 2 concordant corrections, and can forget 
   assert.deepEqual(memory.rules, []);
   assert.deepEqual(learn({ ...memory, paused: true }, ["couleur:chaud", "couleur:chaud"]).learned, []);
 });
+
+test("a manual montage puts the rushes in order, plainly cut, without AI", async () => {
+  const { manualTimeline } = await import("../edit.ts");
+  const t = manualTimeline([{ id: "a", duration: 10 }, { id: "p", duration: 4, photo: true }, { id: "c", duration: 1 }], 12, (raw, c) => sanitizeTimeline(raw, c).timeline);
+  assert.deepEqual(t.plans.map(p => p.source), ["a", "p", "c"]);
+  assert.ok(t.plans.every(p => p.transition === "coupe"));
+  assert.equal(t.plans[1].mouvement, "zoom-avant");
+  assert.ok(t.plans[2].fin <= 1);
+});

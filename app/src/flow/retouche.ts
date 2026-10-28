@@ -1,7 +1,7 @@
 import { fetch } from "expo/fetch";
 import { keepLocked, type EditDoc } from "../../../core/edit";
 import type { Clips } from "../../../core/timeline";
-import { SERVER } from "./server";
+import { SERVER, serverHeaders } from "./server";
 
 // What the rules on the phone could not do goes to POST /api/retouche (lib/retouche.js), with the
 // locked shots and texts flagged; they are put back exactly on return. Null when there is no server.
@@ -9,7 +9,7 @@ export async function aiRetouche(d: EditDoc, demande: string, clips: Clips, styl
   if (!SERVER.url) return null;
   const res = await fetch(`${SERVER.url}/api/retouche`, {
     method: "POST", signal,
-    headers: { "content-type": "application/json", ...(SERVER.access ? { "x-rr-access": SERVER.access } : {}) },
+    headers: serverHeaders.get(),
     body: JSON.stringify({
       demande, brief, style, timeline: d.timeline,
       rushes: Object.entries(clips).map(([id, c]) => ({ id, duree: c.duration })),

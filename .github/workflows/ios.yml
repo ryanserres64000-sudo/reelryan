@@ -12,6 +12,11 @@ name: App iPhone
 on:
   workflow_dispatch:
     inputs:
+      profil:
+        description: "production (TestFlight), simulateur (vérifie que le code natif compile, sans compte Apple) ou envoi-seul (envoie sur TestFlight le dernier build déjà compilé)"
+        type: choice
+        options: [production, simulateur, envoi-seul]
+        default: production
       submit:
         description: "Envoyer sur TestFlight après la compilation"
         type: boolean
@@ -27,23 +32,37 @@ jobs:
       - run: npm ci && (cd .. && npm ci)
       - name: Checks (types, hard-coded values, tests)
         run: npx tsc --noEmit -p . && node ../design/check-hardcoded.mjs && (cd .. && npm test)
-      # The build runs on Expo's servers, which do not see this job's variables: the server address
-      # goes into eas.json for this run only.
+      # The build runs on Expo's servers, which do not see this job's variables: the server address,
+      # and the App Store Connect key used to send to TestFlight, go into eas.json for this run only.
       - name: Server address for the app
-        run: node -e 'const f="eas.json",j=JSON.parse(require("fs").readFileSync(f));j.build.production.env={EXPO_PUBLIC_MADA_API:process.env.API||"",EXPO_PUBLIC_MADA_ACCESS:process.env.ACCESS||""};require("fs").writeFileSync(f,JSON.stringify(j,null,2))'
-        env: { API: "${{ secrets.MADA_API_URL }}", ACCESS: "${{ secrets.MADA_ACCESS }}" }
+        run: node -e 'const f="eas.json",j=JSON.parse(require("fs").readFileSync(f));const e=Object.fromEntries([["EXPO_PUBLIC_MADA_API",process.env.API],["EXPO_PUBLIC_MADA_ACCESS",process.env.ACCESS]].filter(x=>x[1]));if(Object.keys(e).length)j.build[process.env.PROFIL=="envoi-seul"?"production":process.env.PROFIL].env=e;if(process.env.KEY_ID){j.submit.production.ios={...j.submit.production.ios,ascApiKeyPath:process.env.RUNNER_TEMP+"/asc.p8",ascApiKeyId:process.env.KEY_ID,ascApiKeyIssuerId:process.env.ISSUER_ID}};require("fs").writeFileSync(f,JSON.stringify(j,null,2))'
+        env: { PROFIL: "${{ inputs.profil }}", API: "${{ secrets.MADA_API_URL }}", ACCESS: "${{ secrets.MADA_ACCESS }}", KEY_ID: "${{ secrets.ASC_API_KEY_ID }}", ISSUER_ID: "${{ secrets.ASC_API_ISSUER_ID }}" }
       - name: App Store Connect key
+        if: inputs.profil != 'simulateur'
         run: printf '%s' "$ASC_API_KEY_P8" > "$RUNNER_TEMP/asc.p8"
         env: { ASC_API_KEY_P8: "${{ secrets.ASC_API_KEY_P8 }}" }
+      # Installs eas-cli once (cached) and logs in with the token.
+      - uses: expo/expo-github-action@v8
+        with: { eas-version: latest, token: "${{ secrets.EXPO_TOKEN }}" }
       - name: Link the Expo project
-        run: npx --yes eas-cli@latest init --non-interactive --force
-        env: { EXPO_TOKEN: "${{ secrets.EXPO_TOKEN }}" }
+        run: eas init --non-interactive --force
       # EAS packs the repository from git (the app reads ../core): the two edits above are committed
       # in this runner only, never pushed.
       - name: Commit the build settings locally
         run: git -c user.name=ci -c user.email=ci@localhost commit -qam "build settings" || true
       - name: Build (and submit)
-        run: npx --yes eas-cli@latest build --platform ios --profile production --non-interactive --wait ${{ inputs.submit && '--auto-submit' || '' }}
+        if: inputs.profil != 'envoi-seul'
+        run: eas build --platform ios --profile ${{ inputs.profil }} --non-interactive --wait ${{ inputs.profil == 'production' && inputs.submit && '--auto-submit' || '' }}
+        env:
+          EXPO_TOKEN: "${{ secrets.EXPO_TOKEN }}"
+          EXPO_ASC_API_KEY_PATH: "${{ runner.temp }}/asc.p8"
+          EXPO_ASC_KEY_ID: "${{ secrets.ASC_API_KEY_ID }}"
+          EXPO_ASC_ISSUER_ID: "${{ secrets.ASC_API_ISSUER_ID }}"
+          EXPO_APPLE_TEAM_ID: "${{ secrets.APPLE_TEAM_ID }}"
+          EXPO_APPLE_TEAM_TYPE: INDIVIDUAL
+      - name: Send the latest build to TestFlight
+        if: inputs.profil == 'envoi-seul'
+        run: eas submit --platform ios --profile production --latest --non-interactive
         env:
           EXPO_TOKEN: "${{ secrets.EXPO_TOKEN }}"
           EXPO_ASC_API_KEY_PATH: "${{ runner.temp }}/asc.p8"

@@ -30,6 +30,7 @@ const PATHS = {
   mic: <><Rect x={9} y={3} width={6} height={11} rx={3} /><Path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></>,
   layers: <><Rect x={3} y={8} width={13} height={13} rx={2} /><Path d="M8 8V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-3" /></>,
   cutout: <><Circle cx={12} cy={8} r={3.5} /><Path d="M5 21c.8-4 3.6-6 7-6s6.2 2 7 6" /><Path d="M3 3h3M18 3h3M3 3v3M21 3v3" /></>,
+  chart: <Path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
   voice: <Path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2" />,
 } as const;
 export type IconName = keyof typeof PATHS;

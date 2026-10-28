@@ -37,6 +37,8 @@ import type { Idee } from "../../../core/brand";
 import { MusicScreen } from "../screens/MusicScreen";
 import { ResultScreen } from "../screens/ResultScreen";
 import { ExportScreen } from "../screens/ExportScreen";
+import { StatsScreen } from "../screens/StatsScreen";
+import { instagramStatus, loadCaptures } from "../social/instagram";
 import { scheduleWeekly } from "../publish/notify";
 import { VisualBriefScreen } from "../screens/VisualBriefScreen";
 import { VisualEditorScreen } from "../screens/VisualEditorScreen";
@@ -54,7 +56,7 @@ import type { TimelineV1 } from "../../../core/timeline";
 import { tokens, useToast } from "../design";
 import type { Brief, MontageResult, Music, Rush, Trade } from "./types";
 
-type Step = "home" | "creations" | "ideas" | "player" | "brand" | "import" | "brief" | "music" | "generation" | "result" | "editor" | "catalogue" | "visual" | "visual-editor" | "export" | "paywall" | "consent" | "settings";
+type Step = "home" | "creations" | "ideas" | "player" | "brand" | "import" | "brief" | "music" | "generation" | "result" | "editor" | "catalogue" | "visual" | "visual-editor" | "export" | "paywall" | "consent" | "settings" | "stats";
 // The brief's trade chips (lot 2) start from the sign-up profile.
 const TRADE_OF: Record<Profil, Trade> = { commerce: "commerce", restaurant: "restaurant", "petite-entreprise": "artisan", "grande-entreprise": "freelance", ecole: "freelance", createur: "freelance", debutant: "freelance" };
 const START_BRIEF: Brief = { text: "", trade: "restaurant", goal: null, tone: null, duration: 30, platforms: ["reels", "tiktok", "shorts"], cta: null };
@@ -84,6 +86,14 @@ export function Flow() {
   // Créations and Idées (étape 2 de la refonte): the saved Reels, the ideas refused for a month, the
   // id of the Reel on screen so each save updates the same creation, and a visual started from an idea.
   const [reels, setReels] = useState<SavedReel[]>([]);
+  // The last Reel's views for the home card: Instagram if connected, else the last screenshot read.
+  const [lastViews, setLastViews] = useState<number | null>(null);
+  useEffect(() => {
+    Promise.all([instagramStatus(), loadCaptures()]).then(([st, caps]) => {
+      const all = [...(st.state === "in" ? st.posts : []), ...caps].filter(p => p.type === "reel" && p.vues !== null).sort((a, b) => b.at.localeCompare(a.at));
+      setLastViews(all[0]?.vues ?? null);
+    });
+  }, []);
   const [refusals, setRefusals] = useState<Refusals>({});
   useEffect(() => { loadReels().then(setReels); loadRefusals().then(setRefusals); }, []);
   const [reelId, setReelId] = useState(() => Date.now().toString(36));
@@ -185,6 +195,7 @@ export function Flow() {
       made={[...new Set(creations.map(x => dayOf(x.at)))]} freeLeft={plans && !plans.pro ? verdict(plans, "montage").restant : null}
       draft={draft} onResume={() => draft && resume(draft)}
       onIdea={p => (p ? startIdea(p.idee) : newReel())} onMoreIdeas={() => setStep("ideas")} onBrand={() => setStep("brand")}
+      onStats={() => setStep("stats")} lastViews={lastViews}
       onSettings={() => setStep("settings")} onOpen={openCreation} onSeeAll={() => setStep("creations")} />);
     case "creations": return tabs("creations", <CreationsScreen items={creations} brand={brand ?? null} onOpen={openCreation} onDuplicate={duplicate} onDelete={remove} onNew={() => newReel()} />);
     case "ideas": return tabs("ideas", <IdeasScreen plan={plan} ideas={brand?.dna?.idees ?? []} pillars={brand?.dna?.piliers ?? []} hasBrand={!!brand?.dna}
@@ -232,6 +243,8 @@ export function Flow() {
         createVisual(o.brief, brand ?? null, o.photos, undefined, false).then(r => { setVisual({ id: Date.now().toString(36), result: r, brief: o.brief, photos: o.photos }); setStep("visual-editor"); });
       } : undefined} /> : null;
     case "consent": return ask ? <ConsentScreen onBack={() => setStep(ask.back)} onAnswer={ok => setConsent(ok).then(() => (ok ? ask.yes() : ask.no()))} /> : null;
+    case "stats": return <StatsScreen memory={brand?.memory ?? null} reels={reels.map(r => ({ id: r.id, at: r.at, duree: r.timeline.duree }))} onBack={() => { loadCaptures().then(c => setLastViews(c.find(p => p.type === "reel")?.vues ?? lastViews)); setStep("home"); }}
+      onMemory={m => { if (!brand) return; const b = { ...brand, memory: m }; setBrand(b); saveBrand(b); }} />;
     case "settings": return <SettingsScreen plans={plans} onPlans={updatePlans} onBack={() => setStep("home")}
       onDeleted={() => { setBrand(null); setVisuals([]); setVisual(null); setResult(null); setStep("brand"); }} />;
     case "export": {

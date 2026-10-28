@@ -9,6 +9,7 @@ import { handleAdn } from "./lib/adn.js";
 import { handleRetouche } from "./lib/retouche.js";
 import { handleVisuel } from "./lib/visuel.js";
 import { handleVoix } from "./lib/voix.js";
+import { handleCallback, handleInstagram } from "./lib/instagram.js";
 import { handleCompte, handleOffres, handleQuota } from "./lib/quota.js";
 import { checkAccess } from "./lib/claude.js";
 import { handleAchat, handleNotification } from "./lib/apple.js";
@@ -37,6 +38,12 @@ http.createServer(async (req, res) => {
     let body;
     try { body = await readJson(req, 100_000); } catch { res.statusCode = 413; return res.end(); }
     return url.pathname === "/api/achat" ? handleAchat(req, res, body) : handleNotification(req, res, body);
+  }
+  if (url.pathname === "/api/instagram/callback") return handleCallback(req, res);
+  if (url.pathname === "/api/instagram") {
+    let body = null;
+    if (req.method === "POST") { try { body = await readJson(req, 6_000_000); } catch { res.statusCode = 413; return res.end(); } }
+    return handleInstagram(req, res, body);
   }
   if (url.pathname === "/api/generate" || url.pathname === "/api/montage" || url.pathname === "/api/adn" || url.pathname === "/api/retouche" || url.pathname === "/api/visuel" || url.pathname === "/api/voix") {
     if (req.method !== "POST") { res.statusCode = 405; return res.end(); }

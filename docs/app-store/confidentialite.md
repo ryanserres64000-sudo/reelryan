@@ -15,6 +15,8 @@ Réponses à saisir dans App Store Connect pour Ma DA v1 (étude, ch. 9, tableau
 | Contenu utilisateur → Photos ou vidéos | 15 à 30 images basse résolution par montage, photos et logo en petit pour un visuel (envoyés à Claude, non gardés) | Non | Non | Fonctionnalités de l'app |
 | Contenu utilisateur → Autre contenu | Brief, carnet de style résumé, réponses à l'inscription, demandes de retouche (non gardés) | Non | Non | Fonctionnalités de l'app |
 | Identifiants → Identifiant de l'appareil | Identifiant aléatoire `x-mada-device` (trousseau iOS), compteur de créations offertes | Non | Non | Fonctionnalités de l'app (quotas, prévention de la fraude) |
+| Contenu utilisateur → Autre contenu | Texte de voix off (envoyé à Claude et à ElevenLabs, non gardé), capture de statistiques (envoyée à Claude, non gardée) | Non | Non | Fonctionnalités de l'app |
+| Contenu utilisateur → Autre contenu | Statistiques Instagram si le compte est connecté (gardées 6 h), jeton d'accès chiffré | Non [À VÉRIFIER avec l'avocat : le nom du compte Instagram peut rendre ces données « liées »] | Non | Fonctionnalités de l'app |
 | Achats → Historique d'achats | Statut Pro (pour l'instant déclaré par l'app ; plus tard reçu StoreKit vérifié) | Non | Non | Fonctionnalités de l'app |
 
 Non collecté : nom, e-mail, téléphone, adresse, localisation, contacts, historique de navigation, données de santé, diagnostics, données financières (le paiement est chez Apple).
@@ -34,7 +36,9 @@ Quand « Se connecter avec Apple » arrivera : ajouter « Coordonnées → Adres
 - Consentement avant l'IA (règle 5.1.2(i)) : `ConsentScreen`, avant la première analyse ou le premier montage ; refus = montage à la main et visuels sans IA ; réversible dans Réglages.
 - Suppression du compte (règle 5.1.1(v)) : Réglages → « Supprimer mon compte et mes données » → `DELETE /api/compte`.
 - Marquage IA (AI Act, art. 50) : métadonnées `com.apple.quicktime.description` « Montage assisté par IA » sur chaque vidéo (`core/export.ts`, `provenance`).
-- Textes des autorisations iOS : `expo-image-picker` (photothèque, sélection seulement) et `expo-media-library` (enregistrement dans Photos), dans `app.json`.
+- Textes des autorisations iOS : `expo-image-picker` (photothèque, sélection seulement), `expo-media-library` (enregistrement dans Photos) et `expo-audio` (micro, seulement pour enregistrer sa voix off), dans `app.json`. Les notifications (bilan du dimanche, vidéo prête) sont locales et demandées seulement quand la personne les active dans Réglages.
+- Voix de synthèse (AI Act, art. 50) : « Voix off générée par IA » dans les mêmes métadonnées quand la vidéo en contient une, et rappel dans la feuille de voix off.
+- Instagram : connexion facultative par la page d'Instagram (`expo-web-browser`, session sécurisée), lecture seule, « Déconnecter » dans « Tes chiffres ».
 
 ## Points vérifiés et restants
 

@@ -15,5 +15,6 @@
   "email_droits": "ryan.serres.conseil@gmail.com",
   "email_contact_dsa": "ryan.serres.conseil@gmail.com",
   "compteurs": null,
-  "compteurs_region": null
+  "compteurs_region": null,
+  "elevenlabs_retention": null
 }

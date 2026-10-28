@@ -11,6 +11,8 @@
 <li>Tes vidéos et photos entières, ta photothèque : Ma DA n'ouvre que ce que tu choisis, et fait le tri, l'aperçu et l'export sur l'iPhone.</li>
 <li>Ton carnet de style, tes visuels, tes projets et tes corrections.</li>
 <li>Les sons que tu importes : ils ne sont jamais envoyés ni hébergés par Ma DA.</li>
+<li>Ta voix, si tu t'enregistres pour une voix off : l'enregistrement reste sur l'iPhone. Le micro ne s'ouvre que pendant que tu enregistres.</li>
+<li>Les voix off créées, les chiffres lus sur tes captures de statistiques, et tes notifications (préparées sur l'iPhone, sans serveur).</li>
 </ul>
 
 <h2>Ce qui part vers l'IA, et pourquoi</h2>
@@ -19,6 +21,8 @@
 <tr><td>15 à 30 petites images de tes vidéos (basse résolution), leurs durées</td><td>À chaque montage IA</td><td>Choisir les plans et les coupes</td></tr>
 <tr><td>Ta phrase (brief), ton carnet de style résumé, tes réponses à l'inscription</td><td>Montage, retouche, carnet</td><td>Monter dans ton style</td></tr>
 <tr><td>Tes photos et ton logo en petit (512 px au plus)</td><td>Création d'un visuel</td><td>Composer l'affiche ou le post</td></tr>
+<tr><td>Le texte de ta voix off, ou la phrase qui le demande</td><td>Quand tu demandes une voix off</td><td>Écrire le texte (Claude), puis le faire lire par une voix de synthèse (ElevenLabs)</td></tr>
+<tr><td>Une capture d'écran de tes statistiques Instagram</td><td>Quand tu en envoies une</td><td>En recopier les chiffres (vues, comptes touchés, j'aime…)</td></tr>
 </table>
 <p>Ces données passent par le serveur de Ma DA, qui les transmet à l'API Claude d'Anthropic et renvoie la réponse. Le serveur ne garde aucune image, aucun texte ni aucun son après la réponse. Rien ne part tant que tu n'as pas accepté ; tu peux retirer ton accord à tout moment dans Réglages, et l'app continue à la main et sans IA.</p>
 <p>Base légale : l'exécution du service que tu demandes (article 6.1.b du RGPD), avec ton accord explicite dans l'app avant le premier envoi. Les visages présents sur tes images sont des données personnelles ; Ma DA ne les reconnaît pas et n'en tire aucun gabarit biométrique.</p>
@@ -27,31 +31,38 @@
 <table>
 <tr><th>Qui</th><th>Rôle</th><th>Où</th></tr>
 <tr><td>Anthropic, PBC (San Francisco, États-Unis)</td><td>IA Claude : lit les images et le texte, renvoie le montage</td><td>États-Unis</td></tr>
+<tr><td>ElevenLabs Inc. (New York, États-Unis)</td><td>Voix de synthèse : lit le texte de ta voix off, renvoie le son</td><td>États-Unis <span class="todo" data-champ="elevenlabs_retention">[À COMPLÉTER : durée de conservation chez ElevenLabs et option sans conservation]</span></td></tr>
 <tr><td>Vercel Inc. (Covina, États-Unis)</td><td>Héberge le serveur et le site</td><td>Paris (France)</td></tr>
 <tr><td><span class="todo" data-champ="compteurs">[À COMPLÉTER : Upstash Inc. ou Vercel KV, région choisie]</span></td><td>Compteur des créations IA</td><td><span class="todo" data-champ="compteurs_region">[À COMPLÉTER : région de la base, à choisir dans l'Union européenne]</span></td></tr>
 </table>
 <p>Anthropic n'entraîne pas ses modèles sur les données envoyées par son API commerciale. Elle efface les demandes et les réponses sous 30 jours ; elle peut les garder jusqu'à 2 ans seulement si une demande enfreint sa politique d'usage. Le transfert vers les États-Unis est encadré par l'accord de traitement des données d'Anthropic, qui comprend les clauses contractuelles types de la Commission européenne.</p>
 <p>Apple gère l'achat et l'abonnement en tant que vendeur indépendant : Ma DA ne voit ni ta carte, ni ton nom, ni ton e-mail Apple.</p>
 
+<h2>Si tu connectes Instagram</h2>
+<p>C'est facultatif : tout Ma DA marche sans. Tu autorises Ma DA sur la page d'Instagram (Meta), pour un compte professionnel ou créateur. Ma DA lit seulement ton nom de compte, ton nombre d'abonnés, tes 30 dernières publications et leurs statistiques (vues, comptes touchés, j'aime, commentaires, partages, enregistrements), pour te dire ce qui marche chez toi. Elle ne publie rien, n'écrit rien et ne lit pas tes messages. L'accès que donne Instagram (un jeton valable 60 jours) est chiffré sur le serveur de Ma DA ; les chiffres lus sont gardés 6 heures pour ne pas interroger Instagram à chaque ouverture. « Déconnecter » dans l'app, ou la suppression du compte, efface les deux. Meta est un responsable indépendant pour ce qui se passe sur Instagram (voir sa politique de confidentialité).</p>
+<p>Sans connexion, tu peux envoyer une capture d'écran de tes statistiques : l'image part vers Claude pour en recopier les chiffres, puis n'est pas gardée ; les chiffres restent sur ton iPhone. Un lien vers un de tes Reels que tu colles reste aussi sur ton iPhone : Ma DA ne lit pas la page.</p>
+
 <h2>Ce que le serveur garde, et combien de temps</h2>
 <table>
 <tr><th>Donnée</th><th>Durée</th></tr>
 <tr><td>Images, textes, réponses de l'IA</td><td>Rien après la réponse (Anthropic : 30 jours au plus)</td></tr>
 <tr><td>Identifiant d'appareil anonyme et nombre de créations IA utilisées</td><td>Tant que le compte existe ; après suppression, seul le nombre de créations offertes déjà utilisées reste, sans lien avec toi</td></tr>
+<tr><td>Accès Instagram chiffré (si tu l'as connecté)</td><td>Jusqu'à « Déconnecter » ou la suppression du compte ; 60 jours au plus sans ouverture de l'app</td></tr>
+<tr><td>Chiffres Instagram lus (si connecté)</td><td>6 heures</td></tr>
 <tr><td>Journaux techniques du serveur (adresse IP, heure, erreur)</td><td>Selon la durée de rétention des journaux de Vercel, quelques jours</td></tr>
 </table>
 <p>L'identifiant d'appareil est tiré au hasard sur ton iPhone, sans ton nom ni ton e-mail.</p>
 
 <h2>Ce que Ma DA ne fait pas</h2>
-<p>Aucune publicité, aucun cookie de mesure ni de suivi entre applications ou sites, aucune revente de données, aucun visage ni aucune voix fabriqués. Le site et l'app n'utilisent que le stockage technique nécessaire à leur fonctionnement.</p>
+<p>Aucune publicité, aucun cookie de mesure ni de suivi entre applications ou sites, aucune revente de données, aucun visage ni aucune personne fabriqués. Une voix de synthèse seulement quand tu la demandes, signalée dans la vidéo. Le site et l'app n'utilisent que le stockage technique nécessaire à leur fonctionnement.</p>
 
 <h2>Supprimer tes données</h2>
-<p>Dans l'app : Réglages, « Supprimer mon compte et mes données ». Ma DA efface ton carnet, tes visuels, tes réglages et tes compteurs sur le serveur. Elle garde seulement, sans ton nom, le nombre de créations offertes déjà utilisées sur cet iPhone, pour éviter qu'on les réutilise à l'infini (intérêt légitime, article 6.1.f du RGPD). Supprimer l'app efface aussi tout ce qu'elle garde sur l'iPhone.</p>
+<p>Dans l'app : Réglages, « Supprimer mon compte et mes données ». Ma DA efface ton carnet, tes visuels, tes réglages, tes compteurs et ta connexion Instagram sur le serveur. Elle garde seulement, sans ton nom, le nombre de créations offertes déjà utilisées sur cet iPhone, pour éviter qu'on les réutilise à l'infini (intérêt légitime, article 6.1.f du RGPD). Supprimer l'app efface aussi tout ce qu'elle garde sur l'iPhone.</p>
 
 <h2>Tes droits</h2>
 <p>Accès, rectification, effacement, opposition, limitation, portabilité, retrait de ton accord : écris à l'adresse ci-dessus. Réponse sous un mois. Tu peux aussi saisir la CNIL (cnil.fr).</p>
 
 <h2>Contenus créés avec l'IA</h2>
-<p>Les vidéos exportées portent dans leurs métadonnées la mention « Montage assisté par IA » (règlement européen sur l'IA, article 50). Ma DA monte tes images réelles ; elle ne fabrique ni visage, ni voix, ni personne.</p>
+<p>Les vidéos exportées portent dans leurs métadonnées la mention « Montage assisté par IA » (règlement européen sur l'IA, article 50), et « Voix off générée par IA (voix de synthèse) » quand elles en contiennent une. Ma DA monte tes images réelles ; elle ne fabrique ni visage ni personne.</p>
 <nav><a href="conditions.html">Conditions</a><a href="confidentialite.html">Confidentialité</a><a href="mentions-legales.html">Mentions légales</a><a href="aide.html">Aide et contact</a></nav>
 </main></body></html>

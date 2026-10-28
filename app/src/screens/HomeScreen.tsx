@@ -12,6 +12,8 @@ type Props = {
   brand: Brand | null; plan: PlannedIdea[]; today: PlannedIdea | null; made: string[]; recents: Creation[]; freeLeft: number | null;
   draft: Draft<FlowDraft> | null; onResume: () => void;
   onIdea: (p: PlannedIdea | null) => void; onMoreIdeas: () => void; onBrand: () => void; onSettings: () => void;
+  // Tes chiffres (étape 8): the last Reel's views when Instagram or a screenshot gave them.
+  onStats?: () => void; lastViews?: number | null;
   onOpen: (c: Creation) => void; onSeeAll: () => void;
 };
 const t = fr.home;
@@ -20,7 +22,7 @@ const VIDEO = new Set(["reel", "story"]);
 
 // The home answers « qu'est-ce que je poste aujourd'hui ? » (étude de la refonte, décision 2): the week
 // at a glance, the Reel in progress, today's idea with one blue button, then what was made lately.
-export function HomeScreen({ brand, plan, today, made, recents, freeLeft, draft, onResume, onIdea, onMoreIdeas, onBrand, onSettings, onOpen, onSeeAll }: Props) {
+export function HomeScreen({ brand, plan, today, made, recents, freeLeft, draft, onResume, onIdea, onMoreIdeas, onBrand, onSettings, onOpen, onSeeAll, onStats, lastViews }: Props) {
   const { c, layout } = useTheme();
   const { width } = useWindowDimensions();
   const gutter = width >= layout.largePhoneWidth ? layout.gutterLarge : layout.gutter;
@@ -99,6 +101,17 @@ export function HomeScreen({ brand, plan, today, made, recents, freeLeft, draft,
             <Text variant="bodyStrong">{t.brandCard}</Text>
             <Text variant="caption" tone="textMuted">{t.brandCardWhy}</Text>
           </View>
+        </Pressable>
+      ) : null}
+
+      {onStats ? (
+        <Pressable onPress={onStats} accessibilityRole="button" style={[styles.row, styles.brand, { borderColor: c.line }]}>
+          <Icon name="chart" tone="actionStrong" />
+          <View style={styles.flex}>
+            <Text variant="bodyStrong">{lastViews != null ? fr.stats.lastViews(lastViews.toLocaleString("fr-FR")) : fr.stats.card}</Text>
+            <Text variant="caption" tone="textMuted">{lastViews != null ? fr.stats.detail : fr.stats.cardWhy}</Text>
+          </View>
+          <Text variant="headline" tone="actionStrong">›</Text>
         </Pressable>
       ) : null}
 

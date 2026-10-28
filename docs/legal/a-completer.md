@@ -38,3 +38,5 @@ Une seule adresse peut servir pour tous les e-mails au début (par exemple conta
 5. **App Store Connect** : renseigner l'URL de la politique de confidentialité et l'URL d'assistance (les pages du site), et les réponses de `docs/app-store/confidentialite.md`.
 6. **Registre des traitements** : `docs/legal/registre.md`, à garder à jour (RGPD, art. 30).
 7. **Relecture par un avocat** : envoyer le dossier préparé (lien dans le fil du projet) avec les quatre pages.
+8. **ElevenLabs** (voix off, étape 5) : créer le compte, accepter son DPA, vérifier combien de temps il garde les textes et les sons générés (et s'il propose une option sans conservation), puis remplir `elevenlabs_retention` dans `docs/legal/editeur.json`. Vérifier aussi que la licence de l'offre choisie autorise l'usage commercial des voix.
+9. **Instagram** (étape 8) : l'app Meta (Instagram API with Instagram Login) demande, pour la validation, l'URL de la politique de confidentialité (déjà à jour sur la connexion Instagram), une URL de suppression des données (la page d'aide, qui explique « Déconnecter » et la suppression du compte) et une vidéo de démonstration.

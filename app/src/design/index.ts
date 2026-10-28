@@ -13,3 +13,5 @@ export { Paywall } from "./components/Paywall";
 export { SavedPill } from "./components/SavedPill";
 export { GenerationView } from "./components/GenerationView";
 export { Screen } from "./components/Screen";
+export { MadaSays } from "./components/MadaSays";
+export { Swatch } from "./components/Swatch";

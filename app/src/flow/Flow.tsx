@@ -1,5 +1,8 @@
 import * as Linking from "expo-linking";
 import { useEffect, useState } from "react";
+import type { Profil } from "../../../core/brand";
+import { loadBrand } from "../brand/store";
+import type { Brand as BrandDna } from "../brand/types";
 import { DesignCatalogue } from "../screens/DesignCatalogue";
 import { BriefScreen } from "../screens/BriefScreen";
 import { GenerationScreen } from "../screens/GenerationScreen";
@@ -7,15 +10,21 @@ import { ImportScreen } from "../screens/ImportScreen";
 import { MusicScreen } from "../screens/MusicScreen";
 import { ResultScreen } from "../screens/ResultScreen";
 import { SAMPLE_RUSHES, fakeMontage } from "./fake";
-import type { Brief, MontageResult, Music, Rush } from "./types";
+import { Onboarding } from "./Onboarding";
+import type { Brief, MontageResult, Music, Rush, Trade } from "./types";
 
-type Step = "import" | "brief" | "music" | "generation" | "result" | "catalogue";
+type Step = "brand" | "import" | "brief" | "music" | "generation" | "result" | "catalogue";
+// The brief's trade chips (lot 2) start from the sign-up profile.
+const TRADE_OF: Record<Profil, Trade> = { commerce: "commerce", restaurant: "restaurant", "petite-entreprise": "artisan", "grande-entreprise": "freelance", ecole: "freelance", createur: "freelance", debutant: "freelance" };
 const START_BRIEF: Brief = { text: "", trade: "restaurant", goal: null, tone: null, duration: 30, platforms: ["reels", "tiktok", "shorts"], cta: null };
 
-// The core path of lot 2: import → brief → music → generation → result, with sample data
-// until the native module (Vision triage, AVFoundation preview) and the server are plugged in.
+// Sign-up first (lot 4: brand DNA), then the core path of lot 2: import → brief → music → generation →
+// result, with sample data until the native module (Vision triage, AVFoundation preview) and the
+// server are plugged in.
 export function Flow() {
   const [step, setStep] = useState<Step>(() => typeof location !== "undefined" && location.hash === "#catalogue" ? "catalogue" : "import");
+  const [brand, setBrand] = useState<BrandDna | null | undefined>(undefined);
+  useEffect(() => { loadBrand().then(b => { setBrand(b); if (!b) setStep(s => (s === "catalogue" ? s : "brand")); else setBrief(x => ({ ...x, trade: TRADE_OF[b.profil] })); }); }, []);
   const [rushes, setRushes] = useState<Rush[]>(SAMPLE_RUSHES);
   const [demo, setDemo] = useState(true);
   const [selected, setSelected] = useState<string[]>(["r1", "r2", "r4", "r6", "r8"]);
@@ -30,9 +39,11 @@ export function Flow() {
   // Shots worth keeping light up during the wait; Vision will provide them (lot 2, native part).
   const kept = chosen.map((r, i) => (r.badges.includes("blur") || r.badges.includes("dark") ? -1 : i)).filter(i => i >= 0);
 
+  if (brand === undefined && step !== "catalogue") return null;
   switch (step) {
     case "catalogue": return <DesignCatalogue />;
-    case "import": return <ImportScreen rushes={rushes} selected={selected} pro={false} demo={demo}
+    case "brand": return <Onboarding initial={brand ?? null} onDone={b => { setBrand(b); setBrief(x => ({ ...x, trade: TRADE_OF[b.profil] })); setStep("import"); }} />;
+    case "import": return <ImportScreen onBrand={() => setStep("brand")} rushes={rushes} selected={selected} pro={false} demo={demo}
       onRushes={r => { setRushes(r); setDemo(false); }} onSelect={setSelected} onNext={() => setStep("brief")} />;
     case "brief": return <BriefScreen brief={brief} onChange={b => { setBrief(b); if (b.duration !== brief.duration) setMusic(m => ({ ...m, length: b.duration })); }} onBack={() => setStep("import")} onNext={() => setStep("music")} />;
     case "music": return <MusicScreen music={music} onChange={setMusic} briefDuration={brief.duration} incoming={incoming} onBack={() => setStep("brief")} onNext={() => setStep("generation")} />;

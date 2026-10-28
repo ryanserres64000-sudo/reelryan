@@ -353,7 +353,7 @@ export const AI_TIMELINE_SCHEMA = object({
     corrections: list({ type: "string" }, "Ce que tu as corrigé en relisant, phrases courtes au passé composé (« J'ai raccourci l'accroche »). Vide si rien"),
     plans_a_tourner: list({ type: "string" }, "Au plus 3 plans qui manquaient, à tourner la prochaine fois"),
   }),
-  legende: object({ texte: field("string", "Légende de la publication, dans le ton de la personne"), hashtags: list({ type: "string" }, "5 hashtags au plus, du plus utile au moins utile (ville, métier, produit), sans le #") }),
+  legende: object({ texte: field("string", "Légende de la publication : accroche concrète en première ligne, un détail vrai tiré des plans, l'appel à l'action ; dans la voix de la marque ; jamais la phrase de la personne recopiée ou paraphrasée"), hashtags: list({ type: "string" }, "5 hashtags au plus, du plus utile au moins utile (ville, métier, produit), sans le #") }),
 });
 
 export const variantsSchema = () => object({ variantes: list(AI_TIMELINE_SCHEMA, "Une timeline par variante demandée, chacune avec un parti pris différent") });

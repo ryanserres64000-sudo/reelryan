@@ -1,6 +1,6 @@
 {
   "regions": ["cdg1"],
-  "functions": { "api/generate.js": { "maxDuration": 300 }, "api/montage.js": { "maxDuration": 300 }, "api/adn.js": { "maxDuration": 120 }, "api/retouche.js": { "maxDuration": 120 }, "api/visuel.js": { "maxDuration": 120 }, "api/voix.js": { "maxDuration": 60 }, "api/instagram/index.js": { "maxDuration": 60 } },
+  "functions": { "api/generate.js": { "maxDuration": 300 }, "api/montage.js": { "maxDuration": 300 }, "api/adn.js": { "maxDuration": 120 }, "api/retouche.js": { "maxDuration": 120 }, "api/legende.js": { "maxDuration": 60 }, "api/visuel.js": { "maxDuration": 120 }, "api/voix.js": { "maxDuration": 60 }, "api/instagram/index.js": { "maxDuration": 60 } },
   "headers": [
     { "source": "/(.*)", "headers": [
       { "key": "X-Content-Type-Options", "value": "nosniff" },

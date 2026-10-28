@@ -623,6 +623,7 @@ export const fr = {
     retouch: "Retoucher ce moment",
     export: "Exporter",
     seeAs: "Voir comme sur",
+    checkZones: "Vérifier les textes",
     none: "Ma vidéo",
     platforms: { reels: "Instagram", tiktok: "TikTok", shorts: "Shorts" },
     allVisible: "Tous tes textes sont visibles",
@@ -698,8 +699,9 @@ export const fr = {
   },
 
   brief: {
-    title: "Qu'est-ce qu'on montre ?",
-    detail: "Une phrase, comme à un ami. Mets un texte entre « guillemets » et je le garde mot pour mot.",
+    title: "Ton idée",
+    detail: "Dis-moi en une phrase ce que la vidéo raconte, comme à un ami. Un texte entre « guillemets » apparaîtra mot pour mot à l'écran.",
+    more: "Préciser le ton et la fin",
     trade: "Ton métier",
     trades: {
       coach: { label: "Coach", example: "Ma séance du samedi au parc, l'énergie du groupe, et finir sur « Premier cours offert »." },
@@ -709,7 +711,7 @@ export const fr = {
       freelance: { label: "Freelance", example: "Une journée de tournage pour un client, du café du matin au rendu final." },
     },
     useExample: "Prendre l'exemple",
-    field: "Ton brief",
+    field: "Ce que raconte la vidéo",
     dictate: "Dicter",
     dictateHint: "Touche le micro du clavier et parle : j'écris pour toi.",
     goal: "Objectif",
@@ -786,7 +788,7 @@ export const fr = {
   editor: {
     title: "À toi la main",
     detail: "Touche un plan sur la frise pour le régler. Ce que tu changes à la main, je n'y touche plus.",
-    open: "Modifier",
+    open: "Modifier moi-même",
     save: "Enregistrer mes changements",
     saved: "Changements gardés",
     tools: { plan: "Plan", vitesse: "Vitesse", texte: "Texte", son: "Son", couleur: "Couleur", marque: "Marque" },

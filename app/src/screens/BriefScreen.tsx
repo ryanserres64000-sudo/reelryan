@@ -1,37 +1,32 @@
 import { useRef, useState, type ComponentRef, type ReactNode } from "react";
 import { StyleSheet, TextInput, View } from "react-native";
-import { imposedTexts, type Plateforme } from "../../../core/timeline";
+import { imposedTexts } from "../../../core/timeline";
 import { fr } from "../copy/fr";
 import { Button, Chip, Screen, Text, tokens, typeStyle, useTheme } from "../design";
-import type { Brief, Trade } from "../flow/types";
+import type { Brief } from "../flow/types";
 
 type Props = { brief: Brief; onChange: (b: Brief) => void; onBack: () => void; onNext: () => void };
-const TRADES = Object.keys(fr.brief.trades) as Trade[];
-const PLATFORMS = Object.keys(fr.brief.platformNames) as Plateforme[];
-
 // Step 2 (étude, ch. 5 §2): one sentence with an example for the person's trade, dictation, and chips
-// for what a sentence forgets. Texts between quotes are shown as kept word for word.
+// for what a sentence forgets. Texts between quotes are shown as kept word for word. The trade comes
+// from sign-up and the video is the same vertical file for every platform, so neither is asked here
+// (Ryan's first test, 28 octobre 2026); tone and call to action wait behind « Préciser ».
 export function BriefScreen({ brief, onChange, onBack, onNext }: Props) {
   const { c } = useTheme();
   const input = useRef<ComponentRef<typeof TextInput>>(null);
   const [hint, setHint] = useState(false);
+  const [more, setMore] = useState(brief.tone !== null || brief.cta !== null);
   const set = (p: Partial<Brief>) => onChange({ ...brief, ...p });
   const toggle = (k: "goal" | "tone" | "cta", i: number) => set({ [k]: brief[k] === i ? null : i });
   const example = fr.brief.trades[brief.trade].example;
   const imposed = imposedTexts(brief.text);
   const empty = brief.text.trim().length < 3;
-  const noPlatform = !brief.platforms.length;
 
   return (
     <Screen title={fr.brief.title} detail={fr.brief.detail} onBack={onBack}
       footer={<>
-        {empty || noPlatform ? <Text variant="caption" tone="textMuted">{empty ? fr.brief.empty : fr.brief.platformsMin}</Text> : null}
-        <Button label={fr.nav.next} disabled={empty || noPlatform} onPress={onNext} haptic />
+        {empty ? <Text variant="caption" tone="textMuted">{fr.brief.empty}</Text> : null}
+        <Button label={fr.nav.next} disabled={empty} onPress={onNext} haptic />
       </>}>
-      <Group label={fr.brief.trade}>
-        {TRADES.map(t => <Chip key={t} label={fr.brief.trades[t].label} selected={brief.trade === t} onPress={() => set({ trade: t })} />)}
-      </Group>
-
       <View style={styles.field}>
         <Text variant="callout" tone="textMuted" nativeID="brief-label">{fr.brief.field}</Text>
         <TextInput ref={input} value={brief.text} onChangeText={text => set({ text })} placeholder={example} placeholderTextColor={c.textMuted}
@@ -51,15 +46,11 @@ export function BriefScreen({ brief, onChange, onBack, onNext }: Props) {
       </View>
 
       <Group label={fr.brief.goal}>{fr.brief.goals.map((g, i) => <Chip key={g} label={g} selected={brief.goal === i} onPress={() => toggle("goal", i)} />)}</Group>
-      <Group label={fr.brief.tone}>{fr.brief.tones.map((g, i) => <Chip key={g} label={g} selected={brief.tone === i} onPress={() => toggle("tone", i)} />)}</Group>
       <Group label={fr.brief.duration}>{fr.brief.durations.map(d => <Chip key={d} label={fr.brief.durationValue(d)} selected={brief.duration === d} onPress={() => set({ duration: d })} />)}</Group>
-      <Group label={fr.brief.platforms}>
-        {PLATFORMS.map(p => {
-          const on = brief.platforms.includes(p);
-          return <Chip key={p} label={fr.brief.platformNames[p]} selected={on} onPress={() => set({ platforms: on ? brief.platforms.filter(x => x !== p) : [...brief.platforms, p] })} />;
-        })}
-      </Group>
-      <Group label={fr.brief.cta}>{fr.brief.ctas.map((g, i) => <Chip key={g} label={g} selected={brief.cta === i} onPress={() => toggle("cta", i)} />)}</Group>
+      {more ? <>
+        <Group label={fr.brief.tone}>{fr.brief.tones.map((g, i) => <Chip key={g} label={g} selected={brief.tone === i} onPress={() => toggle("tone", i)} />)}</Group>
+        <Group label={fr.brief.cta}>{fr.brief.ctas.map((g, i) => <Chip key={g} label={g} selected={brief.cta === i} onPress={() => toggle("cta", i)} />)}</Group>
+      </> : <Button variant="secondary" label={fr.brief.more} onPress={() => setMore(true)} />}
     </Screen>
   );
 }

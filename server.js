@@ -7,6 +7,7 @@ import { handleGenerate, readJson } from "./lib/claude.js";
 import { handleMontage } from "./lib/montage.js";
 import { handleAdn } from "./lib/adn.js";
 import { handleRetouche } from "./lib/retouche.js";
+import { handleLegende } from "./lib/legende.js";
 import { handleVisuel } from "./lib/visuel.js";
 import { handleVoix } from "./lib/voix.js";
 import { handleCallback, handleInstagram } from "./lib/instagram.js";
@@ -53,15 +54,16 @@ http.createServer(async (req, res) => {
     if (req.method === "POST") { try { body = await readJson(req, 6_000_000); } catch { res.statusCode = 413; return res.end(); } }
     return handleInstagram(req, res, body);
   }
-  if (url.pathname === "/api/generate" || url.pathname === "/api/montage" || url.pathname === "/api/adn" || url.pathname === "/api/retouche" || url.pathname === "/api/visuel" || url.pathname === "/api/voix") {
+  if (url.pathname === "/api/generate" || url.pathname === "/api/montage" || url.pathname === "/api/adn" || url.pathname === "/api/retouche" || url.pathname === "/api/legende" || url.pathname === "/api/visuel" || url.pathname === "/api/voix") {
     if (req.method !== "POST") { res.statusCode = 405; return res.end(); }
     let body;
-    try { body = await readJson(req, url.pathname === "/api/montage" ? 4_500_000 : url.pathname === "/api/adn" || url.pathname === "/api/retouche" ? 200_000 : url.pathname === "/api/visuel" ? 1_000_000 : undefined); } catch {
+    try { body = await readJson(req, url.pathname === "/api/montage" ? 4_500_000 : url.pathname === "/api/adn" || url.pathname === "/api/retouche" || url.pathname === "/api/legende" ? 200_000 : url.pathname === "/api/visuel" ? 1_000_000 : undefined); } catch {
       res.statusCode = 413; res.setHeader("content-type", "application/json");
       return res.end(JSON.stringify({ error: "prompt_too_large", message: "Images trop lourdes." }));
     }
     if (url.pathname === "/api/adn") return handleAdn(req, res, body);
     if (url.pathname === "/api/retouche") return handleRetouche(req, res, body);
+    if (url.pathname === "/api/legende") return handleLegende(req, res, body);
     if (url.pathname === "/api/visuel") return handleVisuel(req, res, body);
     if (url.pathname === "/api/voix") return handleVoix(req, res, body);
     return url.pathname === "/api/montage" ? handleMontage(req, res, body) : handleGenerate(req, res, body);

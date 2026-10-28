@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Animated, PanResponder, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { Animated, PanResponder, Pressable, StyleSheet, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { H, W, exportPlan, inside, safeZone, textBox } from "../../../core/export";
+import { H, W, exportPlan, inside, safeZone, textBox, type Box } from "../../../core/export";
 import { clock, jump, segments, shotAt } from "../../../core/playback";
 import type { Plateforme, TimelineV1 } from "../../../core/timeline";
 import { fr } from "../copy/fr";
@@ -13,6 +13,12 @@ import type { Sources } from "../video/sources";
 type Props = { timeline: TimelineV1; sources: () => Promise<Sources>; onClose: () => void; onRetouch: (shot: number) => void; onExport: () => void };
 const t = fr.player;
 const PLATFORMS: Plateforme[] = ["reels", "tiktok", "shorts"];
+// The area no button of Instagram, TikTok or YouTube covers.
+function strictZone(): Box {
+  const zs = PLATFORMS.map(safeZone);
+  const x = Math.max(...zs.map(z => z.x)), y = Math.max(...zs.map(z => z.y));
+  return { x, y, w: Math.min(...zs.map(z => z.x + z.w)) - x, h: Math.min(...zs.map(z => z.y + z.h)) - y };
+}
 const CONTROLS = tokens.size.button * 3 + tokens.size.touch * 2 + tokens.space.lg * 2;
 
 // The full-screen player (étude de la refonte, ch. 4 « Voir en grand, puis retoucher »): bars per
@@ -26,7 +32,9 @@ export function PlayerScreen({ timeline, sources, onClose, onRetouch, onExport }
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(true);
   const [muted, setMuted] = useState(false);
-  const [as, setAs] = useState<Plateforme | null>(null);
+  // One vertical video for every platform (Ryan's first test: the per-platform tabs made no sense):
+  // a single switch shows what the apps' buttons hide, the strictest of the three.
+  const [check, setCheck] = useState(false);
   const segs = useMemo(() => segments(timeline), [timeline]);
   const file = useMemo(() => exportPlan(timeline)[0], [timeline]);
   const src = useMemo(() => sources(), [timeline]);
@@ -67,17 +75,17 @@ export function PlayerScreen({ timeline, sources, onClose, onRetouch, onExport }
     onPanResponderRelease: () => setPlaying(true),
   }), [segs, time, duration]);
 
-  const hidden = as ? timeline.textes.filter(x => !inside(textBox(x, as), safeZone(as))).length : 0;
-  const zone = as ? safeZone(as) : null;
+  const zone = check ? strictZone() : null;
+  const hidden = zone ? timeline.textes.filter(x => !PLATFORMS.every(p => inside(textBox(x, p), zone))).length : 0;
 
   return (
     <SafeAreaView style={[styles.flex, { backgroundColor: c.media }]} edges={["top", "bottom"]}>
       <Animated.View style={[styles.root, { transform: [{ translateY: drop }], opacity: drop.interpolate({ inputRange: [0, tokens.size.dismissDrag * 3], outputRange: [1, reduceMotion ? 1 : 0.5], extrapolate: "clamp" }) }]}>
         <View style={styles.top}>
           <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel={fr.nav.close} hitSlop={tokens.space.xs} style={styles.icon}><Icon name="close" tone="onMedia" /></Pressable>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.shrink} contentContainerStyle={styles.chips} accessibilityLabel={t.seeAs}>
-            {[null, ...PLATFORMS].map(p => <Chip key={p ?? "none"} label={p ? t.platforms[p] : t.none} selected={as === p} onPress={() => setAs(p)} />)}
-          </ScrollView>
+          <View style={[styles.shrink, styles.chips]}>
+            <Chip label={t.checkZones} selected={check} onPress={() => setCheck(x => !x)} />
+          </View>
           <Pressable onPress={() => { setMuted(m => { player.current?.mute(!m); return !m; }); }} accessibilityRole="button" accessibilityLabel={muted ? t.unmute : t.mute} hitSlop={tokens.space.xs} style={styles.icon}>
             <Icon name={muted ? "soundOff" : "sound"} tone="onMedia" />
           </Pressable>

@@ -32,6 +32,8 @@ export function ResultScreen({ result, seconds, onBack, onRestart, onEdit, onPla
     <Screen title={fr.resultScreen.title} detail={fr.resultScreen.swipe} onBack={onBack}
       footer={<>
         {chosen === index ? <View style={styles.saved}><SavedPill visible /><Text variant="caption" tone="textMuted">{fr.resultScreen.chosen}</Text></View> : null}
+        {/* Editing by hand sits next to the main action: Ryan's first test never found it at the bottom. */}
+        {onEdit ? <Button variant="secondary" label={fr.editor.open} onPress={() => onEdit(index)} /> : null}
         {chosen === index && onExport
           ? <Button label={fr.export.cta} onPress={() => onExport(index)} haptic />
           : <Button label={fr.result.choose} onPress={() => setChosen(index)} haptic />}
@@ -47,7 +49,6 @@ export function ResultScreen({ result, seconds, onBack, onRestart, onEdit, onPla
           {page ? result.variantes.map((v, i) => <Page key={i} variant={v} width={page} seconds={seconds} sources={i === index ? shown : null} onPlay={onPlay ? () => onPlay(i) : undefined} />) : null}
         </ScrollView>
       </View>
-      {onEdit ? <Button variant="secondary" label={fr.editor.open} onPress={() => onEdit(index)} /> : null}
       <Button variant="secondary" label={fr.nav.restart} onPress={onRestart} />
     </Screen>
   );

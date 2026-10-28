@@ -10,7 +10,11 @@
     "backgroundColor": "#0F0D12",
     "ios": {
       "bundleIdentifier": "com.madastudio.app",
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "LSSupportsOpeningDocumentsInPlace": false,
+        "CFBundleDocumentTypes": [{ "CFBundleTypeName": "Son", "CFBundleTypeRole": "Viewer", "LSHandlerRank": "Alternate", "LSItemContentTypes": ["public.audio", "public.mp3", "com.apple.m4a-audio", "public.aac-audio", "com.microsoft.waveform-audio"] }]
+      }
     },
     "plugins": [
       ["expo-splash-screen", { "image": "./assets/splash-icon.png", "imageWidth": 160, "backgroundColor": "#FBF8F3", "dark": { "backgroundColor": "#0F0D12" } }],

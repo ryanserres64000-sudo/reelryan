@@ -72,7 +72,7 @@ function Page({ variant, width, seconds }: { variant: Variant; width: number; se
         </Card>
       ) : null}
 
-      <Frise shots={shots} texts={t.textes.map(x => ({ start: x.debut, end: x.fin, label: x.texte }))} beats={t.musique.temps_forts} />
+      <Frise shots={shots} texts={t.textes.map(x => ({ start: x.debut, end: x.fin, label: x.texte }))} beats={editBeats(t.musique)} />
 
       <Card>
         <Text variant="bodyStrong">{fr.result.why}</Text>
@@ -88,6 +88,12 @@ function Page({ variant, width, seconds }: { variant: Variant; width: number; se
       ) : null}
     </View>
   );
+}
+
+// The music's beats in edit time: the chosen passage starts with the edit.
+function editBeats(m: Variant["timeline"]["musique"]) {
+  const from = m.passage?.debut ?? 0, to = m.passage?.fin ?? Infinity;
+  return m.temps_forts.filter(b => b >= from && b <= to).map(b => b - from);
 }
 
 const styles = StyleSheet.create({

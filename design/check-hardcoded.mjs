@@ -12,7 +12,7 @@ const STYLE_KEYS = "fontSize|lineHeight|letterSpacing|fontWeight|padding\\w*|mar
 const rules = [
   { name: "couleur en dur", where: () => true, re: /(["'`])#[0-9a-fA-F]{3,8}\1|\b(?:rgba?|hsla?)\(/g },
   { name: "taille en dur", where: f => f.startsWith("src") || f === "App.tsx", re: new RegExp(`\\b(?:${STYLE_KEYS})\\s*:\\s*-?(?!0\\b)\\d`, "g") },
-  { name: "texte en dur dans un écran", where: isScreen, re: />\s*[^<>{}\s][^<>{}]*[A-Za-zÀ-ÿ][^<>{}]*</g },
+  { name: "texte en dur dans un écran", where: isScreen, re: /(?<![=>-])>(?!=)\s*[^<>{}\s][^<>{}]*[A-Za-zÀ-ÿ][^<>{}]*</g },
   { name: "texte en dur dans un écran", where: isScreen, re: /\b(?:label|title|placeholder|accessibilityLabel)=["'][^"']*[A-Za-zÀ-ÿ]/g },
 ];
 function isScreen(f) { return f === "App.tsx" || f.startsWith(path.join("src", "screens")) || f.startsWith(path.join("src", "app")); }

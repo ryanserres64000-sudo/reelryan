@@ -80,7 +80,14 @@ export function timelineDuration(plans: Pick<Plan, "debut" | "fin" | "transition
   return plans.reduce((t, p, i) => t + (p.fin - p.debut) / (p.vitesse || 1) - (i && p.transition !== "coupe" ? TRANSITION_SECONDS : 0), 0);
 }
 
-function sanitizePlans(raw: unknown, clips: Clips, beat: number, maxDuration: number, warnings: string[]): Plan[] {
+// Nearest beat to `t` that leaves the shot at least `min` long; null if none fits.
+function nearestBeat(grid: number[], t: number, min: number): number | null {
+  let best: number | null = null;
+  for (const g of grid) if (g >= min - 1e-6 && (best === null || Math.abs(g - t) < Math.abs(best - t))) best = g;
+  return best;
+}
+
+function sanitizePlans(raw: unknown, clips: Clips, beat: number, maxDuration: number, warnings: string[], grid: number[] = []): Plan[] {
   const plans: Plan[] = [];
   let total = 0;
   for (const r of arr(raw)) {
@@ -91,7 +98,19 @@ function sanitizePlans(raw: unknown, clips: Clips, beat: number, maxDuration: nu
     let fin = Math.min(clip.duration, num(p.fin));
     const transition = plans.length ? pick(p.transition, TRANSITIONS, "coupe") : "coupe";
     const overlap = plans.length && transition !== "coupe" ? TRANSITION_SECONDS : 0;
-    if (beat > 0) {
+    if (grid.length) {
+      // The music's own beats (étude, ch. 4 top 5 n°4): each cut lands on the beat nearest to where the AI put it.
+      // Edit time: this shot starts at `total - overlap` and ends at the cut.
+      const start = total - overlap, wanted = start + (fin - debut) / vitesse;
+      let b = nearestBeat(grid, wanted, start + MIN_SHOT / vitesse);
+      while (b !== null && (b - start) * vitesse > clip.duration + 1e-6) b = nearestBeat(grid.filter(g => g < b!), wanted, start + MIN_SHOT / vitesse);
+      if (b !== null) {
+        const length = (b - start) * vitesse;
+        if (debut + length > clip.duration) debut = clip.duration - length;
+        // Rounded here so the next cut aims from where this one really ends: no drift along the edit.
+        debut = round(debut); fin = round(debut + length);
+      }
+    } else if (beat > 0) {
       // Whole beats (in edit time, so after the speed change), plus the overlap a transition eats.
       let beats = Math.max(1, Math.round((fin - debut) / vitesse / beat));
       while (beats > 1 && (beats * beat + overlap) * vitesse > clip.duration) beats--;
@@ -170,7 +189,10 @@ export function sanitizeTimeline(raw: unknown, clips: Clips, opts: SanitizeOptio
   if (!Array.isArray(r.plans)) throw new Error("Timeline invalide : pas de plans.");
   const musique = sanitizeMusique(r.musique, warnings);
   const beat = opts.beat ?? (musique.bpm ? 60 / musique.bpm : 0);
-  const plans = sanitizePlans(r.plans, clips, beat, opts.maxDuration ?? 60, warnings);
+  // Beats of the chosen passage, in edit time (the passage starts with the edit).
+  const from = musique.passage?.debut ?? 0, to = musique.passage?.fin ?? Infinity;
+  const grid = opts.beat === undefined ? musique.temps_forts.filter(t => t >= from && t <= to).map(t => round(t - from)) : [];
+  const plans = sanitizePlans(r.plans, clips, beat, opts.maxDuration ?? 60, warnings, grid);
   if (!plans.length) throw new Error("Timeline invalide : aucun plan utilisable.");
   const duration = round(timelineDuration(plans));
   const st = obj(r.sous_titres), rel = obj(r.relecture), leg = obj(r.legende);

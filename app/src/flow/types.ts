@@ -1,10 +1,17 @@
 import type { TimelineV1, Plateforme } from "../../../core/timeline";
 import type { MusicChoice, TriageBadge } from "../design";
+import type { LoadedSound } from "../music/common";
 
 export type Rush = { id: string; duration: number; photo: boolean; uri?: string; badges: TriageBadge[]; sound: boolean };
 export type Trade = "coach" | "restaurant" | "artisan" | "commerce" | "freelance";
 export type Brief = { text: string; trade: Trade; goal: number | null; tone: number | null; duration: number; platforms: Plateforme[]; cta: number | null };
-export type Music = { choice: MusicChoice; link: string | null };
+export type Analysis = { bpm: number; confidence: number; beats: number[]; downbeats: number[]; peaks: number[]; perSecond: number[]; duration: number; tapped: boolean };
+export type Music = {
+  choice: MusicChoice;
+  sound: LoadedSound | null; fromLink: boolean; analysis: Analysis | null;
+  passage: { debut: number; fin: number } | null; length: number;
+  rightsAt: string | null; trendingTempo: number;
+};
 export type Variant = { timeline: TimelineV1; duration: number; warnings: string[] };
 export type MontageResult = { variantes: Variant[]; cout_usd: number; temps_s: number };
 

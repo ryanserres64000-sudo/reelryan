@@ -1,5 +1,6 @@
 import { imposedTexts, sanitizeTimeline } from "../../../core/timeline";
-import type { Brief, MontageResult, Rush } from "./types";
+import { toMusique } from "../music/musique";
+import type { Brief, MontageResult, Music, Rush } from "./types";
 import { composeBrief } from "./brief";
 
 // Lot 2 runs without the native module and without the server: sample rushes and a sample AI answer,
@@ -43,24 +44,24 @@ function sampleAnswer(rushes: Rush[], brief: Brief) {
   ];
 }
 
-export function sampleResult(rushes: Rush[], brief: Brief): MontageResult {
+export function sampleResult(rushes: Rush[], brief: Brief, music: Music): MontageResult {
   const clips = Object.fromEntries(rushes.map(r => [r.id, { duration: r.duration }]));
   const text = composeBrief(brief);
   const variantes = sampleAnswer(rushes, brief).map(v => sanitizeTimeline({
-    ...v, musique: { mode: "aucune" }, exports: brief.platforms.map(plateforme => ({ plateforme })), legende: { texte: "", hashtags: [] },
+    ...v, musique: toMusique(music, brief.duration), exports: brief.platforms.map(plateforme => ({ plateforme })), legende: { texte: "", hashtags: [] },
   }, clips, { brief: text, maxDuration: Math.ceil(brief.duration * 1.2) }));
   return { variantes, cout_usd: 0, temps_s: 0 };
 }
 
 // Mirrors the server stream (lib/montage.js): local triage, then tagging, edit, review.
-export function fakeMontage(rushes: Rush[], brief: Brief, onStep: (step: number) => void, signal: AbortSignal, stepMs = 1600): Promise<MontageResult> {
+export function fakeMontage(rushes: Rush[], brief: Brief, music: Music, onStep: (step: number) => void, signal: AbortSignal, stepMs = 1600): Promise<MontageResult> {
   return new Promise((resolve, reject) => {
     let step = 0;
     const tick = () => {
       if (signal.aborted) return reject(new Error("aborted"));
       step++;
       onStep(step);
-      if (step === 4) resolve(sampleResult(rushes, brief)); else timer = setTimeout(tick, stepMs);
+      if (step === 4) resolve(sampleResult(rushes, brief, music)); else timer = setTimeout(tick, stepMs);
     };
     let timer = setTimeout(tick, stepMs);
     signal.addEventListener("abort", () => { clearTimeout(timer); reject(new Error("aborted")); });

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import * as Linking from "expo-linking";
+import { useEffect, useState } from "react";
 import { DesignCatalogue } from "../screens/DesignCatalogue";
 import { BriefScreen } from "../screens/BriefScreen";
 import { GenerationScreen } from "../screens/GenerationScreen";
@@ -19,7 +20,11 @@ export function Flow() {
   const [demo, setDemo] = useState(true);
   const [selected, setSelected] = useState<string[]>(["r1", "r2", "r4", "r6", "r8"]);
   const [brief, setBrief] = useState<Brief>(START_BRIEF);
-  const [music, setMusic] = useState<Music>({ choice: "trending", link: null });
+  const [music, setMusic] = useState<Music>({ choice: "trending", sound: null, fromLink: false, analysis: null, passage: null, length: 30, rightsAt: null, trendingTempo: 110 });
+  const [incoming, setIncoming] = useState<{ uri: string } | null>(null);
+  // A sound shared to Ma DA (AirDrop, Dictaphone, « Ouvrir avec ») opens the Music screen with it.
+  const url = Linking.useLinkingURL();
+  useEffect(() => { if (url?.startsWith("file:")) { setIncoming({ uri: url }); setMusic(m => ({ ...m, choice: "mine" })); setStep("music"); } }, [url]);
   const [result, setResult] = useState<{ r: MontageResult; s: number } | null>(null);
   const chosen = selected.map(id => rushes.find(r => r.id === id)).filter((r): r is Rush => !!r);
   // Shots worth keeping light up during the wait; Vision will provide them (lot 2, native part).
@@ -29,10 +34,10 @@ export function Flow() {
     case "catalogue": return <DesignCatalogue />;
     case "import": return <ImportScreen rushes={rushes} selected={selected} pro={false} demo={demo}
       onRushes={r => { setRushes(r); setDemo(false); }} onSelect={setSelected} onNext={() => setStep("brief")} />;
-    case "brief": return <BriefScreen brief={brief} onChange={setBrief} onBack={() => setStep("import")} onNext={() => setStep("music")} />;
-    case "music": return <MusicScreen music={music} onChange={setMusic} onBack={() => setStep("brief")} onNext={() => setStep("generation")} />;
+    case "brief": return <BriefScreen brief={brief} onChange={b => { setBrief(b); if (b.duration !== brief.duration) setMusic(m => ({ ...m, length: b.duration })); }} onBack={() => setStep("import")} onNext={() => setStep("music")} />;
+    case "music": return <MusicScreen music={music} onChange={setMusic} briefDuration={brief.duration} incoming={incoming} onBack={() => setStep("brief")} onNext={() => setStep("generation")} />;
     case "generation": return <GenerationScreen rushes={chosen.length} kept={kept} variants={3}
-      run={(onStep, signal) => fakeMontage(chosen, brief, onStep, signal)}
+      run={(onStep, signal) => fakeMontage(chosen, brief, music, onStep, signal)}
       onDone={(r, s) => { setResult({ r, s }); setStep("result"); }} onCancel={() => setStep("music")} />;
     case "result": return result ? <ResultScreen result={result.r} seconds={result.s} onBack={() => setStep("brief")} onRestart={() => { setResult(null); setStep("import"); }} /> : null;
   }

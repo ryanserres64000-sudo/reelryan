@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Intro, ThemeProvider, ToastProvider, useMadaFonts, useTheme } from "./src/design";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Flow } from "./src/flow/Flow";
+import { Guard } from "./src/crash";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 // Light by default (« Atelier clair »). Web preview only: ?dark opens the dark mode, for screenshots.
@@ -14,6 +15,7 @@ export default function App() {
   useEffect(() => { if (loaded || error) SplashScreen.hideAsync().catch(() => {}); }, [loaded, error]);
   if (!loaded && !error) return null;
   return (
+    <Guard>
     <SafeAreaProvider>
       <ThemeProvider initial={WEB_DARK ? "dark" : "light"}>
         <ToastProvider>
@@ -21,6 +23,7 @@ export default function App() {
         </ToastProvider>
       </ThemeProvider>
     </SafeAreaProvider>
+    </Guard>
   );
 }
 

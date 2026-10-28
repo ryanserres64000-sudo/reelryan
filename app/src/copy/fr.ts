@@ -446,6 +446,7 @@ export const fr = {
   nav: { back: "Retour", next: "Continuer", retry: "Réessayer", restart: "Recommencer", close: "Fermer", undo: "Annuler" },
   // The logo of the opening animation (logo 15, « Ma / DA étiquette »).
   intro: { ma: "Ma", slash: "/", da: "DA" },
+  crash: { title: "Ma DA a rencontré un problème", detail: "Fais une capture de cet écran et envoie-la : elle dit exactement ce qui s'est passé.", retry: "Réessayer" },
 
   // The home screen (« Atelier clair », Ryan, 28 octobre 2026): the idea of the week, one button to start
   // a Reel, and what to pick up again.

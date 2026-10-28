@@ -1,0 +1,53 @@
+# Builds the iPhone app on Expo's servers (EAS Build, no Mac needed) and sends it to TestFlight.
+# Run it from GitHub: Actions → « App iPhone » → Run workflow. Secrets to add once in the repository
+# settings (Settings → Secrets and variables → Actions), see app/README.md « Compiler sans Mac » :
+#   EXPO_TOKEN          expo.dev → Account settings → Access tokens
+#   ASC_API_KEY_P8      the .p8 file of an App Store Connect API key (role Admin), its whole text
+#   ASC_API_KEY_ID      the key id shown next to it
+#   ASC_API_ISSUER_ID   the issuer id shown above the keys
+#   APPLE_TEAM_ID       developer.apple.com → Membership → Team ID
+#   MADA_API_URL        the production site, e.g. https://reelryan.vercel.app
+#   MADA_ACCESS         APP_PASSWORD of the server, if one is set (else leave it empty)
+name: App iPhone
+on:
+  workflow_dispatch:
+    inputs:
+      submit:
+        description: "Envoyer sur TestFlight après la compilation"
+        type: boolean
+        default: true
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: app } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: app/package-lock.json }
+      - run: npm ci && (cd .. && npm ci)
+      - name: Checks (types, hard-coded values, tests)
+        run: npx tsc --noEmit -p . && node ../design/check-hardcoded.mjs && (cd .. && npm test)
+      # The build runs on Expo's servers, which do not see this job's variables: the server address
+      # goes into eas.json for this run only.
+      - name: Server address for the app
+        run: node -e 'const f="eas.json",j=JSON.parse(require("fs").readFileSync(f));j.build.production.env={EXPO_PUBLIC_MADA_API:process.env.API||"",EXPO_PUBLIC_MADA_ACCESS:process.env.ACCESS||""};require("fs").writeFileSync(f,JSON.stringify(j,null,2))'
+        env: { API: "${{ secrets.MADA_API_URL }}", ACCESS: "${{ secrets.MADA_ACCESS }}" }
+      - name: App Store Connect key
+        run: printf '%s' "$ASC_API_KEY_P8" > "$RUNNER_TEMP/asc.p8"
+        env: { ASC_API_KEY_P8: "${{ secrets.ASC_API_KEY_P8 }}" }
+      - name: Link the Expo project
+        run: npx --yes eas-cli@latest init --non-interactive --force
+        env: { EXPO_TOKEN: "${{ secrets.EXPO_TOKEN }}" }
+      # EAS packs the repository from git (the app reads ../core): the two edits above are committed
+      # in this runner only, never pushed.
+      - name: Commit the build settings locally
+        run: git -c user.name=ci -c user.email=ci@localhost commit -qam "build settings" || true
+      - name: Build (and submit)
+        run: npx --yes eas-cli@latest build --platform ios --profile production --non-interactive --wait ${{ inputs.submit && '--auto-submit' || '' }}
+        env:
+          EXPO_TOKEN: "${{ secrets.EXPO_TOKEN }}"
+          EXPO_ASC_API_KEY_PATH: "${{ runner.temp }}/asc.p8"
+          EXPO_ASC_KEY_ID: "${{ secrets.ASC_API_KEY_ID }}"
+          EXPO_ASC_ISSUER_ID: "${{ secrets.ASC_API_ISSUER_ID }}"
+          EXPO_APPLE_TEAM_ID: "${{ secrets.APPLE_TEAM_ID }}"
+          EXPO_APPLE_TEAM_TYPE: INDIVIDUAL

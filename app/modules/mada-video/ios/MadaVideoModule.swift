@@ -36,7 +36,7 @@ public class MadaVideoModule: Module {
       AsyncFunction("play") { (view: MadaVideoView) in view.player.play() }
       AsyncFunction("pause") { (view: MadaVideoView) in view.player.pause() }
       AsyncFunction("seek") { (view: MadaVideoView, seconds: Double) in
-        await view.player.seek(to: time(seconds), toleranceBefore: .zero, toleranceAfter: .zero)
+        _ = await view.player.seek(to: time(seconds), toleranceBefore: .zero, toleranceAfter: .zero)
       }
     }
   }
@@ -100,7 +100,7 @@ public final class MadaVideoView: ExpoView {
         item.audioTimePitchAlgorithm = .spectral
         item.forwardPlaybackEndTime = built.duration
         player.replaceCurrentItem(with: item)
-        await player.seek(to: min(at, built.duration), toleranceBefore: .zero, toleranceAfter: .zero)
+        _ = await player.seek(to: min(at, built.duration), toleranceBefore: .zero, toleranceAfter: .zero)
         if playing { player.play() }
       } catch {
         onError(["message": error.localizedDescription])

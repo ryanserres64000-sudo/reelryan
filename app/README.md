@@ -20,3 +20,29 @@ Serveur : `EXPO_PUBLIC_MADA_API` (adresse du serveur) et `EXPO_PUBLIC_MADA_ACCES
 
 Commandes : `npm run typecheck`, `npx expo export --platform web` (aperçu dans un navigateur), `npx expo run:ios` sur un Mac avec Xcode (dev build).
 Les dépendances suivent le SDK 58 (`node_modules/expo/bundledNativeModules.json`).
+
+## App iPhone sans Mac (EAS Build et TestFlight)
+
+La compilation se fait sur les serveurs d'Expo, lancée depuis GitHub : onglet **Actions** → **App iPhone** → **Run workflow** (`.github/workflows/ios.yml`). Le job vérifie d'abord les types, les valeurs en dur et `npm test`, puis compile avec le profil `production` de `eas.json` et, si la case est cochée, envoie le build sur TestFlight. Le numéro de build monte tout seul (`autoIncrement`).
+
+À faire une seule fois :
+
+1. **Apple Developer Program** (99 €/an) au nom de l'entreprise individuelle.
+2. **App Store Connect** → Apps → « + » : nom « Ma DA : Studio créatif IA », identifiant de lot `com.madastudio.app`, SKU `madastudio`. Signer l'accord « Applications payantes » (Business), sans lui les abonnements ne se vendent pas.
+3. **Clé API App Store Connect** : Users and Access → Integrations → App Store Connect API → « + », rôle Admin. Télécharger le `.p8` (une seule fois possible), noter le Key ID et l'Issuer ID.
+4. **Expo** : créer un compte sur expo.dev, puis Account settings → Access tokens → créer un jeton.
+5. **Secrets GitHub** : Settings → Secrets and variables → Actions → New repository secret, un par ligne :
+
+| Secret | Valeur |
+| --- | --- |
+| `EXPO_TOKEN` | le jeton Expo |
+| `ASC_API_KEY_P8` | tout le texte du fichier `.p8`, lignes BEGIN et END comprises |
+| `ASC_API_KEY_ID` | le Key ID |
+| `ASC_API_ISSUER_ID` | l'Issuer ID |
+| `APPLE_TEAM_ID` | developer.apple.com → Membership → Team ID |
+| `MADA_API_URL` | l'adresse du site en production, sans `/` final |
+| `MADA_ACCESS` | le code `APP_PASSWORD` du serveur s'il y en a un, sinon ne pas le créer |
+
+6. **Abonnements** dans App Store Connect (Monetization → Subscriptions), un groupe « Ma DA Pro » avec les identifiants de `core/plans.ts` (`produit`), et l'adresse `https://<site>/api/apple/notifications` en version 2 dans App Information → App Store Server Notifications. Sur Vercel : `MADA_APPLE_BUNDLE_ID=com.madastudio.app`.
+
+Si le premier build s'arrête sur « credentials » (certificat de distribution et profil absents), les créer une fois depuis n'importe quel ordinateur, Windows compris : `cd app && npx eas-cli credentials -p ios`, se connecter avec l'identifiant Apple, choisir `production` puis « Build Credentials » → laisser EAS tout générer. Les builds suivants les réutilisent.

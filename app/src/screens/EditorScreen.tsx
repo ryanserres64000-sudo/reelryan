@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
 import { applyCorrection, learn, type Memory } from "../../../core/corrections";
-import { addCalque, addTexte, addVoiceOver, changedPlans, deleteAudio, deleteCalque, deleteCle, deleteEffet, deletePlan, deleteTexte, duplicatePlan, isLocked, movePlan, planTimes, push, redo, replaceSource, setAudio, setCalque, setDuo, setLogo, setPlan, setSubtitles, setTexte, splitPlan, startHistory, toDoc, trimPlan, undo, type EditDoc, type History } from "../../../core/edit";
-import { exportPlan } from "../../../core/export";
+import { addCalque, addTexte, addVoiceOver, changedPlans, deleteAudio, deleteCalque, deleteCle, deleteEffet, deletePlan, deleteTexte, duplicatePlan, duplicateTexte, isLocked, movePlan, planTimes, push, redo, replaceSource, setAudio, setCalque, setDuo, setLogo, setPlan, setSubtitles, setTexte, splitPlan, startHistory, toDoc, trimPlan, undo, type EditDoc, type History } from "../../../core/edit";
+import { exportPlan, placeOf } from "../../../core/export";
+import { MIN_SIZE, PLACE_LIMITS, SWATCHES, TEXT_ALIGNS, TEXT_ANIMS, TEXT_FONDS, TEXT_ROLES, defaultLook, sizeOf, type TextLook } from "../../../core/textlook";
 import { PRESETS, addKey, isOn, moveLayer, newLayer, placeAt, presetOf, type Preset } from "../../../core/layers";
 import { clock } from "../../../core/playback";
 import { ZOOM, clampZoom, lanes as laneList, type Mode } from "../../../core/tracks";
@@ -11,7 +12,7 @@ import { loadMode, saveMode } from "../editor/mode";
 import { Frame } from "../video/Frame";
 import type { PlayerHandle } from "../video/Player";
 import type { Sources } from "../video/sources";
-import { COURBES, DETOURAGES, ETALONNAGES, FUSIONS, LOGO_POSITIONS, TEXT_POSITIONS, TRANSITIONS, type Calque, type Clips, type TimelineV1 } from "../../../core/timeline";
+import { COURBES, DETOURAGES, ETALONNAGES, FUSIONS, LOGO_POSITIONS, TEXT_POSITIONS, TRANSITIONS, type Calque, type Clips, type Texte, type TimelineV1 } from "../../../core/timeline";
 import { DUOS, duoById } from "../../../core/typo";
 import { fr } from "../copy/fr";
 import { Button, Card, Chip, Icon, MadaSays, Screen, Sheet, Text, haptic, tokens, typeStyle, useTheme, useToast, type IconName } from "../design";
@@ -104,7 +105,18 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
     else if (s.lane === "calques") remove(deleteCalque(d, s.id, clips), fr.toast.layerRemoved);
     else if (s.lane === "effets") remove(deleteEffet(d, s.index), fr.toast.effetRemoved);
   };
-  const fw = Math.min(wh * 0.3, tokens.layout.largePhoneWidth) * 9 / 16;
+  // Texts: chosen on the picture or in the list, added under the play head and chosen at once.
+  const chooseText = (n: number) => { setPlaying(false); setSelection({ lane: "textes", index: n, id: d.texteIds[n] } as Selection); setTool("texte"); };
+  const newText = () => {
+    const next = addTexte(d, t.newText, time);
+    apply(next); setPlaying(false);
+    const n = next.timeline.textes.length - 1;
+    if (n >= 0) setSelection({ lane: "textes", index: n, id: next.texteIds[n] } as Selection);
+    setTool("texte");
+  };
+  const textSel = selection?.lane === "textes" && tl.textes[selection.index] ? selection.index : null;
+  // Bigger while a text is chosen: it is moved and pinched on the picture itself.
+  const fw = Math.min(wh * (textSel !== null ? 0.46 : 0.3), tokens.layout.largePhoneWidth) * 9 / 16;
   const rushIds = Object.keys(clips);
   const fmt = fr.rush.duration;
 
@@ -137,10 +149,10 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
     <Screen title={t.title} onBack={onBack} scrollEnabled={!dragging}
       footer={<Button label={t.save} disabled={busy} onPress={() => onSave(tl)} haptic />}>
       <View style={styles.preview}>
-        <Pressable onPress={() => { haptic("tap"); setPlaying(x => !x); }} accessibilityRole="button" accessibilityLabel={fr.tracks.playPause}>
-          <Frame ref={player} timeline={tl} file={file} sources={src} time={time} playing={playing} onTime={setTime} width={fw}
-            selectedLayer={selection?.lane === "calques" ? selection.id : null} onLayerMove={(id, m) => apply(moveLayer(d, id, time, m, clips))} onDragging={setDragging} />
-        </Pressable>
+        <Frame ref={player} timeline={tl} file={file} sources={src} time={time} playing={playing} onTime={setTime} width={fw}
+          onTapPicture={() => { haptic("tap"); setPlaying(x => !x); }}
+          selectedLayer={selection?.lane === "calques" ? selection.id : null} onLayerMove={(id, m) => apply(moveLayer(d, id, time, m, clips))} onDragging={setDragging}
+          selectedText={textSel} onTextSelect={chooseText} onTextPlace={(n, pl) => apply(setTexte(d, n, { place: pl }))} onTextWrite={(n, v) => apply(setTexte(d, n, { texte: v }))} />
         {onPlay ? <IconButton icon="expand" label={fr.player.open} onPress={() => { setPlaying(false); onPlay(tl); }} /> : null}
       </View>
       <View style={styles.between}>
@@ -185,7 +197,7 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
         )}
       </View>
       <Sheet visible={adding} onClose={() => setAdding(false)} title={fr.tracks.addTitle}>
-        <AddChoice icon="text" title={fr.tracks.addText} why={fr.tracks.addTextWhy} onPress={() => { setAdding(false); apply(addTexte(d, t.newText, time + 2)); setTool("texte"); }} />
+        <AddChoice icon="text" title={fr.tracks.addText} why={fr.tracks.addTextWhy} onPress={() => { setAdding(false); newText(); }} />
         <AddChoice icon="layers" title={fr.tracks.addLayer} why={fr.tracks.addLayerWhy} onPress={() => { setAdding(false); setPlaying(false); setLayering("pip"); }} />
         <AddChoice icon="cutout" title={fr.tracks.addCutout} why={fr.tracks.addCutoutWhy} onPress={() => { setAdding(false); setPlaying(false); setLayering("detoure"); }} />
         <AddChoice icon="voice" title={fr.tracks.addVoice} why={fr.tracks.addVoiceWhy} onPress={() => { setAdding(false); setPlaying(false); setVoicing(true); }} />
@@ -286,7 +298,13 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
         </Card>
       ) : null}
 
-      {tool === "texte" ? (
+      {tool === "texte" && textSel !== null ? (
+        <TextPanel x={tl.textes[textSel]} n={textSel + 1} timeline={tl} locked={isLocked(d, d.texteIds[textSel])}
+          set={patch => apply(setTexte(d, textSel, patch))}
+          duplicate={() => { const next = duplicateTexte(d, textSel); apply(next); setSelection({ lane: "textes", index: textSel + 1, id: next.texteIds[textSel + 1] } as Selection); toast({ message: fr.tracks.duplicated }); }}
+          remove={() => { setSelection(null); remove(deleteTexte(d, textSel), fr.toast.textRemoved); }}
+          done={() => setSelection(null)} />
+      ) : tool === "texte" ? (
         <View style={styles.field}>
           <Card>
             <Group label={t.subtitles}>
@@ -294,24 +312,19 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
               <Chip label={t.off} selected={!tl.sous_titres.actifs} onPress={() => apply(setSubtitles(d, false))} />
             </Group>
           </Card>
+          <Text variant="caption" tone="textMuted">{fr.textEdit.hint}</Text>
           {tl.textes.map((x, j) => (
-            <Card key={d.texteIds[j]}>
-              <View style={styles.between}>
-                <Text variant="callout" tone="textMuted">{t.text(j + 1)}</Text>
-                {x.impose || isLocked(d, d.texteIds[j]) ? <Text variant="caption" tone="actionStrong">{x.impose ? t.imposed : t.locked}</Text> : null}
+            <Pressable key={d.texteIds[j]} accessibilityRole="button" accessibilityLabel={fr.textEdit.grip(x.texte)} accessibilityHint={fr.textEdit.choose}
+              onPress={() => { haptic("tap"); seek(x.debut + 0.05); chooseText(j); }}
+              style={({ pressed }) => [styles.choice, { backgroundColor: pressed ? c.surfaceRaised : c.surface }]}>
+              <Icon name="text" tone="textMuted" />
+              <View style={[styles.flex, styles.shrink]}>
+                <Text variant="bodyStrong" numberOfLines={1}>{x.texte}</Text>
+                <Text variant="caption" tone="textMuted">{[t.text(j + 1), fr.textEdit.at(clock(x.debut)), x.impose ? t.imposed : isLocked(d, d.texteIds[j]) ? t.locked : ""].filter(Boolean).join(" · ")}</Text>
               </View>
-              <TextField value={x.texte} label={t.text(j + 1)} onDone={v => apply(setTexte(d, j, { texte: v }))} />
-              {x.style === "accroche" || x.style === "titre" ? (
-                <View style={styles.group}>
-                  <Text variant="caption" tone="textMuted">{t.accent}</Text>
-                  <TextField value={x.accent} label={t.accent} placeholder={t.accentPlaceholder} max={30} onDone={v => apply(setTexte(d, j, { accent: v }))} />
-                </View>
-              ) : null}
-              <Group label={t.position}>{TEXT_POSITIONS.map(pos => <Chip key={pos} label={t.positions[pos]} selected={x.position === pos} onPress={() => apply(setTexte(d, j, { position: pos }))} />)}</Group>
-              <Chip label={t.deleteText} onPress={() => remove(deleteTexte(d, j), fr.toast.textRemoved)} style={styles.start} />
-            </Card>
+            </Pressable>
           ))}
-          <Button variant="secondary" label={t.addText} onPress={() => apply(addTexte(d, t.newText, tl.duree / 2))} />
+          <Button variant="secondary" label={fr.textEdit.add} onPress={newText} />
         </View>
       ) : null}
 
@@ -327,6 +340,57 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
         </Card>
       ) : null}
     </Screen>
+  );
+}
+
+// The chosen text: what it says, its font, colour, background, alignment, entrance and size. Moving,
+// pinching and turning happen on the picture (TextGrip); everything here is one tap, and undoable.
+function TextPanel({ x, n, timeline, locked, set, duplicate, remove, done }: {
+  x: Texte; n: number; timeline: TimelineV1; locked: boolean;
+  set: (p: Partial<Pick<Texte, "texte" | "accent" | "position" | "place" | "look">>) => void; duplicate: () => void; remove: () => void; done: () => void;
+}) {
+  const e = fr.textEdit, look = x.look ?? defaultLook(x.style), place = x.place;
+  const setLook = (patch: Partial<TextLook>) => set({ look: { ...look, ...patch } });
+  const scale = (f: number) => { const q = placeOf(x); set({ place: { ...q, s: Math.min(PLACE_LIMITS.s[1], Math.max(PLACE_LIMITS.s[0], Math.round(q.s * f * 100) / 100)) } }); };
+  const brand = timeline.charte.couleurs;
+  const colors: [string, string | null][] = [
+    [e.textColor, null],
+    ...(brand.principale ? [[e.brandColor, brand.principale] as [string, string]] : []),
+    [e.white, SWATCHES.blanc], [e.black, SWATCHES.noir],
+  ];
+  const title = x.style === "accroche" || x.style === "titre";
+  return (
+    <Card>
+      <View style={styles.between}>
+        <Text variant="headline">{t.text(n)}</Text>
+        {x.impose || locked ? <Text variant="caption" tone="actionStrong">{x.impose ? t.imposed : t.locked}</Text> : null}
+      </View>
+      <Text variant="caption" tone="textMuted">{e.gesture}</Text>
+      <TextField value={x.texte} label={t.text(n)} onDone={v => set({ texte: v })} />
+      {title ? (
+        <View style={styles.group}>
+          <Text variant="caption" tone="textMuted">{t.accent}</Text>
+          <TextField value={x.accent} label={t.accent} placeholder={t.accentPlaceholder} max={30} onDone={v => set({ accent: v })} />
+        </View>
+      ) : null}
+      <Group label={e.font}>{TEXT_ROLES.map(r => <Chip key={r} label={e.roles[r]} selected={look.role === r} onPress={() => setLook({ role: r })} />)}</Group>
+      <Group label={e.color}>{colors.map(([label, v]) => <Chip key={label} label={label} selected={look.couleur === v} onPress={() => setLook({ couleur: v })} />)}</Group>
+      <Group label={e.background}>{TEXT_FONDS.map(f => <Chip key={f} label={e.fonds[f]} selected={look.fond === f} onPress={() => setLook({ fond: f })} />)}</Group>
+      <Group label={e.align}>{TEXT_ALIGNS.map(a => <Chip key={a} label={e.aligns[a]} selected={look.align === a} onPress={() => setLook({ align: a })} />)}</Group>
+      <Group label={e.anim}>{TEXT_ANIMS.map(a => <Chip key={a} label={e.anims[a]} selected={look.anim === a} onPress={() => setLook({ anim: a })} />)}</Group>
+      <Group label={e.size}>
+        <Chip label={e.smaller} onPress={() => scale(1 / 1.12)} />
+        <Chip label={e.bigger} onPress={() => scale(1.12)} />
+        {place && place.r !== 0 ? <Chip label={e.straight} onPress={() => set({ place: { ...place, r: 0 } })} /> : null}
+      </Group>
+      {sizeOf(x.style, place) < MIN_SIZE ? <Text variant="caption" tone="actionStrong">{e.tooSmall}</Text> : null}
+      <Group label={t.position}>{TEXT_POSITIONS.map(pos => <Chip key={pos} label={t.positions[pos]} selected={!place && x.position === pos} onPress={() => set({ position: pos, place: undefined })} />)}</Group>
+      <View style={styles.row}>
+        <Chip label={e.duplicate} onPress={duplicate} />
+        <Chip label={t.deleteText} onPress={remove} />
+        <Chip label={e.done} onPress={done} />
+      </View>
+    </Card>
   );
 }
 

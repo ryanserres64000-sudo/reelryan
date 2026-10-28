@@ -527,6 +527,38 @@ export const fr = {
   },
 
   // Les vidéos par-dessus (étape 6) : incrustation, écran partagé, détourage, étapes de mouvement.
+  // Texts edited directly on the video (refonte après le premier test).
+  textEdit: {
+    grip: (texte: string) => `Texte « ${texte} »`,
+    gesture: "Glisse pour le déplacer, pince pour changer sa taille, tourne à deux doigts. Touche deux fois pour écrire.",
+    write: "Écrire dans le texte",
+    bigger: "Plus grand", smaller: "Plus petit",
+    left: "Vers la gauche", right: "Vers la droite", up: "Vers le haut", down: "Vers le bas",
+    hint: "Touche un texte sur la vidéo pour le choisir, deux fois pour écrire dedans.",
+    add: "Ajouter un texte",
+    newText: "Ton texte",
+    font: "Police",
+    roles: { titre: "Titre", texte: "Texte", accent: "Accent" } as Record<string, string>,
+    color: "Couleur",
+    brandColor: "Ta couleur",
+    textColor: "De ta marque",
+    white: "Blanc", black: "Noir",
+    background: "Fond",
+    fonds: { ombre: "Ombre douce", aucun: "Sans fond", plein: "Bandeau", arrondi: "Bulle", contour: "Cadre" } as Record<string, string>,
+    align: "Alignement",
+    aligns: { gauche: "Gauche", centre: "Centre", droite: "Droite" } as Record<string, string>,
+    anim: "Apparition",
+    anims: { fondu: "Fondu", aucune: "Directe", glisse: "Glisse", zoom: "Zoom doux", mots: "Mot par mot" } as Record<string, string>,
+    size: "Taille",
+    tooSmall: "Ce texte est petit pour un téléphone : grossis-le un peu.",
+    straight: "Remettre droit",
+    reset: "Remettre à sa place d'origine",
+    duplicate: "Dupliquer",
+    done: "Terminé",
+    choose: "Choisir",
+    at: (s: string) => `à ${s}`,
+  },
+
   layers: {
     title: "Une vidéo par-dessus",
     cutoutTitle: "Une personne détourée",

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { addTexte, changedPlans, deletePlan, deleteTexte, keepLocked, movePlan, push, redo, replaceSource, setLogo, setPlan, setTexte, startHistory, toDoc, trimPlan, undo } from "../edit.ts";
+import { addTexte, changedPlans, duplicateTexte, deletePlan, deleteTexte, keepLocked, movePlan, push, redo, replaceSource, setLogo, setPlan, setTexte, startHistory, toDoc, trimPlan, undo } from "../edit.ts";
 import { applyCorrection, emptyMemory, forget, learn } from "../corrections.ts";
 import { sanitizeTimeline, timelineDuration } from "../timeline.ts";
 
@@ -130,4 +130,25 @@ test("a manual montage puts the rushes in order, plainly cut, without AI", async
   assert.ok(t.plans.every(p => p.transition === "coupe"));
   assert.equal(t.plans[1].mouvement, "zoom-avant");
   assert.ok(t.plans[2].fin <= 1);
+});
+
+test("a text moved by hand: place and look kept, back to its slot, duplicated just below", async () => {
+  const { exportPlan, withPlace } = await import("../export.ts");
+  let d = doc();
+  d = setTexte(d, 1, { place: { x: 0.3, y: 0.4, w: 0.6, s: 1.5, r: 10 }, look: { role: "accent", couleur: "#FFFFFF", fond: "contour", align: "gauche", anim: "mots" } });
+  let r = sanitizeTimeline(d.timeline, clips).timeline;
+  assert.equal(r.textes[1].place?.r, 10);
+  assert.equal(r.textes[1].look?.fond, "contour");
+  const placed = exportPlan(d.timeline)[0].textes.find(x => x.n === 1)!;
+  assert.equal(placed.libre, true);
+  assert.equal(placed.taille, 138);
+  assert.equal(Math.round(placed.box.x + placed.box.w / 2), 324);
+  assert.equal(withPlace(placed, { x: 0.5, y: 0.5, w: 0.8, s: 1, r: 0 }).taille, 92);
+  d = duplicateTexte(d, 1);
+  assert.equal(d.timeline.textes.length, 3);
+  assert.equal(d.timeline.textes[2].place?.y, 0.48);
+  assert.equal(d.texteIds.length, 3);
+  d = setTexte(d, 1, { place: undefined, position: "centre" });
+  assert.equal("place" in d.timeline.textes[1], false);
+  assert.equal(exportPlan(d.timeline)[0].textes.find(x => x.n === 1)!.libre, false);
 });

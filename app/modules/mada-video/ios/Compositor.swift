@@ -43,10 +43,7 @@ final class MadaCompositor: NSObject, AVVideoCompositing {
         frame = image.cropped(to: canvas).composited(over: frame)
       }
       for layer in instruction.layers { if let image = draw(layer, request, t, plan.size) { frame = blend(image, over: frame, layer.calque.fusion) } }
-      for o in plan.overlays {
-        let a = o.alpha(at: t)
-        if a > 0 { frame = fade(o.image, a).composited(over: frame) }
-      }
+      for o in plan.overlays { if let image = o.image(at: t) { frame = image.composited(over: frame) } }
       context.render(frame, to: output, bounds: canvas, colorSpace: CGColorSpace(name: CGColorSpace.sRGB))
       request.finish(withComposedVideoFrame: output)
     }

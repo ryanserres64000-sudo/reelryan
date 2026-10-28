@@ -2,69 +2,119 @@ import CoreImage
 import CoreText
 import UIKit
 
-// Texts and logo, drawn once per export file at their place in the platform's safe zone
-// (core/export.ts boxes, top-left origin) and laid over the frames by the compositor. Sober on
-// purpose (étude, ch. 12 ; rendu naturel du lot 6): brand colours, a soft shadow, no glow.
+// Texts and logo, drawn once per export file at their place (core/export.ts boxes, top-left origin) and
+// laid over the frames by the compositor, with their angle and entrance (core/textlook.ts, the same
+// numbers as the preview in app/src/video/TextOverlay.tsx). Sober on purpose (lot 6): brand colours,
+// a soft shadow, no glow.
 struct Overlay {
-  let image: CIImage; let start: Double; let end: Double
-  static let fade = 0.2
+  // One picture, or one per number of words shown for « mot par mot »; already placed on the frame.
+  let images: [CIImage]; let start: Double; let end: Double
+  let anim: String; let center: CGPoint; let rotation: Double
 
-  // Fully opaque inside its span, with short fades at both ends.
-  func alpha(at t: Double) -> Double {
-    guard t >= start, t < end else { return 0 }
-    return min(1, (t - start) / Overlay.fade, (end - t) / Overlay.fade)
+  // The overlay at `t`, turned, lifted, scaled and faded as animAt() says, or nil when it is not on.
+  func image(at t: Double) -> CIImage? {
+    guard t >= start, t < end, !images.isEmpty else { return nil }
+    let lt = t - start, len = end - start
+    let ease = { (u: Double) in 1 - pow(1 - min(1, max(0, u)), 3) }
+    let pin = ease(lt / 0.25), pout = min(1, max(0, (len - lt) / 0.2))
+    var a = min(pin, pout), dy = 0.0, k = 1.0, i = images.count - 1
+    switch anim {
+    case "aucune": a = 1
+    case "glisse": dy = (1 - pin) * 40
+    case "zoom": k = 0.9 + 0.1 * pin
+    case "mots": a = pout; i = min(images.count - 1, Int(lt / 0.18))
+    case "logo": a = min(1, lt / 0.2, (len - lt) / 0.2)
+    default: break
+    }
+    guard a > 0 else { return nil }
+    // Core Image counts y upwards: a clockwise angle is negative, a lift down is a lower y.
+    var m = CGAffineTransform(translationX: -center.x, y: -center.y)
+    if rotation != 0 { m = m.concatenating(CGAffineTransform(rotationAngle: CGFloat(-rotation * .pi / 180))) }
+    if k != 1 { m = m.concatenating(CGAffineTransform(scaleX: CGFloat(k), y: CGFloat(k))) }
+    m = m.concatenating(CGAffineTransform(translationX: center.x, y: center.y - CGFloat(dy)))
+    let image = images[max(0, i)].transformed(by: m)
+    return a < 1 ? image.applyingFilter("CIColorMatrix", parameters: ["inputAVector": CIVector(x: 0, y: 0, z: 0, w: CGFloat(a))]) : image
   }
 
   static func make(_ t: Timeline, file: ExportFile, sources: Sources, duration: Double) throws -> [Overlay] {
     let H = Double(file.h)
     let titleFont = sources.fonts?.titre.flatMap(registerFont), textFont = sources.fonts?.texte.flatMap(registerFont)
     let accentFont = sources.fonts?.accent.flatMap(registerFont)
-    let ink = UIColor(hex: t.charte.couleurs.texte) ?? .white, brand = UIColor(hex: t.charte.couleurs.principale)
+    let ink = UIColor(hex: t.charte.couleurs.texte) ?? .white
+    let plateColor = UIColor(hex: t.charte.couleurs.principale) ?? UIColor(hex: "#121212")!
     var out: [Overlay] = []
     for x in file.textes where x.debut < duration {
-      let title = x.style == "accroche" || x.style == "titre"
-      let size: CGFloat = x.style == "accroche" ? 92 : x.style == "titre" ? 76 : x.style == "signature" ? 58 : 50
-      let font = UIFont(name: (title ? titleFont : textFont) ?? "", size: size) ?? .systemFont(ofSize: size, weight: title ? .heavy : .semibold)
-      let cartouche = x.style == "signature" ? brand : nil
+      let titleStyle = x.style == "accroche" || x.style == "titre"
+      let look = x.rendu ?? ExportFile.Rendu(role: titleStyle ? "titre" : "texte", couleur: nil, fond: x.style == "signature" ? "arrondi" : "ombre", align: "centre", anim: "fondu")
+      let base: CGFloat = x.style == "accroche" ? 92 : x.style == "titre" ? 76 : x.style == "signature" ? 58 : 50
+      let size = CGFloat(x.taille ?? Double(base))
+      let title = look.role == "titre"
+      let name = look.role == "titre" ? titleFont : look.role == "accent" ? (accentFont ?? textFont) : textFont
+      let font = UIFont(name: name ?? "", size: size) ?? .systemFont(ofSize: size, weight: title ? .heavy : .semibold)
+      let color = UIColor(hex: look.couleur) ?? ink
+      let plate = look.fond == "plein" || look.fond == "arrondi" ? plateColor : nil
+      let free = x.libre ?? false
       let text = title ? casse(x.texte, file.duo?.titre.casse) : x.texte
-      let picture: CGImage
-      if title, let accent = x.accent, !accent.isEmpty {
-        let duo = file.duo
-        let small = UIFont(name: accentFont ?? textFont ?? "", size: size * CGFloat(duo?.echelle ?? 0.6)) ?? .systemFont(ofSize: size * 0.6)
-        picture = drawDuo(text, casse(accent, duo?.accent.casse), title: font, accent: small, overlap: duo?.chevauchement ?? 0.2, color: ink, box: x.box)
+      var pictures: [CGImage] = []
+      if title, let accent = x.accent, !accent.isEmpty, let duo = file.duo {
+        let small = UIFont(name: accentFont ?? textFont ?? "", size: size * CGFloat(duo.echelle)) ?? .systemFont(ofSize: size * CGFloat(duo.echelle))
+        pictures = [drawDuo(text, casse(accent, duo.accent.casse), title: font, accent: small, overlap: duo.chevauchement, color: color, box: x.box)]
+      } else if look.anim == "mots" {
+        // One picture per word shown, as the preview writes them out.
+        let words = text.split(separator: " ", omittingEmptySubsequences: true)
+        pictures = (1...max(1, words.count)).map { n in drawText(words.prefix(n).joined(separator: " "), font: font, color: color, look: look, plate: plate, box: x.box, free: free) }
       } else {
-        picture = drawText(text, font: font, color: ink, plate: cartouche, box: x.box)
+        pictures = [drawText(text, font: font, color: color, look: look, plate: plate, box: x.box, free: free)]
       }
-      out.append(Overlay(image: place(picture, box: x.box, H: H), start: x.debut, end: min(x.fin, duration)))
+      // A text moved by hand is centred on its box's centre; the others fill their box.
+      let cx = x.box.x + x.box.w / 2, cy = x.box.y + x.box.h / 2
+      let images = pictures.map { p -> CIImage in
+        let w = Double(p.width), h = Double(p.height)
+        return CIImage(cgImage: p).transformed(by: CGAffineTransform(translationX: CGFloat(cx - w / 2), y: CGFloat(H - cy - h / 2)))
+      }
+      out.append(Overlay(images: images, start: x.debut, end: min(x.fin, duration), anim: look.anim, center: CGPoint(x: cx, y: H - cy), rotation: x.rotation ?? 0))
     }
     if let box = file.logo, let uri = sources.logo, let url = URL(string: uri), let logo = UIImage(contentsOfFile: url.path)?.cgImage {
       let position = t.charte.logo?.position ?? "aucun"
       let (a, b) = position == "debut" ? (0, min(2, duration)) : position == "fin" ? (max(0, duration - 2.5), duration) : (0, duration)
-      out.append(Overlay(image: place(fit(logo, box: box), box: box, H: H), start: a, end: b))
+      out.append(Overlay(images: [place(fit(logo, box: box), box: box, H: H)], start: a, end: b, anim: "logo", center: CGPoint(x: box.x + box.w / 2, y: H - box.y - box.h / 2), rotation: 0))
     }
     return out
   }
 
-  // The text, wrapped and centred in its box, shrunk until it fits.
-  static func drawText(_ text: String, font: UIFont, color: UIColor, plate: UIColor?, box: Box) -> CGImage {
-    let size = CGSize(width: box.w, height: box.h)
-    let style = NSMutableParagraphStyle(); style.alignment = .center; style.lineBreakMode = .byWordWrapping
+  // The text, wrapped in its box's width with its alignment and background. A text in a slot shrinks
+  // until it fits its box; a text moved by hand keeps its size and the picture takes its height.
+  static func drawText(_ text: String, font: UIFont, color: UIColor, look: ExportFile.Rendu, plate: UIColor?, box: Box, free: Bool) -> CGImage {
+    let framed = plate != nil || look.fond == "contour"
+    let padX: CGFloat = framed ? 32 : 0, padY: CGFloat = framed ? 16 : 0
+    let style = NSMutableParagraphStyle(); style.lineBreakMode = .byWordWrapping
+    style.alignment = look.align == "gauche" ? .left : look.align == "droite" ? .right : .center
+    let shadow = NSShadow(); shadow.shadowColor = UIColor.black.withAlphaComponent(look.fond == "ombre" ? 0.35 : 0); shadow.shadowBlurRadius = 8; shadow.shadowOffset = CGSize(width: 0, height: 2)
+    let width = CGFloat(box.w), inner = width - 2 * padX
     var f = font, attrs: [NSAttributedString.Key: Any] = [:], bounds = CGRect.zero
-    let shadow = NSShadow(); shadow.shadowColor = UIColor.black.withAlphaComponent(plate == nil ? 0.35 : 0); shadow.shadowBlurRadius = 8; shadow.shadowOffset = CGSize(width: 0, height: 2)
-    let inner = size.width - (plate == nil ? 0 : 64)
     repeat {
+      style.minimumLineHeight = f.pointSize * 1.2; style.maximumLineHeight = f.pointSize * 1.2
       attrs = [.font: f, .foregroundColor: color, .paragraphStyle: style, .shadow: shadow]
       bounds = (text as NSString).boundingRect(with: CGSize(width: inner, height: .greatestFiniteMagnitude), options: [.usesLineFragmentOrigin], attributes: attrs, context: nil)
-      if bounds.height <= size.height - (plate == nil ? 0 : 32) || f.pointSize < 28 { break }
+      if free || bounds.height <= CGFloat(box.h) - 2 * padY || f.pointSize < 28 { break }
       f = f.withSize(f.pointSize * 0.92)
     } while true
+    // Room for the shadow around a free text.
+    let size = CGSize(width: width, height: free ? ceil(bounds.height) + 2 * padY + 16 : CGFloat(box.h))
     let format = UIGraphicsImageRendererFormat(); format.scale = 1; format.opaque = false
     return UIGraphicsImageRenderer(size: size, format: format).image { _ in
-      let textRect = CGRect(x: (size.width - inner) / 2, y: (size.height - bounds.height) / 2, width: inner, height: ceil(bounds.height))
-      if let plate {
-        plate.setFill()
-        let w = min(size.width, ceil(bounds.width) + 64)
-        UIBezierPath(roundedRect: CGRect(x: (size.width - w) / 2, y: textRect.minY - 16, width: w, height: textRect.height + 32), cornerRadius: 18).fill()
+      let textRect = CGRect(x: padX, y: (size.height - ceil(bounds.height)) / 2, width: inner, height: ceil(bounds.height))
+      if framed {
+        let w = min(width, ceil(bounds.width) + 2 * padX)
+        let x = style.alignment == .left ? 0 : style.alignment == .right ? width - w : (width - w) / 2
+        let rect = CGRect(x: x, y: textRect.minY - padY, width: w, height: textRect.height + 2 * padY)
+        if let plate {
+          plate.setFill()
+          UIBezierPath(roundedRect: rect, cornerRadius: look.fond == "arrondi" ? 18 : 0).fill()
+        } else {
+          color.setStroke()
+          let path = UIBezierPath(rect: rect.insetBy(dx: 1.5, dy: 1.5)); path.lineWidth = 3; path.stroke()
+        }
       }
       (text as NSString).draw(with: textRect, options: [.usesLineFragmentOrigin], attributes: attrs, context: nil)
     }.cgImage!

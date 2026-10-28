@@ -171,10 +171,13 @@ export function deleteCle(d: EditDoc, id: string, t: number, clips: Clips): Edit
 
 // ---------- Texts ----------
 
-export function setTexte(d: EditDoc, i: number, patch: Partial<Pick<Texte, "texte" | "position" | "style" | "debut" | "fin" | "accent">>): EditDoc {
+export function setTexte(d: EditDoc, i: number, patch: Partial<Pick<Texte, "texte" | "position" | "style" | "debut" | "fin" | "accent" | "place" | "look">>): EditDoc {
   const t = d.timeline.textes[i];
   if (!t) return d;
   const next = { ...t, ...patch, texte: (patch.texte ?? t.texte).slice(0, 140) };
+  // `place: undefined` puts the text back in its slot (haut, centre, bas).
+  if ("place" in patch && !patch.place) delete next.place;
+  if ("look" in patch && !patch.look) delete next.look;
   // Only a title carries a duo accent (core/typo.ts).
   next.accent = next.style === "accroche" || next.style === "titre" ? next.accent.trim().slice(0, 30) : "";
   if (!next.texte.trim()) return deleteTexte(d, i);
@@ -183,9 +186,19 @@ export function setTexte(d: EditDoc, i: number, patch: Partial<Pick<Texte, "text
 
 export function addTexte(d: EditDoc, texte: string, at = 0): EditDoc {
   const end = Math.min(d.timeline.duree, at + 2);
-  const t: Texte = { texte: texte.slice(0, 140), debut: round(Math.max(0, end - 2)), fin: round(end), position: "bas", style: "titre", impose: false, accent: "" };
+  const t: Texte = { texte: texte.slice(0, 140), debut: round(Math.max(0, end - 2)), fin: round(end), position: "bas", style: "titre", impose: false, accent: "", place: { x: 0.5, y: 0.5, w: 0.8, s: 1, r: 0 } };
   const id = newId("t");
   return withTextes(d, [...d.timeline.textes, t], [...d.texteIds, id], lock(d, id));
+}
+
+// The same text a little lower, so both show and the copy can be dragged away.
+export function duplicateTexte(d: EditDoc, i: number): EditDoc {
+  const t = d.timeline.textes[i];
+  if (!t) return d;
+  const p = t.place ?? { x: 0.5, y: 0.5, w: 0.8, s: 1, r: 0 };
+  const copy: Texte = { ...t, impose: false, place: { ...p, y: Math.min(1, round(p.y + 0.08)) } };
+  const id = newId("t");
+  return withTextes(d, [...d.timeline.textes.slice(0, i + 1), copy, ...d.timeline.textes.slice(i + 1)], [...d.texteIds.slice(0, i + 1), id, ...d.texteIds.slice(i + 1)], lock(d, id));
 }
 
 export function deleteTexte(d: EditDoc, i: number): EditDoc {

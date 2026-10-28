@@ -3,6 +3,7 @@
 // (prototype/lib/timeline.mjs) without breaking it: a prototype timeline is a valid v1 timeline.
 // Plain TypeScript with erasable syntax only, so Node runs it as is and Metro bundles it.
 import { DUO_IDS, type DuoId } from "./typo.ts";
+import { sanitizeLook, sanitizePlace, type TextLook, type TextPlace } from "./textlook.ts";
 
 export const TRANSITIONS = ["coupe", "fondu", "glisse", "zoom"] as const;
 export const TEXT_POSITIONS = ["haut", "centre", "bas"] as const;
@@ -68,7 +69,8 @@ export type Calque = {
   fusion: OneOf<typeof FUSIONS>; arrondi: number; detourage: OneOf<typeof DETOURAGES>; volume: number; cles: Cle[];
 };
 // `lie`: the voice-over a subtitle line belongs to (it moves and goes with it).
-export type Texte = { texte: string; debut: number; fin: number; position: OneOf<typeof TEXT_POSITIONS>; style: OneOf<typeof TEXT_STYLES>; impose: boolean; accent: string; lie?: string };
+// `place` and `look`: set by hand on the video (core/textlook.ts); without them, the slot `position` rules.
+export type Texte = { texte: string; debut: number; fin: number; position: OneOf<typeof TEXT_POSITIONS>; style: OneOf<typeof TEXT_STYLES>; impose: boolean; accent: string; lie?: string; place?: TextPlace; look?: TextLook };
 export type Effet = { t: number; type: OneOf<typeof EFFETS> };
 export type Musique = {
   mode: OneOf<typeof MUSIQUE_MODES>;
@@ -172,7 +174,7 @@ function sanitizeTextes(raw: unknown, duration: number, brief: string | undefine
   const imposed = imposedTexts(brief).map(norm);
   const textes = arr(raw).map(r => {
     const t = obj(r), texte = str(t.texte, 140), style = pick(t.style, TEXT_STYLES, "titre");
-    return {
+    const base: Texte = {
       texte, debut: round(clamp(num(t.debut), 0, duration)), fin: round(clamp(num(t.fin), 0, duration)),
       position: pick(t.position, TEXT_POSITIONS, "centre"), style,
       impose: imposed.includes(norm(texte)) || (!brief && !!t.impose),
@@ -180,6 +182,8 @@ function sanitizeTextes(raw: unknown, duration: number, brief: string | undefine
       accent: style === "accroche" || style === "titre" ? str(t.accent, 30) : "",
       ...(t.lie ? { lie: str(t.lie, 40) } : {}),
     };
+    const place = sanitizePlace(t.place), look = sanitizeLook(t.look, style);
+    return { ...base, ...(place ? { place } : {}), ...(look ? { look } : {}) };
   }).filter(t => t.texte && t.fin - t.debut >= MIN_TEXT);
   for (const [i, t] of imposedTexts(brief).entries()) if (!textes.some(x => norm(x.texte) === imposed[i])) warnings.push(`Texte demandé absent du montage : « ${t} »`);
   return textes;

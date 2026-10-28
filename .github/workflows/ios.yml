@@ -35,21 +35,23 @@ jobs:
       # The build runs on Expo's servers, which do not see this job's variables: the server address
       # goes into eas.json for this run only.
       - name: Server address for the app
-        run: node -e 'const f="eas.json",j=JSON.parse(require("fs").readFileSync(f));j.build[process.env.PROFIL].env={EXPO_PUBLIC_MADA_API:process.env.API||"",EXPO_PUBLIC_MADA_ACCESS:process.env.ACCESS||""};require("fs").writeFileSync(f,JSON.stringify(j,null,2))'
+        run: node -e 'const f="eas.json",j=JSON.parse(require("fs").readFileSync(f));const e=Object.fromEntries([["EXPO_PUBLIC_MADA_API",process.env.API],["EXPO_PUBLIC_MADA_ACCESS",process.env.ACCESS]].filter(x=>x[1]));if(Object.keys(e).length)j.build[process.env.PROFIL].env=e;require("fs").writeFileSync(f,JSON.stringify(j,null,2))'
         env: { PROFIL: "${{ inputs.profil }}", API: "${{ secrets.MADA_API_URL }}", ACCESS: "${{ secrets.MADA_ACCESS }}" }
       - name: App Store Connect key
         if: inputs.profil == 'production'
         run: printf '%s' "$ASC_API_KEY_P8" > "$RUNNER_TEMP/asc.p8"
         env: { ASC_API_KEY_P8: "${{ secrets.ASC_API_KEY_P8 }}" }
+      # Installs eas-cli once (cached) and logs in with the token.
+      - uses: expo/expo-github-action@v8
+        with: { eas-version: latest, token: "${{ secrets.EXPO_TOKEN }}" }
       - name: Link the Expo project
-        run: npx --yes eas-cli@latest init --non-interactive --force
-        env: { EXPO_TOKEN: "${{ secrets.EXPO_TOKEN }}" }
+        run: eas init --non-interactive --force
       # EAS packs the repository from git (the app reads ../core): the two edits above are committed
       # in this runner only, never pushed.
       - name: Commit the build settings locally
         run: git -c user.name=ci -c user.email=ci@localhost commit -qam "build settings" || true
       - name: Build (and submit)
-        run: npx --yes eas-cli@latest build --platform ios --profile ${{ inputs.profil }} --non-interactive --wait ${{ inputs.profil == 'production' && inputs.submit && '--auto-submit' || '' }}
+        run: eas build --platform ios --profile ${{ inputs.profil }} --non-interactive --wait ${{ inputs.profil == 'production' && inputs.submit && '--auto-submit' || '' }}
         env:
           EXPO_TOKEN: "${{ secrets.EXPO_TOKEN }}"
           EXPO_ASC_API_KEY_PATH: "${{ runner.temp }}/asc.p8"

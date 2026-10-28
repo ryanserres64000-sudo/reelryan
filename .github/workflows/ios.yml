@@ -13,16 +13,32 @@ on:
   workflow_dispatch:
     inputs:
       profil:
-        description: "production (TestFlight), simulateur (vérifie que le code natif compile, sans compte Apple) ou envoi-seul (envoie sur TestFlight le dernier build déjà compilé)"
+        description: "production (TestFlight), simulateur (vérifie que le code natif compile, sans compte Apple), envoi-seul (envoie sur TestFlight le dernier build déjà compilé) ou plantages (affiche les rapports de plantage partagés depuis TestFlight)"
         type: choice
-        options: [production, simulateur, envoi-seul]
+        options: [production, simulateur, envoi-seul, plantages]
         default: production
       submit:
         description: "Envoyer sur TestFlight après la compilation"
         type: boolean
         default: true
 jobs:
+  # The crash reports testers shared from TestFlight, with their logs (scripts/testflight-crashes.mjs).
+  plantages:
+    if: inputs.profil == 'plantages'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: printf '%s' "$ASC_API_KEY_P8" > "$RUNNER_TEMP/asc.p8"
+        env: { ASC_API_KEY_P8: "${{ secrets.ASC_API_KEY_P8 }}" }
+      - run: node scripts/testflight-crashes.mjs
+        env:
+          ASC_KEY_PATH: "${{ runner.temp }}/asc.p8"
+          ASC_KEY_ID: "${{ secrets.ASC_API_KEY_ID }}"
+          ASC_ISSUER_ID: "${{ secrets.ASC_API_ISSUER_ID }}"
   build:
+    if: inputs.profil != 'plantages'
     runs-on: ubuntu-latest
     defaults: { run: { working-directory: app } }
     steps:

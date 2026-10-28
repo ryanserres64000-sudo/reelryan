@@ -1,6 +1,6 @@
 // Prints the crash reports that testers sent from TestFlight (App Store Connect API,
-// betaFeedbackCrashSubmissions), with their crash logs. Run by .github/workflows/crashes.yml with the
-// App Store Connect key already used to send builds to TestFlight. Usage: node scripts/testflight-crashes.mjs
+// betaFeedbackCrashSubmissions), with their crash logs. Uses the
+// App Store Connect key already used to send builds to TestFlight. Run by the « App iPhone » workflow, profil « plantages ».
 import { createSign } from "node:crypto";
 import { readFileSync } from "node:fs";
 

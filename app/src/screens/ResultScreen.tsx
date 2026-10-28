@@ -5,12 +5,12 @@ import { fr } from "../copy/fr";
 import { Button, Card, Chip, Frise, SavedPill, Screen, Text, tokens, useTheme } from "../design";
 import type { MontageResult, Variant } from "../flow/types";
 
-type Props = { result: MontageResult; seconds: number; onBack: () => void; onRestart: () => void };
+type Props = { result: MontageResult; seconds: number; onBack: () => void; onRestart: () => void; onEdit?: (i: number) => void };
 const LABELS = { "accroche-forte": fr.result.variants.hook, posee: fr.result.variants.calm, rythmee: fr.result.variants.rhythm } as const;
 
 // Step 5 (étude, ch. 5 §5 ; ch. 4 « relecture visible »): 2 or 3 versions to swipe, what MaDa corrected
 // before showing them, why this edit, and the shots to film next time.
-export function ResultScreen({ result, seconds, onBack, onRestart }: Props) {
+export function ResultScreen({ result, seconds, onBack, onRestart, onEdit }: Props) {
   const [index, setIndex] = useState(0);
   const [page, setPage] = useState(0);
   const [chosen, setChosen] = useState<number | null>(null);
@@ -34,6 +34,7 @@ export function ResultScreen({ result, seconds, onBack, onRestart }: Props) {
           {page ? result.variantes.map((v, i) => <Page key={i} variant={v} width={page} seconds={seconds} />) : null}
         </ScrollView>
       </View>
+      {onEdit ? <Button variant="secondary" label={fr.editor.open} onPress={() => onEdit(index)} /> : null}
       <Button variant="secondary" label={fr.nav.restart} onPress={onRestart} />
     </Screen>
   );

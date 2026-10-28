@@ -1,16 +1,17 @@
 import { useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, TextInput, View } from "react-native";
 import { STYLES_MAISON, type Dna } from "../../../core/brand";
+import { emptyMemory, forget, type Memory } from "../../../core/corrections";
 import { SOUS_TITRES_STYLES } from "../../../core/timeline";
 import { fr } from "../copy/fr";
 import { Button, Card, Chip, MadaSays, Screen, Swatch, Text, tokens, typeStyle, useTheme } from "../design";
 
-type Props = { dna: Dna; byAi: boolean; saveError: boolean; onChange: (d: Dna) => void; onRedo: () => void; onDone: () => void };
+type Props = { dna: Dna; byAi: boolean; saveError: boolean; memory: Memory; onMemory: (m: Memory) => void; onChange: (d: Dna) => void; onRedo: () => void; onDone: () => void };
 const t = fr.dna.carnet;
 
 // The carnet ADN (étude, ch. 5 §8 « carnet de style » ; ch. 12 idée signature n°2) : what MaDa
 // understood, in sentences the person reads and corrects. Every edit wins over the AI.
-export function CarnetScreen({ dna, byAi, saveError, onChange, onRedo, onDone }: Props) {
+export function CarnetScreen({ dna, byAi, saveError, memory, onMemory, onChange, onRedo, onDone }: Props) {
   const [styles_, setStyles] = useState(false);
   const set = (p: Partial<Dna>) => onChange({ ...dna, ...p });
   const setAt = <K extends "regles" | "a_eviter" | "valeurs">(k: K, i: number, v: string) =>
@@ -62,6 +63,20 @@ export function CarnetScreen({ dna, byAi, saveError, onChange, onRedo, onDone }:
       <Section title={t.sections.eviter}>
         {dna.a_eviter.map((r, i) => <Editable key={r + i} value={r} label={t.sections.eviter} bullet onChange={x => setAt("a_eviter", i, x)} />)}
         <MadaSays text={t.cliches} />
+      </Section>
+
+      <Section title={t.learnt}>
+        {memory.rules.length ? memory.rules.map(r => (
+          <View key={r.key} style={styles.between}>
+            <Text style={styles.flex}>{r.text}</Text>
+            <Chip label={t.forgetShort} accessibilityLabel={t.forget(r.text)} onPress={() => onMemory(forget(memory, r.key))} />
+          </View>
+        )) : <Text tone="textMuted">{t.learntEmpty}</Text>}
+        {memory.paused ? <Text variant="caption" tone="textMuted">{t.paused}</Text> : null}
+        <View style={styles.row}>
+          <Chip label={memory.paused ? t.resume : t.pause} onPress={() => onMemory({ ...memory, paused: !memory.paused })} />
+          {memory.rules.length || Object.keys(memory.counts).length ? <Chip label={t.reset} onPress={() => onMemory({ ...emptyMemory(), paused: memory.paused })} /> : null}
+        </View>
       </Section>
 
       <Section title={t.sections.idees}>
@@ -122,6 +137,7 @@ const styles = StyleSheet.create({
   section: { gap: tokens.space.xs },
   row: { flexDirection: "row", flexWrap: "wrap", gap: tokens.space.xs },
   idea: { flexDirection: "row", gap: tokens.space.sm },
+  between: { flexDirection: "row", alignItems: "center", gap: tokens.space.xs, flexWrap: "wrap" },
   format: { width: tokens.size.button * 1.5 },
   flex: { flex: 1 },
   editRow: { flexDirection: "row", alignItems: "center", gap: tokens.space.xs, minHeight: tokens.size.touch },

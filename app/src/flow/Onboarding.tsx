@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Answers, Dna, Kit, Profil } from "../../../core/brand";
+import { emptyMemory, type Memory } from "../../../core/corrections";
 import { writeDna } from "../brand/api";
 import type { Logo } from "../brand/logo";
 import { saveBrand } from "../brand/store";
@@ -24,7 +25,8 @@ export function Onboarding({ initial, onDone }: { initial: Brand | null; onDone:
   const [logo, setLogo] = useState<Logo | null>(null);
   const [result, setResult] = useState<{ dna: Dna; byAi: boolean } | null>(initial?.dna ? { dna: initial.dna, byAi: initial.byAi } : null);
   const [saveError, setSaveError] = useState(false);
-  const brand = (dna: Dna | null, byAi: boolean): Brand => ({ profil: profil!, answers, kit, logoUri: logo?.uri ?? initial?.logoUri ?? null, dna, byAi, at: new Date().toISOString() });
+  const [memory, setMemory] = useState<Memory>(initial?.memory ?? emptyMemory());
+  const brand = (dna: Dna | null, byAi: boolean): Brand => ({ profil: profil!, answers, kit, logoUri: logo?.uri ?? initial?.logoUri ?? null, dna, byAi, at: new Date().toISOString(), memory });
 
   switch (step) {
     case "welcome": return <WelcomeScreen onStart={() => setStep("profile")} />;
@@ -33,7 +35,7 @@ export function Onboarding({ initial, onDone }: { initial: Brand | null; onDone:
     case "logo": return <LogoScreen kit={kit} logo={logo} onChange={(k, l) => { setKit(k); setLogo(l); }} onBack={() => setStep("questions")} onNext={() => setStep("analysis")} />;
     case "analysis": return <AnalysisScreen onDone={() => setStep("carnet")}
       run={async signal => setResult(await writeDna(brand(null, false), logo?.forAi ?? "", SERVER.url, signal, SERVER.access))} />;
-    case "carnet": return result ? <CarnetScreen dna={result.dna} byAi={result.byAi} saveError={saveError}
+    case "carnet": return result ? <CarnetScreen dna={result.dna} byAi={result.byAi} saveError={saveError} memory={memory} onMemory={setMemory}
       onChange={dna => setResult({ ...result, dna })} onRedo={() => setStep("profile")}
       onDone={async () => {
         const b = brand(result.dna, result.byAi);

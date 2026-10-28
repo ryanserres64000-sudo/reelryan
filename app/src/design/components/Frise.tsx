@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Animated, Image, StyleSheet, View, type ImageSourcePropType } from "react-native";
+import { Animated, Image, Pressable, StyleSheet, View, type ImageSourcePropType } from "react-native";
 import { fr } from "../../copy/fr";
 import { tokens } from "../tokens";
 import { Text } from "../Text";
@@ -7,11 +7,12 @@ import { useTheme } from "../theme";
 
 export type FriseShot = { id: string; duration: number; thumbnail?: ImageSourcePropType; changed?: boolean };
 export type FriseText = { start: number; end: number; label: string };
-type Props = { shots: FriseShot[]; beats?: number[]; texts?: FriseText[] };
+type Props = { shots: FriseShot[]; beats?: number[]; texts?: FriseText[]; selected?: number; onSelect?: (i: number) => void };
 
 // Blocks proportional to their duration, gold dots on the beats, texts as lavender pills above,
-// what MaDa just changed highlighted for 2 s (étude, ch. 6 §4 ; ch. 5 §6).
-export function Frise({ shots, beats = [], texts = [] }: Props) {
+// what MaDa just changed highlighted for 2 s (étude, ch. 6 §4 ; ch. 5 §6). With `onSelect`, a tap
+// picks a shot to adjust by hand (lot 5) and the picked one is outlined in gold.
+export function Frise({ shots, beats = [], texts = [], selected, onSelect }: Props) {
   const { c } = useTheme();
   const [width, setWidth] = useState(0);
   const total = shots.reduce((s, x) => s + x.duration, 0) || 1;
@@ -26,7 +27,7 @@ export function Frise({ shots, beats = [], texts = [] }: Props) {
         )) : null}
       </View>
       <View style={styles.track}>
-        {shots.map((s, i) => <Block key={s.id} shot={s} index={i + 1} width={px(s.duration)} />)}
+        {shots.map((s, i) => <Block key={s.id} shot={s} index={i + 1} width={px(s.duration)} selected={selected === i} onPress={onSelect ? () => onSelect(i) : undefined} />)}
       </View>
       <View style={styles.beats}>
         {width ? beats.filter(b => b <= total).map((b, i) => (
@@ -37,7 +38,7 @@ export function Frise({ shots, beats = [], texts = [] }: Props) {
   );
 }
 
-function Block({ shot, index, width }: { shot: FriseShot; index: number; width: number }) {
+function Block({ shot, index, width, selected, onPress }: { shot: FriseShot; index: number; width: number; selected: boolean; onPress?: () => void }) {
   const { c, motion, reduceMotion } = useTheme();
   const glow = useRef(new Animated.Value(shot.changed ? 1 : 0)).current;
   useEffect(() => {
@@ -46,10 +47,12 @@ function Block({ shot, index, width }: { shot: FriseShot; index: number; width: 
     Animated.timing(glow, { toValue: 0, duration: reduceMotion ? motion.base : motion.highlight, useNativeDriver: false }).start();
   }, [shot.changed]);
   return (
-    <View accessibilityLabel={fr.frise.shot(index, shot.duration)} style={[styles.block, { width, backgroundColor: c.surfaceRaised, borderColor: c.line }]}>
+    <Pressable accessibilityLabel={fr.frise.shot(index, shot.duration)} accessibilityRole={onPress ? "button" : undefined} accessibilityState={onPress ? { selected } : undefined}
+      disabled={!onPress} onPress={onPress} style={[styles.block, { width, backgroundColor: c.surfaceRaised, borderColor: c.line }]}>
       {shot.thumbnail ? <Image source={shot.thumbnail} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.glow, { borderColor: c.ai, opacity: glow }]} />
-    </View>
+      {selected ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.glow, { borderColor: c.action }]} /> : null}
+    </Pressable>
   );
 }
 

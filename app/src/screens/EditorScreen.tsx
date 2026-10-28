@@ -14,6 +14,8 @@ type Props = {
   onMemory: (m: Memory) => void; onSave: (t: TimelineV1) => void; onBack: () => void;
   // Every change, for the draft: nothing is lost if the app closes before « Enregistrer ».
   onChange?: (t: TimelineV1) => void;
+  // The full-screen player, and the shot it was paused on when « Retoucher ce moment » brought us here.
+  onPlay?: (t: TimelineV1) => void; initialShot?: number;
 };
 type Tool = keyof typeof fr.editor.tools;
 const TOOLS: [Tool, IconName][] = [["plan", "plan"], ["vitesse", "speed"], ["texte", "text"], ["son", "sound"], ["couleur", "color"], ["marque", "brand"]];
@@ -26,10 +28,10 @@ const LOGO_KEYS = LOGO_POSITIONS;
 // first through plain rules on the phone; only what they cannot do goes to the AI. « Atelier clair »:
 // six named tools under the frise instead of rows of tabs, one « Demander à Ma DA » field, on a dark
 // ground (Flow nests a dark theme) so the footage is judged as it will be seen.
-export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMemory, onSave, onBack, onChange }: Props) {
+export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMemory, onSave, onBack, onChange, onPlay, initialShot = 0 }: Props) {
   const { c } = useTheme();
   const [h, setH] = useState<History>(() => startHistory(toDoc(timeline)));
-  const [sel, setSel] = useState(0);
+  const [sel, setSel] = useState(initialShot);
   const [tool, setTool] = useState<Tool>("plan");
   const [ask, setAsk] = useState("");
   const [say, setSay] = useState<string | null>(null);
@@ -80,7 +82,10 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
           <IconButton icon="undo" label={t.undo} disabled={!h.past.length} onPress={() => setH(undo(h))} />
           <IconButton icon="redo" label={t.redo} disabled={!h.future.length} onPress={() => setH(redo(h))} />
         </View>
-        <Text variant="mono" tone="textMuted">{t.duration(fmt(tl.duree))}</Text>
+        <View style={styles.row}>
+          <Text variant="mono" tone="textMuted">{t.duration(fmt(tl.duree))}</Text>
+          {onPlay ? <IconButton icon="play" label={fr.player.open} onPress={() => onPlay(tl)} /> : null}
+        </View>
       </View>
 
       <View style={styles.field}>

@@ -397,6 +397,30 @@ export const fr = {
     draftSteps: { import: "Choix des rushes", brief: "Ta demande", music: "La musique", result: "Les versions", editor: "Retouches", export: "Export" } as Record<string, string>,
   },
 
+  // Le lecteur plein écran (étape 3) : voir en grand, vérifier, retoucher le bon moment.
+  player: {
+    open: "Voir en grand",
+    label: (titre: string) => `Lecture plein écran : ${titre}`,
+    play: "Lire",
+    pause: "Pause",
+    mute: "Couper le son",
+    unmute: "Remettre le son",
+    previous: "Plan précédent",
+    next: "Plan suivant",
+    scrub: "Position dans la vidéo",
+    time: (now: string, total: string) => `${now} / ${total}`,
+    shot: (n: number, total: number) => `Plan ${n} sur ${total}`,
+    retouch: "Retoucher ce moment",
+    export: "Exporter",
+    seeAs: "Voir comme sur",
+    none: "Ma vidéo",
+    platforms: { reels: "Instagram", tiktok: "TikTok", shorts: "Shorts" },
+    allVisible: "Tous tes textes sont visibles",
+    hidden: (n: number) => `${n > 1 ? `${n} textes sont cachés` : "Un texte est caché"} par les boutons`,
+    hiddenZone: "Zone cachée par l'appli",
+    hint: "Touche à gauche ou à droite pour changer de plan, glisse vers le bas pour fermer.",
+  },
+
   // Le « + » : tout ce qu'on peut créer, en une feuille.
   create: {
     title: "Créer",

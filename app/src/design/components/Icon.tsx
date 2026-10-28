@@ -22,6 +22,7 @@ const PATHS = {
   image: <><Rect x={4} y={4} width={16} height={16} rx={2} /><Circle cx={9} cy={9} r={1.5} /><Path d="M20 15l-5-5-9 10" /></>,
   play: <Path d="M8 5v14l11-7z" />,
   close: <Path d="M6 6l12 12M18 6L6 18" />,
+  soundOff: <><Path d="M4 9h4l5-4v14l-5-4H4z" /><Path d="M17 9l4 6M21 9l-4 6" /></>,
   check: <Path d="M5 12l5 5 9-10" />,
 } as const;
 export type IconName = keyof typeof PATHS;

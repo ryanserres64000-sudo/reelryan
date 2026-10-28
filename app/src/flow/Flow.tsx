@@ -26,6 +26,7 @@ import { BriefScreen } from "../screens/BriefScreen";
 import { GenerationScreen } from "../screens/GenerationScreen";
 import { ImportScreen } from "../screens/ImportScreen";
 import { HomeScreen } from "../screens/HomeScreen";
+import { PlayerScreen } from "../screens/PlayerScreen";
 import { CreationsScreen } from "../screens/CreationsScreen";
 import { IdeasScreen } from "../screens/IdeasScreen";
 import { Tabs, type CreateChoice, type Tab } from "./Tabs";
@@ -52,7 +53,7 @@ import type { TimelineV1 } from "../../../core/timeline";
 import { tokens, useToast } from "../design";
 import type { Brief, MontageResult, Music, Rush, Trade } from "./types";
 
-type Step = "home" | "creations" | "ideas" | "brand" | "import" | "brief" | "music" | "generation" | "result" | "editor" | "catalogue" | "visual" | "visual-editor" | "export" | "paywall" | "consent" | "settings";
+type Step = "home" | "creations" | "ideas" | "player" | "brand" | "import" | "brief" | "music" | "generation" | "result" | "editor" | "catalogue" | "visual" | "visual-editor" | "export" | "paywall" | "consent" | "settings";
 // The brief's trade chips (lot 2) start from the sign-up profile.
 const TRADE_OF: Record<Profil, Trade> = { commerce: "commerce", restaurant: "restaurant", "petite-entreprise": "artisan", "grande-entreprise": "freelance", ecole: "freelance", createur: "freelance", debutant: "freelance" };
 const START_BRIEF: Brief = { text: "", trade: "restaurant", goal: null, tone: null, duration: 30, platforms: ["reels", "tiktok", "shorts"], cta: null };
@@ -88,6 +89,10 @@ export function Flow() {
   const [manualMode, setManualMode] = useState(false);
   const [seed, setSeed] = useState<{ brief: VisualBrief; photos: Photo[] } | null>(null);
   const toast = useToast();
+  // The full-screen player (étape 3): where it was opened from, and the shot to retouch.
+  const [playFrom, setPlayFrom] = useState<Step>("result");
+  const [focusShot, setFocusShot] = useState(0);
+  const play = (from: Step) => { setPlayFrom(from); setStep("player"); };
   // Visuals (lot 6): the ones kept on the iPhone, and the one being edited.
   const [visuals, setVisuals] = useState<SavedVisual[]>([]);
   useEffect(() => { loadVisuals().then(setVisuals); }, []);
@@ -207,7 +212,7 @@ export function Flow() {
       onDone={(r, s) => { if (plans) updatePlans(record(plans, "montage")); setKeptVersion(null); setReelId(Date.now().toString(36)); setResult({ r, s }); setStep("result"); }} onCancel={() => setStep("music")} />;
     case "result": return result ? <ResultScreen result={result.r} seconds={result.s} onBack={() => setStep("brief")} onRestart={() => { setResult(null); setEditorTl(null); clearDraft(); setStep("home"); }}
       sources={i => videoSources(result.r.variantes[i].timeline, chosen, brand ?? null, music)}
-      onEdit={i => { setEditing(i); setStep("editor"); }} onExport={i => { setEditing(i); keepReel(result.r.variantes[i].timeline); setStep("export"); }}
+      onEdit={i => { setEditing(i); setFocusShot(0); setStep("editor"); }} onPlay={i => { setEditing(i); play("result"); }} onExport={i => { setEditing(i); keepReel(result.r.variantes[i].timeline); setStep("export"); }}
       kept={keptVersion} onKeep={i => {
         setKeptVersion(i); keepReel(result.r.variantes[i].timeline);
         // Right after the first result the person keeps: the soft paywall, once (ch. 8 §1).
@@ -228,12 +233,25 @@ export function Flow() {
       return v ? <ExportScreen timeline={v.timeline} byAi={!result?.r.manuel} brief={composeBrief(brief)} brand={brand ?? null} onBack={() => setStep("result")}
         sources={() => videoSources(v.timeline, chosen, brand ?? null, music)} /> : null;
     }
+    case "player": {
+      const v = result?.r.variantes[editing];
+      if (!v) return null;
+      const tl = playFrom === "editor" ? editorTl ?? v.timeline : v.timeline;
+      return <ThemeProvider initial="dark"><StatusBar style="light" /><PlayerScreen timeline={tl} sources={() => videoSources(tl, chosen, brand ?? null, music)}
+        onClose={() => setStep(playFrom)}
+        onExport={() => {
+          // Exports what was just watched, unsaved retouches included.
+          if (playFrom === "editor" && result) { setResult({ ...result, r: { ...result.r, variantes: result.r.variantes.map((x, j) => (j === editing ? { ...x, timeline: tl, duration: tl.duree } : x)) } }); setEditorTl(null); }
+          keepReel(tl); setStep("export");
+        }}
+        onRetouch={shot => { if (playFrom !== "editor") setEditorTl(null); setFocusShot(shot); setStep("editor"); }} /></ThemeProvider>;
+    }
     case "editor": {
       const v = result?.r.variantes[editing];
       if (!result || !v) return null;
       const memory = brand?.memory ?? emptyMemory();
       // The editor stays dark in « Atelier clair »: footage is judged on a dark ground.
-      return <ThemeProvider initial="dark"><StatusBar style="light" /><EditorScreen key={editing} timeline={editorTl ?? v.timeline} onChange={setEditorTl} brief={composeBrief(brief)}
+      return <ThemeProvider initial="dark"><StatusBar style="light" /><EditorScreen key={editing} timeline={editorTl ?? v.timeline} onChange={setEditorTl} initialShot={focusShot} onPlay={() => play("editor")} brief={composeBrief(brief)}
         clips={Object.fromEntries(chosen.map(r => [r.id, { duration: r.duration }]))} bad={chosen.filter(r => r.badges.includes("blur") || r.badges.includes("dark")).map(r => r.id)}
         style={montageStyle(brand?.dna ?? null, memory.rules.map(r => r.text))} memory={memory}
         onMemory={m => { if (!brand) return; const b = { ...brand, memory: m }; setBrand(b); saveBrand(b); }}

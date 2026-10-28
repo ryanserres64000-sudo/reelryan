@@ -35,6 +35,8 @@ public class MadaVideoModule: Module {
       Prop("source") { (view: MadaVideoView, source: [String: Any]) in view.load(source) }
       AsyncFunction("play") { (view: MadaVideoView) in view.player.play() }
       AsyncFunction("pause") { (view: MadaVideoView) in view.player.pause() }
+      // The full-screen player (étape 3 de la refonte): sound on or off without touching the edit.
+      AsyncFunction("setMuted") { (view: MadaVideoView, muted: Bool) in view.player.isMuted = muted }
       AsyncFunction("seek") { (view: MadaVideoView, seconds: Double) in
         _ = await view.player.seek(to: time(seconds), toleranceBefore: .zero, toleranceAfter: .zero)
       }

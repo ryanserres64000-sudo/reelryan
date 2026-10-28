@@ -10,6 +10,7 @@ import { handleRetouche } from "./lib/retouche.js";
 import { handleVisuel } from "./lib/visuel.js";
 import { handleVoix } from "./lib/voix.js";
 import { handleCallback, handleInstagram } from "./lib/instagram.js";
+import { handleReseau, handleReseauCallback } from "./lib/reseaux.js";
 import { handleCompte, handleOffres, handleQuota } from "./lib/quota.js";
 import { checkAccess } from "./lib/claude.js";
 import { handleAchat, handleNotification } from "./lib/apple.js";
@@ -40,6 +41,13 @@ http.createServer(async (req, res) => {
     return url.pathname === "/api/achat" ? handleAchat(req, res, body) : handleNotification(req, res, body);
   }
   if (url.pathname === "/api/instagram/callback") return handleCallback(req, res);
+  const reseau = /^\/api\/reseau\/(tiktok|youtube)(\/callback)?$/.exec(url.pathname);
+  if (reseau) {
+    if (reseau[2]) return handleReseauCallback(req, res, reseau[1]);
+    let body = null;
+    if (req.method === "POST") { try { body = await readJson(req, 10_000); } catch { res.statusCode = 413; return res.end(); } }
+    return handleReseau(req, res, body, reseau[1]);
+  }
   if (url.pathname === "/api/instagram") {
     let body = null;
     if (req.method === "POST") { try { body = await readJson(req, 6_000_000); } catch { res.statusCode = 413; return res.end(); } }

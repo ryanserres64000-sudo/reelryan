@@ -5,20 +5,24 @@ import { emptyMemory, type Memory } from "../../../core/corrections";
 import { addRule, insights, isInstagramLink, matchReels, referenceKey, type Learning, type Post } from "../../../core/insights";
 import { fr } from "../copy/fr";
 import { Button, Card, Chip, MadaSays, Screen, Skeleton, Text, haptic, tokens, typeStyle, useTheme, useToast } from "../design";
-import { connectInstagram, disconnectInstagram, instagramStatus, loadCaptures, readCapture, saveCaptures, type Status } from "../social/instagram";
+import { NETWORKS, connectInstagram, disconnectInstagram, instagramStatus, loadCaptures, readCapture, saveCaptures, type Network, type Status } from "../social/instagram";
 
 type Props = { memory: Memory | null; reels: { id: string; at: string; duree: number }[]; onMemory: (m: Memory) => void; onBack: () => void };
 const t = fr.stats;
 const n = (v: number) => v.toLocaleString("fr-FR");
 const day = (iso: string) => new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "short" });
 
-// Tes chiffres (étape 8 ; étude, ch. 5 « Connecter les réseaux »): Instagram connected read-only, or
-// screenshots of the statistics while Meta reviews the app; what works, said in plain sentences with
+// Tes chiffres (étapes 8 et 9 ; étude, ch. 5 « Connecter les réseaux »): Instagram, TikTok or YouTube
+// connected read-only, each read on its own, or screenshots of Instagram's statistics while Meta
+// reviews the app; what works, said in plain sentences with
 // the number of posts behind them, kept in the carnet in one tap. Nothing here is needed to use Ma DA.
 export function StatsScreen({ memory, reels, onMemory, onBack }: Props) {
   const { c } = useTheme();
   const toast = useToast();
-  const [status, setStatus] = useState<Status | null>(null);
+  const [net, setNet] = useState<Network>("instagram");
+  const [all, setAll] = useState<Partial<Record<Network, Status>>>({});
+  const status = all[net] ?? null;
+  const setStatus = (st: Status) => setAll(x => ({ ...x, [net]: st }));
   const [captures, setCaptures] = useState<Post[]>([]);
   const [say, setSay] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -26,18 +30,19 @@ export function StatsScreen({ memory, reels, onMemory, onBack }: Props) {
   const [note, setNote] = useState("");
   const m = memory ?? emptyMemory();
 
-  useEffect(() => { instagramStatus().then(setStatus); loadCaptures().then(setCaptures); }, []);
-  const posts = useMemo(() => [...(status?.state === "in" ? status.posts : []), ...captures].sort((a, b) => b.at.localeCompare(a.at)), [status, captures]);
+  useEffect(() => { loadCaptures().then(setCaptures); }, []);
+  useEffect(() => { if (!all[net]) instagramStatus(false, net).then(st => setAll(x => ({ ...x, [net]: st }))); }, [net]);
+  const posts = useMemo(() => [...(status?.state === "in" ? status.posts : []), ...(net === "instagram" ? captures : [])].sort((a, b) => b.at.localeCompare(a.at)), [status, captures]);
   const found = useMemo(() => insights(posts, matchReels(reels, posts)), [posts, reels]);
 
   const connect = async () => {
     setBusy(true); setSay(null);
-    const r = await connectInstagram().catch(() => "error" as const);
-    if (r === "ok") { haptic("success"); setStatus(await instagramStatus(true)); }
+    const r = await connectInstagram(net).catch(() => "error" as const);
+    if (r === "ok") { haptic("success"); setStatus(await instagramStatus(true, net)); }
     else if (r !== "cancel") setSay(r === "refus" ? t.refused : t.error);
     setBusy(false);
   };
-  const disconnect = async () => { await disconnectInstagram().catch(() => {}); setStatus({ state: "out" }); setSay(t.disconnected); };
+  const disconnect = async () => { await disconnectInstagram(net).catch(() => {}); setStatus({ state: "out" }); setSay(t.disconnected); };
   const capture = async () => {
     const pick = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], quality: 1 });
     if (pick.canceled || !pick.assets[0]) return;
@@ -60,29 +65,34 @@ export function StatsScreen({ memory, reels, onMemory, onBack }: Props) {
 
   return (
     <Screen title={t.title} detail={t.detail} onBack={onBack} footer={say ? <MadaSays text={say} /> : undefined}>
+      <View style={styles.row} accessibilityRole="radiogroup" accessibilityLabel={t.networksLabel}>
+        {NETWORKS.map(x => <Chip key={x} label={t.networks[x]} selected={net === x} onPress={() => { setNet(x); setSay(null); }} />)}
+      </View>
       <Card>
         {!status ? <Skeleton /> : status.state === "in" ? (
           <View style={styles.block}>
             <Text variant="headline">{t.connected(status.compte.nom)}</Text>
             {status.compte.abonnes !== null ? <Text variant="callout" tone="textMuted">{t.followers(n(status.compte.abonnes))}</Text> : null}
             <View style={styles.row}>
-              <Chip label={t.refresh} disabled={busy} onPress={async () => { setBusy(true); setStatus(await instagramStatus(true)); setBusy(false); }} />
+              <Chip label={t.refresh} disabled={busy} onPress={async () => { setBusy(true); setStatus(await instagramStatus(true, net)); setBusy(false); }} />
               <Chip label={t.disconnect} onPress={disconnect} />
             </View>
           </View>
         ) : (
           <View style={styles.block}>
-            <Text variant="headline">{t.connect}</Text>
-            <Text variant="callout" tone="textMuted">{status.state === "out" && status.expired ? t.expired : status.state === "closed" ? status.message : status.state === "offline" ? t.offline : t.connectWhy}</Text>
-            {status.state === "out" || status.state === "error" ? <Button label={t.connect} disabled={busy} onPress={connect} haptic /> : null}
+            <Text variant="headline">{t.connectTo(t.networks[net])}</Text>
+            <Text variant="callout" tone="textMuted">{status.state === "out" && status.expired ? t.expired : status.state === "closed" ? status.message : status.state === "offline" ? t.offline : net === "tiktok" ? t.connectWhyTiktok : net === "youtube" ? t.connectWhyYoutube : t.connectWhy}</Text>
+            {status.state === "out" || status.state === "error" ? <Button label={t.connectTo(t.networks[net])} disabled={busy} onPress={connect} haptic /> : null}
           </View>
         )}
       </Card>
 
-      <View style={styles.block}>
-        <Button variant="secondary" label={t.capture} disabled={busy} onPress={capture} />
-        <Text variant="caption" tone="textMuted">{t.captureWhy}</Text>
-      </View>
+      {net === "instagram" ? (
+        <View style={styles.block}>
+          <Button variant="secondary" label={t.capture} disabled={busy} onPress={capture} />
+          <Text variant="caption" tone="textMuted">{t.captureWhy}</Text>
+        </View>
+      ) : null}
 
       <View style={styles.block}>
         <Text variant="headline">{t.works}</Text>

@@ -7,7 +7,9 @@ import type { Memory } from "./corrections.ts";
 export type Post = {
   id: string; at: string; type: "reel" | "post" | "story"; legende: string; lien: string | null;
   vues: number | null; portee: number | null; likes: number | null; commentaires: number | null; partages: number | null; enregistrements: number | null;
-  source: "instagram" | "capture";
+  source: "instagram" | "capture" | "tiktok" | "youtube";
+  // Seconds, when the platform gives it (TikTok, YouTube); Instagram does not.
+  duree?: number | null;
 };
 export type Learning = { key: string; phrase: string; regle: string; ratio: number; base: number };
 export type Insights = { base: number; attente: string | null; items: Learning[]; heure: Learning | null };
@@ -26,11 +28,13 @@ export function sanitizePosts(raw: unknown): Post[] {
     if (!r || typeof r !== "object") return [];
     const p = r as Record<string, unknown>, at = typeof p.at === "string" && !Number.isNaN(Date.parse(p.at)) ? new Date(p.at).toISOString() : null;
     if (!at) return [];
-    const lien = typeof p.lien === "string" && /^https:\/\/(www\.)?instagram\.com\//.test(p.lien) ? p.lien : null;
+    const lien = typeof p.lien === "string" && /^https:\/\/((www|m|vm)\.)?(instagram\.com|tiktok\.com|youtube\.com|youtu\.be)\//.test(p.lien) ? p.lien : null;
+    const duree = num(p.duree);
     return [{
       id: str(p.id, 60) || at, at, type: p.type === "post" || p.type === "story" ? p.type : "reel", legende: str(p.legende, 2200), lien,
       vues: num(p.vues), portee: num(p.portee), likes: num(p.likes), commentaires: num(p.commentaires), partages: num(p.partages), enregistrements: num(p.enregistrements),
-      source: p.source === "capture" ? "capture" : "instagram",
+      source: p.source === "capture" || p.source === "tiktok" || p.source === "youtube" ? p.source : "instagram",
+      ...(duree !== null ? { duree } : {}),
     }];
   }).sort((a, b) => b.at.localeCompare(a.at)).slice(0, MAX_POSTS);
 }
@@ -56,7 +60,7 @@ type Split = { key: string; test: (p: Post) => boolean | null; yes: string; no: 
 // Each comparison: the posts that have the trait against those that do not, by median views.
 function splits(durations: Record<string, { duree: number }>): Split[] {
   return [
-    { key: "duree", test: p => (durations[p.id] ? durations[p.id].duree <= 15 : null), yes: "courts (15 s ou moins)", no: "plus longs que 15 s", regleOui: "Les Reels courts, 15 s ou moins, marchent mieux chez toi.", regleNon: "Les Reels de plus de 15 s marchent mieux chez toi." },
+    { key: "duree", test: p => { const d = p.duree ?? durations[p.id]?.duree; return d == null ? null : d <= 15; }, yes: "courts (15 s ou moins)", no: "plus longs que 15 s", regleOui: "Les Reels courts, 15 s ou moins, marchent mieux chez toi.", regleNon: "Les Reels de plus de 15 s marchent mieux chez toi." },
     { key: "legende", test: p => p.legende.replace(/#\S+/g, "").trim().length < 80, yes: "à légende courte", no: "à légende longue", regleOui: "Une légende courte marche mieux chez toi.", regleNon: "Une légende qui raconte marche mieux chez toi." },
     { key: "hashtags", test: p => hashtags(p.legende) <= 3, yes: "avec 3 hashtags ou moins", no: "avec plus de 3 hashtags", regleOui: "Peu de hashtags, 3 au plus, marchent mieux chez toi.", regleNon: "Plus de hashtags marchent mieux chez toi." },
     { key: "weekend", test: p => { const d = new Date(p.at).getDay(); return d === 0 || d === 6; }, yes: "publiés le week-end", no: "publiés en semaine", regleOui: "Le week-end est ton meilleur moment pour publier.", regleNon: "La semaine est ton meilleur moment pour publier." },

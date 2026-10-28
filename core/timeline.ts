@@ -67,7 +67,8 @@ export type Calque = {
   x: number; y: number; w: number; h: number; rotation: number; opacite: number;
   fusion: OneOf<typeof FUSIONS>; arrondi: number; detourage: OneOf<typeof DETOURAGES>; volume: number; cles: Cle[];
 };
-export type Texte = { texte: string; debut: number; fin: number; position: OneOf<typeof TEXT_POSITIONS>; style: OneOf<typeof TEXT_STYLES>; impose: boolean; accent: string };
+// `lie`: the voice-over a subtitle line belongs to (it moves and goes with it).
+export type Texte = { texte: string; debut: number; fin: number; position: OneOf<typeof TEXT_POSITIONS>; style: OneOf<typeof TEXT_STYLES>; impose: boolean; accent: string; lie?: string };
 export type Effet = { t: number; type: OneOf<typeof EFFETS> };
 export type Musique = {
   mode: OneOf<typeof MUSIQUE_MODES>;
@@ -177,6 +178,7 @@ function sanitizeTextes(raw: unknown, duration: number, brief: string | undefine
       impose: imposed.includes(norm(texte)) || (!brief && !!t.impose),
       // The duo's accent word goes with titles only (core/typo.ts).
       accent: style === "accroche" || style === "titre" ? str(t.accent, 30) : "",
+      ...(t.lie ? { lie: str(t.lie, 40) } : {}),
     };
   }).filter(t => t.texte && t.fin - t.debut >= MIN_TEXT);
   for (const [i, t] of imposedTexts(brief).entries()) if (!textes.some(x => norm(x.texte) === imposed[i])) warnings.push(`Texte demandé absent du montage : « ${t} »`);

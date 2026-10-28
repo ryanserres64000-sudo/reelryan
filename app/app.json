@@ -111,6 +111,13 @@
           "savePhotosPermission": "Ma DA enregistre tes montages et tes visuels dans Photos.",
           "isAccessMediaLocationEnabled": false
         }
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Ma DA utilise le micro seulement quand tu enregistres ta voix off. L'enregistrement reste sur ton iPhone.",
+          "recordAudioAndroid": false
+        }
       ]
     ],
     "web": {

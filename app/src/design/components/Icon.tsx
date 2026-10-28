@@ -27,6 +27,8 @@ const PATHS = {
   close: <Path d="M6 6l12 12M18 6L6 18" />,
   soundOff: <><Path d="M4 9h4l5-4v14l-5-4H4z" /><Path d="M17 9l4 6M21 9l-4 6" /></>,
   check: <Path d="M5 12l5 5 9-10" />,
+  mic: <><Rect x={9} y={3} width={6} height={11} rx={3} /><Path d="M5 11a7 7 0 0 0 14 0M12 18v3" /></>,
+  voice: <Path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2" />,
 } as const;
 export type IconName = keyof typeof PATHS;
 

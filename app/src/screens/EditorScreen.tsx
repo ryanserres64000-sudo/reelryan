@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
 import { applyCorrection, learn, type Memory } from "../../../core/corrections";
-import { addTexte, changedPlans, deleteAudio, deleteCalque, deleteEffet, deletePlan, deleteTexte, duplicatePlan, isLocked, movePlan, planTimes, push, redo, replaceSource, setAudio, setCalque, setDuo, setLogo, setPlan, setSubtitles, setTexte, splitPlan, startHistory, toDoc, trimPlan, undo, type EditDoc, type History } from "../../../core/edit";
+import { addTexte, addVoiceOver, changedPlans, deleteAudio, deleteCalque, deleteEffet, deletePlan, deleteTexte, duplicatePlan, isLocked, movePlan, planTimes, push, redo, replaceSource, setAudio, setCalque, setDuo, setLogo, setPlan, setSubtitles, setTexte, splitPlan, startHistory, toDoc, trimPlan, undo, type EditDoc, type History } from "../../../core/edit";
 import { exportPlan } from "../../../core/export";
 import { clock } from "../../../core/playback";
 import { ZOOM, clampZoom, lanes as laneList, type Mode } from "../../../core/tracks";
@@ -16,6 +16,7 @@ import { fr } from "../copy/fr";
 import { Button, Card, Chip, Icon, MadaSays, Screen, Sheet, Text, haptic, tokens, typeStyle, useTheme, useToast, type IconName } from "../design";
 import { aiRetouche } from "../flow/retouche";
 import { DuoTitle } from "../video/DuoTitle";
+import { VoiceSheet } from "../voice/VoiceSheet";
 
 type Props = {
   timeline: TimelineV1; clips: Clips; bad: string[]; brief: string; style: object; memory: Memory;
@@ -66,6 +67,7 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
   const [selection, setSelection] = useState<Selection>(null);
   const [dragging, setDragging] = useState(false);
   const [adding, setAdding] = useState(false);
+  const [voicing, setVoicing] = useState(false);
   const file = useMemo(() => exportPlan(tl)[0], [tl]);
   const src = useMemo(() => sources?.() ?? null, []);
   const ids = { plans: d.planIds, textes: d.texteIds };
@@ -179,7 +181,16 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
       </View>
       <Sheet visible={adding} onClose={() => setAdding(false)} title={fr.tracks.addTitle}>
         <AddChoice icon="text" title={fr.tracks.addText} why={fr.tracks.addTextWhy} onPress={() => { setAdding(false); apply(addTexte(d, t.newText, time + 2)); setTool("texte"); }} />
+        <AddChoice icon="voice" title={fr.tracks.addVoice} why={fr.tracks.addVoiceWhy} onPress={() => { setAdding(false); setPlaying(false); setVoicing(true); }} />
       </Sheet>
+      <VoiceSheet visible={voicing} onClose={() => setVoicing(false)} at={time} duree={tl.duree} brief={brief} ducking={tl.musique.ducking_voix}
+        onPlace={(a, lines, ducking) => {
+          const next = addVoiceOver(d, a, lines, ducking);
+          setVoicing(false);
+          if (next === d) return;
+          apply(next); if (mode === "simple" && !laneList(next.timeline, { plans: next.planIds, textes: next.texteIds }, "simple").shown.some(l => l.key === "voix")) { setMode("complet"); saveMode("complet"); }
+          toast({ message: fr.voice.placed, action: fr.nav.undo, onAction: () => setH(x => undo(x)) });
+        }} />
 
       <View style={styles.field}>
         <View style={styles.row}>

@@ -9,8 +9,8 @@ export type Periode = (typeof PERIODES)[number];
 export type Offre = { id: Periode; produit: string; prix: string; periode: Periode; badge: string | null };
 export type Config = {
   version: 1; lancement: boolean; preselection: Periode; offres: Offre[];
-  gratuit: { montages: number; visuels: number; secondes: number };
-  pro: { montages: number; visuels: number; retouches: number; secondes: number };
+  gratuit: { montages: number; visuels: number; secondes: number; voix: number };
+  pro: { montages: number; visuels: number; retouches: number; secondes: number; voix: number };
 };
 
 export const DEFAULT_CONFIG: Config = {
@@ -21,9 +21,10 @@ export const DEFAULT_CONFIG: Config = {
     { id: "semaine", produit: "mada.pro.semaine", prix: "3,99 €", periode: "semaine", badge: null },
   ],
   // ch. 8 §2 : 3 montages on rushes of 90 s at most. Visuals cost about half a montage, so 3 more.
-  gratuit: { montages: 3, visuels: 3, secondes: 90 },
+  // Voice-overs (étape 5 de la refonte) cost 2 to 5 cents each with ElevenLabs: 3 offered, 30 a month in Pro.
+  gratuit: { montages: 3, visuels: 3, secondes: 90, voix: 3 },
   // ch. 8 §2 et §5 : 30 montages, 150 retouches a month, rushes of 10 min.
-  pro: { montages: 30, visuels: 60, retouches: 150, secondes: 600 },
+  pro: { montages: 30, visuels: 60, retouches: 150, secondes: 600, voix: 30 },
 };
 
 const int = (v: unknown, d: number, lo: number, hi: number) => (typeof v === "number" && Number.isInteger(v) ? Math.min(hi, Math.max(lo, v)) : d);
@@ -39,8 +40,8 @@ export function sanitizeConfig(raw: unknown): Config {
     version: 1, lancement: r.lancement !== false,
     preselection: list.some(x => x.id === r.preselection) ? r.preselection : list.some(x => x.id === "an") ? "an" : list[0].id,
     offres: list,
-    gratuit: { montages: int(g.montages, d.gratuit.montages, 0, 10), visuels: int(g.visuels, d.gratuit.visuels, 0, 20), secondes: int(g.secondes, d.gratuit.secondes, 30, 180) },
-    pro: { montages: int(p.montages, d.pro.montages, 1, 200), visuels: int(p.visuels, d.pro.visuels, 1, 500), retouches: int(p.retouches, d.pro.retouches, 1, 1000), secondes: int(p.secondes, d.pro.secondes, 60, 1800) },
+    gratuit: { montages: int(g.montages, d.gratuit.montages, 0, 10), visuels: int(g.visuels, d.gratuit.visuels, 0, 20), secondes: int(g.secondes, d.gratuit.secondes, 30, 180), voix: int(g.voix, d.gratuit.voix, 0, 20) },
+    pro: { montages: int(p.montages, d.pro.montages, 1, 200), visuels: int(p.visuels, d.pro.visuels, 1, 500), retouches: int(p.retouches, d.pro.retouches, 1, 1000), secondes: int(p.secondes, d.pro.secondes, 60, 1800), voix: int(p.voix, d.pro.voix, 0, 300) },
   };
 }
 
@@ -53,32 +54,33 @@ export function perMonth(prix: string, periode: Periode): number | null {
 
 // ---------- Counting what the AI does ----------
 
-export type Kind = "montage" | "visuel" | "retouche";
+export type Kind = "montage" | "visuel" | "retouche" | "voix";
 // Free uses are counted once for the account's life (an essai sans carte, ch. 8 §1); Pro uses per month.
-export type Usage = { gratuit: { montages: number; visuels: number }; mois: string; pro: { montages: number; visuels: number; retouches: number } };
-export const emptyUsage = (mois: string): Usage => ({ gratuit: { montages: 0, visuels: 0 }, mois, pro: { montages: 0, visuels: 0, retouches: 0 } });
+// `voix` came later: absent in older counters, read as 0.
+export type Usage = { gratuit: { montages: number; visuels: number; voix?: number }; mois: string; pro: { montages: number; visuels: number; retouches: number; voix?: number } };
+export const emptyUsage = (mois: string): Usage => ({ gratuit: { montages: 0, visuels: 0, voix: 0 }, mois, pro: { montages: 0, visuels: 0, retouches: 0, voix: 0 } });
+const KEY = { montage: "montages", visuel: "visuels", retouche: "retouches", voix: "voix" } as const;
 export const monthOf = (d: Date) => d.toISOString().slice(0, 7);
 
 export type Verdict = { ok: boolean; restant: number; raison: "gratuit_epuise" | "plafond_pro" | null };
 export function check(kind: Kind, pro: boolean, u: Usage, cfg: Config, now = new Date()): Verdict {
   const usage = u.mois === monthOf(now) ? u : { ...u, mois: monthOf(now), pro: emptyUsage("").pro };
   if (pro) {
-    const cap = kind === "montage" ? cfg.pro.montages : kind === "visuel" ? cfg.pro.visuels : cfg.pro.retouches;
-    const used = kind === "montage" ? usage.pro.montages : kind === "visuel" ? usage.pro.visuels : usage.pro.retouches;
+    const k = KEY[kind], cap = cfg.pro[k], used = usage.pro[k] ?? 0;
     return { ok: used < cap, restant: Math.max(0, cap - used), raison: used < cap ? null : "plafond_pro" };
   }
   // A retouch of a free creation is included (ch. 8 §2 : « Incluses sur les 3 montages »).
   const made = usage.gratuit.montages + usage.gratuit.visuels > 0;
   if (kind === "retouche") return { ok: made, restant: made ? 1 : 0, raison: made ? null : "gratuit_epuise" };
-  const cap = kind === "montage" ? cfg.gratuit.montages : cfg.gratuit.visuels, used = kind === "montage" ? usage.gratuit.montages : usage.gratuit.visuels;
+  const k = kind === "montage" ? "montages" : kind === "visuel" ? "visuels" : "voix", cap = cfg.gratuit[k], used = usage.gratuit[k] ?? 0;
   return { ok: used < cap, restant: Math.max(0, cap - used), raison: used < cap ? null : "gratuit_epuise" };
 }
 export function consume(kind: Kind, pro: boolean, u: Usage, now = new Date()): Usage {
   const usage = u.mois === monthOf(now) ? u : { ...u, mois: monthOf(now), pro: emptyUsage("").pro };
-  if (pro) return { ...usage, pro: { ...usage.pro, [kind === "montage" ? "montages" : kind === "visuel" ? "visuels" : "retouches"]: usage.pro[kind === "montage" ? "montages" : kind === "visuel" ? "visuels" : "retouches"] + 1 } };
+  if (pro) { const k = KEY[kind]; return { ...usage, pro: { ...usage.pro, [k]: (usage.pro[k] ?? 0) + 1 } }; }
   if (kind === "retouche") return usage;
-  const k = kind === "montage" ? "montages" : "visuels";
-  return { ...usage, gratuit: { ...usage.gratuit, [k]: usage.gratuit[k] + 1 } };
+  const k = kind === "montage" ? "montages" : kind === "visuel" ? "visuels" : "voix";
+  return { ...usage, gratuit: { ...usage.gratuit, [k]: (usage.gratuit[k] ?? 0) + 1 } };
 }
 
 // ---------- When the paywall shows ----------

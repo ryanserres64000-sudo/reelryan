@@ -34,6 +34,8 @@ enum Composer {
     let plan = RenderPlan(size: size)
     let filler = try await Filler.clip()
     var at = 0.0, voice: [(Double, Double)] = []
+    // The level of each shot's own sound, on the audio track it went to.
+    var levels: [CMPersistentTrackID: [(Double, Float)]] = [:]
 
     for (i, p) in t.plans.enumerated() {
       guard let uriString = sources.rushes[p.source], let uri = URL(string: uriString) else { throw RenderError.missingRush(p.source) }
@@ -59,6 +61,7 @@ enum Composer {
           try audioTrack.insertTimeRange(range, of: srcAudio, at: target.start)
           if speed != 1 { audioTrack.scaleTimeRange(CMTimeRange(start: target.start, duration: range.duration), toDuration: target.duration) }
           voice.append((start, start + length))
+          levels[audioTrack.trackID, default: []].append((start, Float(min(2, max(0, p.volume ?? 1)))))
         }
         let shown = CGRect(origin: .zero, size: natural).applying(transform)
         plan.shots.append(Shot(index: i, start: start, end: start + length, plan: p, track: track.trackID, still: nil, orient: orientation(transform), size: CGSize(width: abs(shown.width), height: abs(shown.height))))
@@ -69,9 +72,32 @@ enum Composer {
     let duration = min(at, file.duree)
     plan.overlays = try Overlay.make(t, file: file, sources: sources, duration: duration)
 
+    // Voice-overs and recordings (étape 5), each on its own track so they may overlap, faded in and
+    // out; the music goes down under them like under the voices of the rushes.
+    var params: [AVMutableAudioMixInputParameters] = []
+    for a in t.audios ?? [] where a.t < duration && a.fin > a.debut {
+      guard let uri = sources.audios?[a.id], let url = URL(string: uri),
+            let src = try await AVURLAsset(url: url).loadTracks(withMediaType: .audio).first,
+            let track = comp.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) else { continue }
+      let full = try await src.load(.timeRange).duration.seconds
+      let length = min(a.fin, full) - a.debut
+      let kept = min(length, duration - a.t)
+      guard kept > 0.05 else { continue }
+      try track.insertTimeRange(CMTimeRange(start: time(a.debut), duration: time(kept)), of: src, at: time(a.t))
+      let p = AVMutableAudioMixInputParameters(track: track), v = Float(min(2, max(0, a.volume)))
+      p.setVolume(v, at: .zero)
+      if a.fondu_entree > 0 { p.setVolumeRamp(fromStartVolume: 0, toEndVolume: v, timeRange: CMTimeRange(start: time(a.t), duration: time(min(a.fondu_entree, kept)))) }
+      if a.fondu_sortie > 0 { let f = min(a.fondu_sortie, kept); p.setVolumeRamp(fromStartVolume: v, toEndVolume: 0, timeRange: CMTimeRange(start: time(a.t + kept - f), duration: time(f))) }
+      params.append(p)
+      voice.append((a.t, a.t + kept))
+    }
+
     // Music (mode « fichier »): the chosen passage from 0, lowered under voices, faded out at the end.
     // In « son tendance » mode there is no music: the person adds the sound in Instagram (ch. 9).
-    var params: [AVMutableAudioMixInputParameters] = []
+    // Overlapping or close voices make one span, so the music ramps never overlap.
+    voice = voice.sorted { $0.0 < $1.0 }.reduce(into: []) { out, r in
+      if let last = out.last, r.0 <= last.1 + 0.5 { out[out.count - 1].1 = max(last.1, r.1) } else { out.append(r) }
+    }
     if t.musique.mode == "fichier", let m = sources.music, let url = URL(string: m.uri),
        let srcMusic = try await AVURLAsset(url: url).loadTracks(withMediaType: .audio).first,
        let music = comp.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {
@@ -104,8 +130,12 @@ enum Composer {
       let p = AVMutableAudioMixInputParameters(track: sfx); p.setVolume(0.7, at: .zero)
       params.append(p)
     }
-    // The voices kept from the rushes play as recorded.
-    for track in [aa, ab].compactMap({ $0 }) where !track.segments.isEmpty { params.append(AVMutableAudioMixInputParameters(track: track)) }
+    // The voices kept from the rushes play at each shot's level.
+    for track in [aa, ab].compactMap({ $0 }) where !track.segments.isEmpty {
+      let p = AVMutableAudioMixInputParameters(track: track)
+      for (start, level) in levels[track.trackID] ?? [] { p.setVolume(level, at: time(start)) }
+      params.append(p)
+    }
     let mix = AVMutableAudioMix(); mix.inputParameters = params
 
     let video = AVMutableVideoComposition()

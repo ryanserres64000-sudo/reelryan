@@ -118,11 +118,28 @@ export function addAudio(d: EditDoc, a: Omit<AudioClip, "id"> & { id?: string })
   return withAudios(d, [...(d.timeline.audios ?? []), { ...a, id }], id);
 }
 export function setAudio(d: EditDoc, id: string, patch: Partial<Omit<AudioClip, "id">>): EditDoc {
-  const list = d.timeline.audios ?? [];
-  if (!list.some(a => a.id === id)) return d;
-  return withAudios(d, list.map(a => (a.id === id ? { ...a, ...patch } : a)), id);
+  const list = d.timeline.audios ?? [], a = list.find(x => x.id === id);
+  if (!a) return d;
+  // Its subtitles follow the voice when it moves.
+  const shift = patch.t !== undefined ? patch.t - a.t : 0;
+  const moved = shift ? { ...d, timeline: { ...d.timeline, textes: d.timeline.textes.map(x => (x.lie === id ? { ...x, debut: round(x.debut + shift), fin: round(x.fin + shift) } : x)) } } : d;
+  return withAudios(moved, list.map(x => (x.id === id ? { ...x, ...patch } : x)), id);
 }
-export const deleteAudio = (d: EditDoc, id: string): EditDoc => withAudios(d, (d.timeline.audios ?? []).filter(a => a.id !== id));
+// The voice goes with its subtitles.
+export function deleteAudio(d: EditDoc, id: string): EditDoc {
+  const keep = d.timeline.textes.map(x => x.lie !== id);
+  const rest = { ...d, texteIds: d.texteIds.filter((_, i) => keep[i]), timeline: { ...d.timeline, textes: d.timeline.textes.filter((_, i) => keep[i]) } };
+  return withAudios(rest, (d.timeline.audios ?? []).filter(a => a.id !== id));
+}
+// A voice-over and its subtitle lines in one step (one « Annuler »).
+// `ducking`: whether the music goes down while someone speaks (left as it was when not given).
+export function addVoiceOver(d: EditDoc, a: Omit<AudioClip, "id"> & { id: string }, lines: Texte[], ducking?: boolean): EditDoc {
+  const withVoice = addAudio(d, a);
+  if (withVoice === d) return d;
+  const ids = lines.map(() => newId("t"));
+  const next = withTextes(withVoice, [...withVoice.timeline.textes, ...lines], [...withVoice.texteIds, ...ids], [...withVoice.locked, ...ids]);
+  return ducking === undefined ? next : { ...next, timeline: { ...next.timeline, musique: { ...next.timeline.musique, ducking_voix: ducking } } };
+}
 
 // ---------- Layers over the frame (picture in picture, cut-out, keyframes) ----------
 

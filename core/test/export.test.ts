@@ -60,3 +60,9 @@ test("offline caption from the brief and the brand, honest and short", () => {
   assert.deepEqual(c.hashtags, ["#chezlou", "#bayonne", "#restaurant", "#faitmaison"]);
   assert.deepEqual(offlineCaption("", null), { texte: "", hashtags: [] });
 });
+
+test("every AI export says so in its metadata, a hand-made one does not (AI Act, art. 50)", () => {
+  const t = tl();
+  for (const f of exportPlan(t)) assert.match(f.metadonnees["com.apple.quicktime.description"], /assisté par IA/);
+  for (const f of exportPlan(t, false)) assert.equal(f.metadonnees["com.apple.quicktime.description"], undefined);
+});

@@ -3,7 +3,7 @@ import { fetch } from "expo/fetch";
 import { compactDna } from "../../../core/brand";
 import { KINDS, keepLockedLayers, naturalDesign, offlineDesign, sanitizeDesign, type BrandLook, type Design, type VisualBrief } from "../../../core/design";
 import type { Brand } from "../brand/types";
-import { SERVER, serverHeaders } from "../flow/server";
+import { SERVER, aiUrl, serverHeaders } from "../flow/server";
 
 export type Photo = { id: string; uri: string };
 export type VisualResult = { design: Design; concept: string; relecture: string[]; byAi: boolean };
@@ -46,7 +46,7 @@ export async function createVisual(brief: VisualBrief, brand: Brand | null, phot
     const r = naturalDesign(offlineDesign(brief, look, { photo: photos.length > 0, logo: !!brand?.logoUri }), look);
     return { design: r.design, concept: "", relecture: r.fixes, byAi: false };
   };
-  if (!SERVER.url || !ai) return offline();
+  if (!aiUrl() || !ai) return offline();
   try {
     const out = await call({ brief, adn: brand?.dna ? compactDna(brand.dna) : "", couleurs: look.couleurs, polices: look.polices, images: await images(photos, brand) }, signal);
     const { w, h } = KINDS[brief.kind];
@@ -59,7 +59,7 @@ export async function createVisual(brief: VisualBrief, brand: Brand | null, phot
 
 // A retouch in one sentence; what the person moved by hand comes back as it was. Null offline.
 export async function retouchVisual(d: Design, demande: string, brief: VisualBrief, brand: Brand | null, photos: Photo[], signal?: AbortSignal): Promise<{ design: Design; summary: string; relecture: string[] } | null> {
-  if (!SERVER.url) return null;
+  if (!aiUrl()) return null;
   const look = lookOf(brand);
   const out = await call({ mode: "retoucher", demande, design: d, brief, adn: brand?.dna ? compactDna(brand.dna) : "", couleurs: look.couleurs, polices: look.polices, images: await images(photos, brand) }, signal);
   const next = sanitizeDesign(out.design, d.w, d.h, Object.keys(assetsOf(photos, brand)));

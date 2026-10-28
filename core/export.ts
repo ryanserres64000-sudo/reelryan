@@ -20,7 +20,19 @@ export type PlacedText = Texte & { box: Box };
 export type ExportFile = {
   plateforme: Plateforme; nom: string; w: number; h: number; fps: number; duree: number; coupe: boolean;
   textes: PlacedText[]; sous_titres: Box | null; logo: Box | null; zone: Box; legende: string;
+  metadonnees: Record<string, string>;
 };
+
+// AI Act, article 50 (étude, ch. 9) : every file made with the AI says so in machine-readable metadata,
+// not on the image. The native module writes these as AVMetadataItem (QuickTime keys) and, once
+// chosen, as Content Credentials (C2PA) [À VÉRIFIER : outil C2PA sur iOS]. A montage made by hand says
+// only the software.
+export function provenance(ia: boolean): Record<string, string> {
+  return {
+    "com.apple.quicktime.software": "Ma DA",
+    ...(ia ? { "com.apple.quicktime.description": "Montage assisté par IA (Ma DA, avec Claude d'Anthropic) à partir de vidéos réelles. Aucune image générée." } : {}),
+  };
+}
 
 // The area no platform button or caption covers, in 1080 × 1920 px.
 export function safeZone(p: Plateforme): Box {
@@ -56,7 +68,7 @@ export function captionFor(t: TimelineV1, p: Plateforme, legende = t.legende): s
 }
 
 // One file per platform the person ticked; an edit longer than the platform allows is cut there.
-export function exportPlan(t: TimelineV1): ExportFile[] {
+export function exportPlan(t: TimelineV1, ia = true): ExportFile[] {
   return t.exports.map(({ plateforme: p, duree_max }) => {
     const duree = Math.min(t.duree, duree_max), z = safeZone(p);
     const sub = t.sous_titres.actifs
@@ -81,7 +93,7 @@ export function exportPlan(t: TimelineV1): ExportFile[] {
     for (let i = 0; i < textes.length; i++) textes[i] = { ...textes[i], box: under(textes[i].box) };
     return {
       plateforme: p, nom: `MaDa-${slug(t.titre)}-${p}.mp4`, w: W, h: H, fps: FPS, duree: Math.round(duree * 100) / 100, coupe: t.duree > duree_max,
-      textes, sous_titres: sub, logo, zone: z, legende: captionFor(t, p),
+      textes, sous_titres: sub, logo, zone: z, legende: captionFor(t, p), metadonnees: provenance(ia),
     };
   });
 }

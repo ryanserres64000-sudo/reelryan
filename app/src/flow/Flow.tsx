@@ -5,7 +5,10 @@ import { emptyMemory } from "../../../core/corrections";
 import { manualTimeline } from "../../../core/edit";
 import { paywallFor } from "../../../core/plans";
 import { sanitizeTimeline } from "../../../core/timeline";
+import { aiAllowed, consent, loadConsent, setConsent } from "../consent";
 import { initDevice } from "../plans/device";
+import { ConsentScreen } from "../screens/ConsentScreen";
+import { SettingsScreen } from "../screens/SettingsScreen";
 import { loadPlans, proHeader, record, savePlans, verdict, type Plans } from "../plans/state";
 import { PaywallScreen } from "../screens/PaywallScreen";
 import { createVisual } from "../visual/api";
@@ -30,7 +33,7 @@ import { SAMPLE_RUSHES, fakeMontage } from "./fake";
 import { Onboarding } from "./Onboarding";
 import type { Brief, MontageResult, Music, Rush, Trade } from "./types";
 
-type Step = "brand" | "import" | "brief" | "music" | "generation" | "result" | "editor" | "catalogue" | "visual" | "visual-editor" | "export" | "paywall";
+type Step = "brand" | "import" | "brief" | "music" | "generation" | "result" | "editor" | "catalogue" | "visual" | "visual-editor" | "export" | "paywall" | "consent" | "settings";
 // The brief's trade chips (lot 2) start from the sign-up profile.
 const TRADE_OF: Record<Profil, Trade> = { commerce: "commerce", restaurant: "restaurant", "petite-entreprise": "artisan", "grande-entreprise": "freelance", ecole: "freelance", createur: "freelance", debutant: "freelance" };
 const START_BRIEF: Brief = { text: "", trade: "restaurant", goal: null, tone: null, duration: 30, platforms: ["reels", "tiktok", "shorts"], cta: null };
@@ -41,7 +44,7 @@ const START_BRIEF: Brief = { text: "", trade: "restaurant", goal: null, tone: nu
 export function Flow() {
   const [step, setStep] = useState<Step>(() => typeof location !== "undefined" && location.hash === "#catalogue" ? "catalogue" : "import");
   const [brand, setBrand] = useState<BrandDna | null | undefined>(undefined);
-  useEffect(() => { loadBrand().then(b => { setBrand(b); if (!b) setStep(s => (s === "catalogue" ? s : "brand")); else setBrief(x => ({ ...x, trade: TRADE_OF[b.profil] })); }); }, []);
+  useEffect(() => { Promise.all([loadBrand(), loadConsent()]).then(([b]) => { setBrand(b); if (!b) setStep(s => (s === "catalogue" ? s : "brand")); else setBrief(x => ({ ...x, trade: TRADE_OF[b.profil] })); }); }, []);
   const [rushes, setRushes] = useState<Rush[]>(SAMPLE_RUSHES);
   const [demo, setDemo] = useState(true);
   const [selected, setSelected] = useState<string[]>(["r1", "r2", "r4", "r6", "r8"]);
@@ -63,9 +66,18 @@ export function Flow() {
   const updatePlans = (p: Plans) => { proHeader(p); setPlans(p); savePlans(p); };
   const [paywall, setPaywall] = useState<{ mode: "doux" | "bloquant"; back: Step; manual?: boolean; offline?: { brief: VisualBrief; photos: Photo[] } } | null>(null);
   const [keptVersion, setKeptVersion] = useState<number | null>(null);
+  // The AI permission (lot 9), asked where it is first needed, with where each answer leads.
+  const [ask, setAsk] = useState<{ back: Step; yes: () => void; no: () => void } | null>(null);
+  const askConsent = (back: Step, yes: () => void, no: () => void) => { setAsk({ back, yes, no }); setStep("consent"); };
   const chosen = selected.map(id => rushes.find(r => r.id === id)).filter((r): r is Rush => !!r);
   // Shots worth keeping light up during the wait; Vision will provide them (lot 2, native part).
   const kept = chosen.map((r, i) => (r.badges.includes("blur") || r.badges.includes("dark") ? -1 : i)).filter(i => i >= 0);
+
+  // The free way on: the rushes in order, then everything by hand (ch. 8 §2).
+  const manual = () => {
+    const tl = manualTimeline(chosen.map(r => ({ id: r.id, duration: r.duration, photo: r.photo })), brief.duration, (raw, c) => sanitizeTimeline(raw, c).timeline);
+    setResult({ r: { variantes: [{ timeline: tl, duration: tl.duree, warnings: [] }], cout_usd: 0, temps_s: 0, manuel: true }, s: 0 }); setEditing(0); setStep("editor");
+  };
 
   if (brand === undefined && step !== "catalogue") return null;
   switch (step) {
@@ -78,13 +90,15 @@ export function Flow() {
     case "visual-editor": return visual ? <VisualEditorScreen key={visual.id} result={visual.result} brief={visual.brief} photos={visual.photos} brand={brand ?? null}
       onBack={() => setStep("visual")}
       onSave={d => { saveVisual({ id: visual.id, brief: visual.brief, design: d, photos: visual.photos, at: new Date().toISOString() }).then(setVisuals); setStep("visual"); }} /> : null;
-    case "import": return <ImportScreen onBrand={() => setStep("brand")} onVisual={() => setStep("visual")} rushes={rushes} selected={selected} pro={!!plans?.pro} demo={demo}
+    case "import": return <ImportScreen onBrand={() => setStep("brand")} onVisual={() => (consent() ? setStep("visual") : askConsent("import", () => setStep("visual"), () => setStep("visual")))}
+      onSettings={() => setStep("settings")} rushes={rushes} selected={selected} pro={!!plans?.pro} demo={demo}
       freeLeft={plans && !plans.pro ? verdict(plans, "montage").restant : null}
       onRushes={r => { setRushes(r); setDemo(false); }} onSelect={setSelected} onNext={() => setStep("brief")} />;
     case "brief": return <BriefScreen brief={brief} onChange={b => { setBrief(b); if (b.duration !== brief.duration) setMusic(m => ({ ...m, length: b.duration })); }} onBack={() => setStep("import")} onNext={() => setStep("music")} />;
     case "music": return <MusicScreen music={music} onChange={setMusic} briefDuration={brief.duration} incoming={incoming} onBack={() => setStep("brief")} onNext={() => {
       const v = plans && verdict(plans, "montage");
       if (plans && paywallFor("nouvelle_creation", { pro: plans.pro, seen: plans.paywallSeen, verdict: v ?? undefined }) === "bloquant") { setPaywall({ mode: "bloquant", back: "music", manual: true }); setStep("paywall"); }
+      else if (!aiAllowed()) askConsent("music", () => setStep("generation"), manual);
       else setStep("generation");
     }} />;
     case "generation": return <GenerationScreen rushes={chosen.length} kept={kept} variants={3}
@@ -99,18 +113,17 @@ export function Flow() {
       }} /> : null;
     case "paywall": return plans && paywall ? <PaywallScreen plans={plans} mode={paywall.mode} onClose={() => setStep(paywall.back)}
       onPro={p => { updatePlans(p); setStep(paywall.back); }}
-      onManual={paywall.manual ? () => {
-        // The free way on: the rushes in order, then everything by hand (ch. 8 §2).
-        const tl = manualTimeline(chosen.map(r => ({ id: r.id, duration: r.duration, photo: r.photo })), brief.duration, (raw, c) => sanitizeTimeline(raw, c).timeline);
-        setResult({ r: { variantes: [{ timeline: tl, duration: tl.duree, warnings: [] }], cout_usd: 0, temps_s: 0 }, s: 0 }); setEditing(0); setStep("editor");
-      } : undefined}
+      onManual={paywall.manual ? manual : undefined}
       onOffline={paywall.offline ? () => {
         const o = paywall.offline!;
         createVisual(o.brief, brand ?? null, o.photos, undefined, false).then(r => { setVisual({ id: Date.now().toString(36), result: r, brief: o.brief, photos: o.photos }); setStep("visual-editor"); });
       } : undefined} /> : null;
+    case "consent": return ask ? <ConsentScreen onBack={() => setStep(ask.back)} onAnswer={ok => setConsent(ok).then(() => (ok ? ask.yes() : ask.no()))} /> : null;
+    case "settings": return <SettingsScreen plans={plans} onPlans={updatePlans} onBack={() => setStep("import")}
+      onDeleted={() => { setBrand(null); setVisuals([]); setVisual(null); setResult(null); setStep("brand"); }} />;
     case "export": {
       const v = result?.r.variantes[editing];
-      return v ? <ExportScreen timeline={v.timeline} brief={composeBrief(brief)} brand={brand ?? null} onBack={() => setStep("result")}
+      return v ? <ExportScreen timeline={v.timeline} byAi={!result?.r.manuel} brief={composeBrief(brief)} brand={brand ?? null} onBack={() => setStep("result")}
         rushes={Object.fromEntries(chosen.flatMap(r => (r.uri ? [[r.id, r.uri]] : [])))} /> : null;
     }
     case "editor": {

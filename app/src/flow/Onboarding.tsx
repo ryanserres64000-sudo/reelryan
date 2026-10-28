@@ -5,15 +5,17 @@ import { writeDna } from "../brand/api";
 import type { Logo } from "../brand/logo";
 import { saveBrand } from "../brand/store";
 import { emptyKit, type Brand } from "../brand/types";
+import { consent, setConsent } from "../consent";
 import { AnalysisScreen } from "../screens/AnalysisScreen";
+import { ConsentScreen } from "../screens/ConsentScreen";
 import { CarnetScreen } from "../screens/CarnetScreen";
 import { LogoScreen } from "../screens/LogoScreen";
 import { ProfileScreen } from "../screens/ProfileScreen";
 import { QuestionsScreen } from "../screens/QuestionsScreen";
 import { WelcomeScreen } from "../screens/WelcomeScreen";
-import { SERVER } from "./server";
+import { SERVER, aiUrl } from "./server";
 
-type Step = "welcome" | "profile" | "questions" | "logo" | "analysis" | "carnet";
+type Step = "welcome" | "profile" | "questions" | "logo" | "consent" | "analysis" | "carnet";
 
 // Sign-up (lot 4) : welcome → profile → questions → logo → one AI analysis → carnet. Starting again
 // keeps the answers, so « Refaire le questionnaire » only asks to change what is wrong.
@@ -32,9 +34,11 @@ export function Onboarding({ initial, onDone }: { initial: Brand | null; onDone:
     case "welcome": return <WelcomeScreen onStart={() => setStep("profile")} />;
     case "profile": return <ProfileScreen profil={profil} onChange={setProfil} onBack={() => setStep("welcome")} onNext={() => setStep("questions")} />;
     case "questions": return <QuestionsScreen profil={profil!} answers={answers} onChange={setAnswers} onBack={() => setStep("profile")} onDone={() => setStep("logo")} />;
-    case "logo": return <LogoScreen kit={kit} logo={logo} onChange={(k, l) => { setKit(k); setLogo(l); }} onBack={() => setStep("questions")} onNext={() => setStep("analysis")} />;
+    case "logo": return <LogoScreen kit={kit} logo={logo} onChange={(k, l) => { setKit(k); setLogo(l); }} onBack={() => setStep("questions")} onNext={() => setStep(consent() ? "analysis" : "consent")} />;
+    // The analysis is the first AI call: permission first (lot 9). No writes the carnet without AI.
+    case "consent": return <ConsentScreen onBack={() => setStep("logo")} onAnswer={ok => setConsent(ok).then(() => setStep("analysis"))} />;
     case "analysis": return <AnalysisScreen onDone={() => setStep("carnet")}
-      run={async signal => setResult(await writeDna(brand(null, false), logo?.forAi ?? "", SERVER.url, signal, SERVER.access))} />;
+      run={async signal => setResult(await writeDna(brand(null, false), logo?.forAi ?? "", aiUrl(), signal, SERVER.access))} />;
     case "carnet": return result ? <CarnetScreen dna={result.dna} byAi={result.byAi} saveError={saveError} memory={memory} onMemory={setMemory}
       onChange={dna => setResult({ ...result, dna })} onRedo={() => setStep("profile")}
       onDone={async () => {

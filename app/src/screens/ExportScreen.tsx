@@ -9,12 +9,12 @@ import { fr } from "../copy/fr";
 import { Button, Card, Chip, MadaSays, Screen, Text, tokens, typeStyle, useTheme } from "../design";
 import { canExportVideo, exportVideos } from "../export/video";
 
-type Props = { timeline: TimelineV1; brief: string; brand: Brand | null; rushes: Record<string, string>; onBack: () => void };
+type Props = { timeline: TimelineV1; brief: string; brand: Brand | null; rushes: Record<string, string>; onBack: () => void; byAi?: boolean };
 const t = fr.exportScreen;
 
 // Step 6 (étude, ch. 5 §7) : the three files with their safe zones, the caption in the brand's tone
 // copied in one tap per platform, the trending-sound reminder, then Photos and the share sheet.
-export function ExportScreen({ timeline, brief, brand, rushes, onBack }: Props) {
+export function ExportScreen({ timeline, brief, brand, rushes, onBack, byAi = true }: Props) {
   const { c } = useTheme();
   const { width } = useWindowDimensions();
   const start = timeline.legende.texte || timeline.legende.hashtags.length ? timeline.legende : offlineCaption(brief, brand?.dna ?? null, brand?.answers);
@@ -24,7 +24,7 @@ export function ExportScreen({ timeline, brief, brand, rushes, onBack }: Props) 
   const [say, setSay] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [files, setFiles] = useState<string[]>([]);
-  const plan = useMemo(() => exportPlan(timeline), [timeline]);
+  const plan = useMemo(() => exportPlan(timeline, byAi), [timeline, byAi]);
   const tip = trendTip(timeline);
   const legende = { texte, hashtags: kept };
   const frame = (Math.min(width, tokens.layout.largePhoneWidth) - tokens.layout.gutter * 2 - tokens.space.sm * 2) / 3;

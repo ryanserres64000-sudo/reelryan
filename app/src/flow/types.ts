@@ -13,7 +13,7 @@ export type Music = {
   rightsAt: string | null; trendingTempo: number;
 };
 export type Variant = { timeline: TimelineV1; duration: number; warnings: string[] };
-export type MontageResult = { variantes: Variant[]; cout_usd: number; temps_s: number };
+export type MontageResult = { variantes: Variant[]; cout_usd: number; temps_s: number; manuel?: boolean };
 
 // Free plan limits (étude, ch. 8 §2 ; décisions de Ryan : rushes de 60 à 90 s en gratuit).
 export const LIMITS = { minRushes: 3, maxRushes: 25, freeSeconds: 90 } as const;

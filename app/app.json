@@ -13,12 +13,105 @@
       "supportsTablet": false,
       "infoPlist": {
         "LSSupportsOpeningDocumentsInPlace": false,
-        "CFBundleDocumentTypes": [{ "CFBundleTypeName": "Son", "CFBundleTypeRole": "Viewer", "LSHandlerRank": "Alternate", "LSItemContentTypes": ["public.audio", "public.mp3", "com.apple.m4a-audio", "public.aac-audio", "com.microsoft.waveform-audio"] }]
+        "CFBundleDocumentTypes": [
+          {
+            "CFBundleTypeName": "Son",
+            "CFBundleTypeRole": "Viewer",
+            "LSHandlerRank": "Alternate",
+            "LSItemContentTypes": [
+              "public.audio",
+              "public.mp3",
+              "com.apple.m4a-audio",
+              "public.aac-audio",
+              "com.microsoft.waveform-audio"
+            ]
+          }
+        ]
+      },
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "privacyManifests": {
+        "NSPrivacyTracking": false,
+        "NSPrivacyTrackingDomains": [],
+        "NSPrivacyCollectedDataTypes": [
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePhotosorVideos",
+            "NSPrivacyCollectedDataTypeLinked": false,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeOtherUserContent",
+            "NSPrivacyCollectedDataTypeLinked": false,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypeDeviceID",
+            "NSPrivacyCollectedDataTypeLinked": false,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          },
+          {
+            "NSPrivacyCollectedDataType": "NSPrivacyCollectedDataTypePurchaseHistory",
+            "NSPrivacyCollectedDataTypeLinked": false,
+            "NSPrivacyCollectedDataTypeTracking": false,
+            "NSPrivacyCollectedDataTypePurposes": [
+              "NSPrivacyCollectedDataTypePurposeAppFunctionality"
+            ]
+          }
+        ],
+        "NSPrivacyAccessedAPITypes": [
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryUserDefaults",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "CA92.1"
+            ]
+          },
+          {
+            "NSPrivacyAccessedAPIType": "NSPrivacyAccessedAPICategoryFileTimestamp",
+            "NSPrivacyAccessedAPITypeReasons": [
+              "C617.1"
+            ]
+          }
+        ]
       }
     },
     "plugins": [
-      ["expo-splash-screen", { "image": "./assets/splash-icon.png", "imageWidth": 160, "backgroundColor": "#FBF8F3", "dark": { "backgroundColor": "#0F0D12" } }],
-      ["expo-image-picker", { "photosPermission": "Ma DA ouvre les vidéos et photos que tu choisis pour les monter. Elles restent sur ton iPhone.", "cameraPermission": false, "microphonePermission": false }]
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160,
+          "backgroundColor": "#FBF8F3",
+          "dark": {
+            "backgroundColor": "#0F0D12"
+          }
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Ma DA ouvre seulement les vidéos et photos que tu choisis. Elles restent sur ton iPhone ; si tu l'acceptes, de petites images partent vers l'IA pour le montage.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Ma DA range tes montages et tes visuels dans Photos.",
+          "savePhotosPermission": "Ma DA enregistre tes montages et tes visuels dans Photos.",
+          "isAccessMediaLocationEnabled": false
+        }
+      ]
     ],
     "web": {
       "favicon": "./assets/favicon.png"

@@ -151,6 +151,51 @@ export const fr = {
     nothingToRestore: "Je n'ai trouvé aucun abonnement sur ce compte Apple.",
   },
 
+  consent: {
+    title: "Avant de passer la main à l'IA",
+    lead: "Pour monter, j'envoie 15 à 30 petites images de tes vidéos à Claude (Anthropic). Elles ne sont ni gardées ni utilisées pour entraîner l'IA.",
+    sent: "Ce qui part : ces petites images, ta phrase, ton carnet de style et, pour un visuel, tes photos en petit.",
+    notSent: "Ce qui reste sur ton iPhone : tes vidéos entières, ta photothèque, ton nom et ton e-mail.",
+    promise: "Aucun entraînement sur tes vidéos, ni par Ma DA ni par ses fournisseurs.",
+    later: "Tu peux changer d'avis à tout moment dans Réglages.",
+    yes: "J'accepte",
+    no: "Sans IA pour l'instant",
+    refused: "D'accord. Tu montes à la main, et tes visuels se composent à tes couleurs sans IA.",
+  },
+
+  settings: {
+    open: "Réglages",
+    title: "Réglages",
+    detail: "Tes données, ton abonnement, et de quoi tout effacer.",
+    ai: "L'IA",
+    aiOn: (at: string) => `Tu as accepté l'envoi à l'IA le ${at}.`,
+    aiOff: "L'IA est coupée : rien ne part vers Claude.",
+    aiAsk: "Tu n'as pas encore répondu.",
+    aiWithdraw: "Couper l'IA",
+    aiGive: "Autoriser l'IA",
+    aiMark: "Les vidéos exportées portent la mention « Montage assisté par IA » dans leurs métadonnées, comme le demande la loi européenne.",
+    plan: "Abonnement",
+    planPro: "Tu es en Pro.",
+    planFree: (n: number) => (n ? `Version gratuite : ${n} montages IA offerts restants.` : "Version gratuite : tes montages IA offerts sont utilisés."),
+    manage: "Gérer mon abonnement",
+    restore: "Restaurer mes achats",
+    docs: "Documents",
+    terms: "Conditions d'utilisation",
+    privacy: "Politique de confidentialité",
+    help: "Aide et contact",
+    rights: "Signaler un son (ayants droit)",
+    noSite: "Les pages légales s'ouvriront une fois le site en ligne.",
+    delete: "Supprimer mon compte et mes données",
+    deleteWhat: "J'efface ton carnet de style, tes visuels, tes réglages et ce que le serveur sait de tes usages. Tes vidéos dans Photos ne bougent pas.",
+    deleteKept: "Je garde seulement, sans ton nom, le nombre de créations offertes déjà utilisées sur cet iPhone, pour éviter les abus.",
+    deleteSub: "Un abonnement Apple continue tant que tu ne le résilies pas : « Gérer mon abonnement ».",
+    deleteConfirm: "Oui, tout supprimer",
+    deleteCancel: "Annuler",
+    deleting: "Je supprime…",
+    deleted: "C'est effacé. On repart de zéro.",
+    deleteServerError: "Tout est effacé sur ton iPhone. Le serveur n'a pas répondu : écris-nous depuis l'aide pour finir.",
+  },
+
   status: {
     saved: "Enregistré",
     counter: (n: number) => `${plural(n, "montage restant", "montages restants")} ce mois-ci`,
@@ -162,7 +207,6 @@ export const fr = {
     rushes: "Il me faut un peu plus de matière : ajoute un ou deux plans de plus de 2 secondes.",
   },
 
-  consent: "Pour monter, j'envoie 15 à 30 petites images de tes vidéos à Claude (Anthropic). Elles ne sont ni gardées ni utilisées pour entraîner l'IA.",
 
   // Sign-up: the brand DNA (lot 4). MaDa speaks in lavender, the person answers in gold.
   dna: {

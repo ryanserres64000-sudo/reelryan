@@ -35,7 +35,7 @@ export function GenerationScreen({ rushes, kept, variants, run, onDone, onCancel
       <View style={styles.body}>
         <GenerationView rushes={rushes} kept={kept} variants={variants} step={step} />
         {failed ? <Text tone="danger" accessibilityLiveRegion="assertive">{fr.generationScreen.error}</Text> : null}
-        <Text variant="caption" tone="textMuted">{fr.consent}</Text>
+        <Text variant="caption" tone="textMuted">{fr.consent.lead}</Text>
       </View>
     </Screen>
   );

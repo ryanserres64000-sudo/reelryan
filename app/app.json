@@ -125,7 +125,8 @@
           "microphonePermission": "Ma DA utilise le micro seulement quand tu enregistres ta voix off. L'enregistrement reste sur ton iPhone.",
           "recordAudioAndroid": false
         }
-      ]
+      ],
+      "./plugins/no-push.js"
     ],
     "web": {
       "favicon": "./assets/favicon.png"

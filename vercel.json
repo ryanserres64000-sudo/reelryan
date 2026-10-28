@@ -1,5 +1,5 @@
 {
-  "functions": { "api/generate.js": { "maxDuration": 300 }, "api/montage.js": { "maxDuration": 300 }, "api/adn.js": { "maxDuration": 120 }, "api/retouche.js": { "maxDuration": 120 } },
+  "functions": { "api/generate.js": { "maxDuration": 300 }, "api/montage.js": { "maxDuration": 300 }, "api/adn.js": { "maxDuration": 120 }, "api/retouche.js": { "maxDuration": 120 }, "api/visuel.js": { "maxDuration": 120 } },
   "headers": [
     { "source": "/(.*)", "headers": [
       { "key": "X-Content-Type-Options", "value": "nosniff" },

@@ -7,6 +7,7 @@ import { handleGenerate, readJson } from "./lib/claude.js";
 import { handleMontage } from "./lib/montage.js";
 import { handleAdn } from "./lib/adn.js";
 import { handleRetouche } from "./lib/retouche.js";
+import { handleVisuel } from "./lib/visuel.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "public");
@@ -15,15 +16,16 @@ const TYPES = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; ch
 
 http.createServer(async (req, res) => {
   const url = new URL(req.url, "http://x");
-  if (url.pathname === "/api/generate" || url.pathname === "/api/montage" || url.pathname === "/api/adn" || url.pathname === "/api/retouche") {
+  if (url.pathname === "/api/generate" || url.pathname === "/api/montage" || url.pathname === "/api/adn" || url.pathname === "/api/retouche" || url.pathname === "/api/visuel") {
     if (req.method !== "POST") { res.statusCode = 405; return res.end(); }
     let body;
-    try { body = await readJson(req, url.pathname === "/api/montage" ? 4_500_000 : url.pathname === "/api/adn" || url.pathname === "/api/retouche" ? 200_000 : undefined); } catch {
+    try { body = await readJson(req, url.pathname === "/api/montage" ? 4_500_000 : url.pathname === "/api/adn" || url.pathname === "/api/retouche" ? 200_000 : url.pathname === "/api/visuel" ? 1_000_000 : undefined); } catch {
       res.statusCode = 413; res.setHeader("content-type", "application/json");
       return res.end(JSON.stringify({ error: "prompt_too_large", message: "Images trop lourdes." }));
     }
     if (url.pathname === "/api/adn") return handleAdn(req, res, body);
     if (url.pathname === "/api/retouche") return handleRetouche(req, res, body);
+    if (url.pathname === "/api/visuel") return handleVisuel(req, res, body);
     return url.pathname === "/api/montage" ? handleMontage(req, res, body) : handleGenerate(req, res, body);
   }
   let p = path.normalize(decodeURIComponent(url.pathname)).replace(/^([/\\])+/, "");

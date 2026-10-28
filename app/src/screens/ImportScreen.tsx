@@ -5,12 +5,12 @@ import { fr } from "../copy/fr";
 import { Button, Chip, RushCard, Screen, Text, tokens, useTheme } from "../design";
 import { LIMITS, type Rush } from "../flow/types";
 
-type Props = { rushes: Rush[]; selected: string[]; pro: boolean; onRushes: (r: Rush[]) => void; onSelect: (ids: string[]) => void; onNext: () => void; demo: boolean; onBrand?: () => void };
+type Props = { rushes: Rush[]; selected: string[]; pro: boolean; onRushes: (r: Rush[]) => void; onSelect: (ids: string[]) => void; onNext: () => void; demo: boolean; onBrand?: () => void; onVisual?: () => void };
 const COLUMNS = 3;
 
 // Step 1 (étude, ch. 5 §1): 3 to 25 rushes in the order they are tapped, 90 s of rushes on the free plan.
 // The system picker gives access to the chosen items only, so no photo library permission is asked.
-export function ImportScreen({ rushes, selected, pro, onRushes, onSelect, onNext, demo, onBrand }: Props) {
+export function ImportScreen({ rushes, selected, pro, onRushes, onSelect, onNext, demo, onBrand, onVisual }: Props) {
   const { layout } = useTheme();
   const { width } = useWindowDimensions();
   const [pickError, setPickError] = useState(false);
@@ -52,7 +52,10 @@ export function ImportScreen({ rushes, selected, pro, onRushes, onSelect, onNext
         {status ? <Text variant="caption" tone={tooLong ? "danger" : "textMuted"} accessibilityLiveRegion="polite">{status}</Text> : null}
         <Button label={fr.nav.next} disabled={missing > 0 || tooLong} onPress={onNext} haptic />
       </>}>
-      {onBrand ? <Chip kind="ai" label={fr.dna.carnet.open} onPress={onBrand} style={styles.brand} /> : null}
+      <View style={styles.links}>
+        {onBrand ? <Chip kind="ai" label={fr.dna.carnet.open} onPress={onBrand} /> : null}
+        {onVisual ? <Chip kind="ai" label={fr.visual.open} onPress={onVisual} /> : null}
+      </View>
       <Button variant="secondary" label={fr.import.pick} onPress={pick} />
       {pickError ? <Text tone="danger">{fr.import.pickError}</Text> : null}
       {demo ? <Text variant="caption" tone="ai">{fr.import.sample}</Text> : null}
@@ -69,5 +72,5 @@ export function ImportScreen({ rushes, selected, pro, onRushes, onSelect, onNext
 
 const styles = StyleSheet.create({
   grid: { flexDirection: "row", flexWrap: "wrap", gap: tokens.space.xs },
-  brand: { alignSelf: "flex-start" },
+  links: { flexDirection: "row", flexWrap: "wrap", gap: tokens.space.xs },
 });

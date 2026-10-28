@@ -116,6 +116,7 @@ Ce qui fait un bon montage MaDA :
 - Les textes ne se chevauchent pas et restent au moins 1 s à l'écran (un texte long : environ 1 s pour 3 mots).
 - La durée visée est un engagement : vise-la à 10 % près tant que les rushes le permettent (un même rush peut fournir plusieurs plans à des moments différents).
 - Une photo (rush marqué « photo ») est un plan fixe animé d'un léger zoom : 1 à 3 s, jamais plus que sa durée indiquée.
+- Le rendu doit rester naturel, comme monté à la main par quelqu'un de doué : une seule couleur d'image pour tout le montage, des mouvements de caméra rares sur les vidéos. Jamais de néon ni de dégradés violets, de mots géants qui rebondissent, de rafales d'emojis, de zoom à chaque coupe, de flash sur chaque temps, de transitions glitch, ni de texte sur un visage.
 Une transition non franche fait se chevaucher deux plans de ${TRANSITION_SECONDS} s : compte-le dans la durée.`;
 
 // Texts the person wrote between quotes in the brief: they must appear word for word.

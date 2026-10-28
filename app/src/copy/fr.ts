@@ -123,6 +123,37 @@ export const fr = {
     error: "L'export s'est arrêté. Rien n'est perdu : réessaie, et vérifie qu'il reste de la place sur ton iPhone.",
   },
 
+  // Publier et revenir (étape 7) : l'écran de fin, le partage, les notifications.
+  publish: {
+    title: "C'est prêt",
+    detail: "Tes vidéos sont dans ta pellicule. Il ne reste qu'à publier.",
+    open: { reels: "Ouvrir dans Instagram", tiktok: "Envoyer sur TikTok", shorts: "Envoyer sur YouTube" } as Record<string, string>,
+    steps: "Comment publier",
+    step1: "Ta légende est copiée.",
+    step2: "Colle-la au moment de publier.",
+    step3: (bpm: number) => `Choisis un son tendance autour de ${bpm} BPM : tes coupes tomberont dessus.`,
+    stepNoTrend: "Vérifie le cadrage dans l'aperçu de l'appli, puis publie.",
+    copiedFor: (name: string) => `Légende copiée pour ${name}.`,
+    noApp: "Je n'ai pas trouvé l'appli sur ton iPhone : la vidéo est dans ta pellicule.",
+    next: "Créer le suivant",
+    home: "Retour à l'accueil",
+    doneTitle: "Ta vidéo est prête",
+    doneBody: "Elle t'attend dans ta pellicule, avec ta légende copiée.",
+  },
+
+  // Réglages des notifications (étape 7).
+  notifications: {
+    title: "Notifications",
+    detail: "Une par semaine au plus, jamais pour vendre.",
+    weekly: "Le bilan du dimanche",
+    weeklyWhy: "Le dimanche à 18 h : tes Reels de la semaine et une idée pour lundi.",
+    exportDone: "Vidéo prête",
+    exportDoneWhy: "Quand un export finit pendant que tu fais autre chose.",
+    on: "Oui",
+    off: "Non",
+    denied: "Les notifications sont coupées pour Ma DA dans les Réglages de l'iPhone.",
+  },
+
   paywall: {
     title: "Tu as aimé ? Garde ta DA.",
     titleBlocked: "Un autre montage avec ta DA ?",

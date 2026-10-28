@@ -37,6 +37,7 @@ import type { Idee } from "../../../core/brand";
 import { MusicScreen } from "../screens/MusicScreen";
 import { ResultScreen } from "../screens/ResultScreen";
 import { ExportScreen } from "../screens/ExportScreen";
+import { scheduleWeekly } from "../publish/notify";
 import { VisualBriefScreen } from "../screens/VisualBriefScreen";
 import { VisualEditorScreen } from "../screens/VisualEditorScreen";
 import type { VisualBrief } from "../../../core/design";
@@ -159,6 +160,11 @@ export function Flow() {
     else setStep("ideas");
   };
   const plan = weekPlan(brand?.dna?.idees ?? [], refusals, new Date());
+  // The Sunday summary follows the week's Reels and names Monday's idea (étape 7).
+  useEffect(() => {
+    const monday = new Date(); monday.setDate(monday.getDate() + ((8 - monday.getDay()) % 7 || 7));
+    scheduleWeekly(reels, weekPlan(brand?.dna?.idees ?? [], refusals, monday)[0]?.idee.titre ?? null);
+  }, [reels, brand?.dna]);
   const creations = creationsOf(reels, visuals);
   const tabs = (tab: Tab, child: ReactNode) => <Tabs tab={tab} onTab={x => setStep(x)} onCreate={create}>{child}</Tabs>;
   const chosen = selected.map(id => rushes.find(r => r.id === id)).filter((r): r is Rush => !!r);
@@ -231,7 +237,8 @@ export function Flow() {
     case "export": {
       const v = result?.r.variantes[editing];
       return v ? <ExportScreen timeline={v.timeline} byAi={!result?.r.manuel} brief={composeBrief(brief)} brand={brand ?? null} onBack={() => setStep("result")}
-        sources={() => videoSources(v.timeline, chosen, brand ?? null, music)} /> : null;
+        sources={() => videoSources(v.timeline, chosen, brand ?? null, music)}
+        onNext={() => { const next = ideaOfTheDay(plan, new Date()); newReel(next?.idee.titre ?? ""); }} onHome={() => { clearDraft(); setStep("home"); }} /> : null;
     }
     case "player": {
       const v = result?.r.variantes[editing];

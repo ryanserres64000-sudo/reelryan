@@ -1,5 +1,4 @@
 import * as Clipboard from "expo-clipboard";
-import * as Sharing from "expo-sharing";
 import { useMemo, useState } from "react";
 import { StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
 import { H, HASHTAGS_MAX, W, captionFor, exportPlan, offlineCaption, trendTip, type Box, type ExportFile } from "../../../core/export";
@@ -7,15 +6,18 @@ import type { TimelineV1 } from "../../../core/timeline";
 import type { Brand } from "../brand/types";
 import { fr } from "../copy/fr";
 import { Button, Card, Chip, MadaSays, Screen, Text, tokens, typeStyle, useTheme } from "../design";
-import { canExportVideo, exportVideos } from "../export/video";
+import { canExportVideo, exportVideos, type Exported } from "../export/video";
+import { exportDone } from "../publish/notify";
+import { afterExport } from "../publish/review";
+import { shareTo } from "../publish/share";
 import type { Sources } from "../video/sources";
 
-type Props = { timeline: TimelineV1; brief: string; brand: Brand | null; sources: () => Promise<Sources>; onBack: () => void; byAi?: boolean };
+type Props = { timeline: TimelineV1; brief: string; brand: Brand | null; sources: () => Promise<Sources>; onBack: () => void; byAi?: boolean; onNext?: () => void; onHome?: () => void };
 const t = fr.exportScreen;
 
 // Step 6 (étude, ch. 5 §7) : the three files with their safe zones, the caption in the brand's tone
 // copied in one tap per platform, the trending-sound reminder, then Photos and the share sheet.
-export function ExportScreen({ timeline, brief, brand, sources, onBack, byAi = true }: Props) {
+export function ExportScreen({ timeline, brief, brand, sources, onBack, byAi = true, onNext, onHome }: Props) {
   const { c } = useTheme();
   const { width } = useWindowDimensions();
   const start = timeline.legende.texte || timeline.legende.hashtags.length ? timeline.legende : offlineCaption(brief, brand?.dna ?? null, brand?.answers);
@@ -24,7 +26,7 @@ export function ExportScreen({ timeline, brief, brand, sources, onBack, byAi = t
   const [kept, setKept] = useState<string[]>(start.hashtags.slice(0, HASHTAGS_MAX.reels));
   const [say, setSay] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [files, setFiles] = useState<string[]>([]);
+  const [files, setFiles] = useState<Exported[]>([]);
   const plan = useMemo(() => exportPlan(timeline, byAi), [timeline, byAi]);
   const tip = trendTip(timeline);
   const legende = { texte, hashtags: kept };
@@ -41,16 +43,49 @@ export function ExportScreen({ timeline, brief, brand, sources, onBack, byAi = t
     if (!canExportVideo()) { setSay(t.native); setBusy(false); return; }
     try {
       const uris = await exportVideos(timeline, plan, await sources(), i => setSay(t.saving(i + 1, plan.length)));
-      setFiles(uris); setSay(t.saved);
-    } catch { setSay(t.error); }
+      setFiles(uris); setSay(null);
+      exportDone(); afterExport(true);
+    } catch { setSay(t.error); afterExport(false); }
     finally { setBusy(false); }
   };
+
+  // The end screen (étape 7): the files are in Photos, one tap per platform copies its caption and
+  // opens the app on the video.
+  if (files.length) {
+    const p = fr.publish;
+    const send = async (i: number) => {
+      const f = plan[i];
+      await Clipboard.setStringAsync(captionFor(timeline, f.plateforme, legende));
+      const how = await shareTo(f.plateforme, files[i] ?? files[0]);
+      setSay(how === "none" ? p.noApp : p.copiedFor(t.names[f.plateforme]));
+    };
+    return (
+      <Screen title={p.title} detail={p.detail} onBack={onBack}
+        footer={<>
+          {say ? <MadaSays text={say} /> : null}
+          {onNext ? <Button variant="secondary" label={p.next} onPress={onNext} /> : null}
+          {onHome ? <Button variant="secondary" label={p.home} onPress={onHome} /> : null}
+        </>}>
+        <View style={styles.field}>
+          {plan.map((f, i) => <Button key={f.plateforme} variant={i === 0 ? "primary" : "secondary"} label={p.open[f.plateforme]} onPress={() => send(i)} haptic={i === 0} />)}
+        </View>
+        <Card>
+          <Text variant="headline">{p.steps}</Text>
+          {[p.step1, p.step2, tip ? p.step3(tip.bpm) : p.stepNoTrend].map((x, i) => (
+            <View key={i} style={styles.step}>
+              <Text variant="mono" tone="actionStrong">{i + 1}</Text>
+              <Text style={styles.flex}>{x}</Text>
+            </View>
+          ))}
+        </Card>
+      </Screen>
+    );
+  }
 
   return (
     <Screen title={t.title} detail={t.detail} onBack={onBack}
       footer={<>
         {say ? <MadaSays text={say} /> : null}
-        {files.length ? <Button variant="secondary" label={t.share} onPress={() => Sharing.shareAsync(files[0], { mimeType: "video/mp4", UTI: "public.mpeg-4" })} /> : null}
         <Button label={t.save} disabled={busy} onPress={save} haptic />
       </>}>
       <Text variant="headline">{t.files}</Text>
@@ -112,5 +147,7 @@ const styles = StyleSheet.create({
   box: { position: "absolute", borderWidth: tokens.size.border, borderRadius: tokens.radius.chip / 2, borderStyle: "dashed" },
   fill: { borderWidth: 0, opacity: tokens.opacity.disabled },
   field: { gap: tokens.space.xs },
+  step: { flexDirection: "row", gap: tokens.space.sm, alignItems: "flex-start" },
+  flex: { flex: 1 },
   input: { borderWidth: tokens.size.border, borderRadius: tokens.radius.button, paddingHorizontal: tokens.space.md, paddingVertical: tokens.space.sm, minHeight: tokens.size.button * 2, textAlignVertical: "top" },
 });

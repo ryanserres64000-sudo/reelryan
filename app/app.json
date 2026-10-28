@@ -26,6 +26,13 @@
               "com.microsoft.waveform-audio"
             ]
           }
+        ],
+        "LSApplicationQueriesSchemes": [
+          "instagram",
+          "instagram-stories",
+          "snssdk1233",
+          "tiktok",
+          "youtube"
         ]
       },
       "config": {

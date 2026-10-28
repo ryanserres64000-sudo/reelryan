@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { fr } from "../copy/fr";
-import { Button, Card, MadaSays, Screen, Text, tokens } from "../design";
+import { Button, Card, Chip, MadaSays, Screen, Text, tokens } from "../design";
+import { canNotify, loadNotify, saveNotify, type NotifySettings } from "../publish/notify";
 import { deleteAccount } from "../account";
 import { aiAllowed, consent, setConsent } from "../consent";
 import { LEGAL, SUBSCRIPTIONS, open } from "../legal";
@@ -19,6 +20,14 @@ export function SettingsScreen({ plans, onPlans, onDeleted, onBack }: Props) {
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
   const [say, setSay] = useState<string | null>(null);
+  const [notify, setNotify] = useState<NotifySettings | null>(null);
+  useEffect(() => { loadNotify().then(setNotify); }, []);
+  const toggle = async (k: keyof NotifySettings, on: boolean) => {
+    if (!notify) return;
+    const next = await saveNotify({ ...notify, [k]: on });
+    setNotify(next);
+    if (on && !next[k]) setSay(fr.notifications.denied);
+  };
 
   const doRestore = async () => {
     if (!plans) return;
@@ -59,6 +68,25 @@ export function SettingsScreen({ plans, onPlans, onDeleted, onBack }: Props) {
         </View>
       </Card>
 
+      {canNotify() && notify ? (
+        <Card>
+          <View style={styles.block}>
+            <Text variant="headline">{fr.notifications.title}</Text>
+            <Text variant="caption" tone="textMuted">{fr.notifications.detail}</Text>
+            {(["weekly", "exportDone"] as const).map(k => (
+              <View key={k} style={styles.block}>
+                <Text variant="bodyStrong">{fr.notifications[k]}</Text>
+                <Text variant="caption" tone="textMuted">{fr.notifications[k === "weekly" ? "weeklyWhy" : "exportDoneWhy"]}</Text>
+                <View style={styles.row}>
+                  <Chip label={fr.notifications.on} selected={notify[k]} onPress={() => toggle(k, true)} />
+                  <Chip label={fr.notifications.off} selected={!notify[k]} onPress={() => toggle(k, false)} />
+                </View>
+              </View>
+            ))}
+          </View>
+        </Card>
+      ) : null}
+
       <Card>
         <View style={styles.block}>
           <Text variant="headline">{t.docs}</Text>
@@ -81,4 +109,4 @@ export function SettingsScreen({ plans, onPlans, onDeleted, onBack }: Props) {
   );
 }
 
-const styles = StyleSheet.create({ block: { gap: tokens.space.sm } });
+const styles = StyleSheet.create({ block: { gap: tokens.space.sm }, row: { flexDirection: "row", gap: tokens.space.xs } });

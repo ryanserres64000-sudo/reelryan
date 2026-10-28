@@ -4,10 +4,11 @@ import { haptic as feel } from "../haptics";
 import { tokens } from "../tokens";
 import { Text } from "../Text";
 import { useTheme } from "../theme";
+import { Gradient } from "./Gradient";
 
 type Props = Omit<PressableProps, "children"> & { label: string; variant?: "primary" | "secondary"; haptic?: boolean };
 
-// Primary: the blue, one per screen, full width at the bottom. Secondary: 1 pt outline. Both are capsules
+// Primary: the Ma DA gradient, one per screen, full width at the bottom. Secondary: 1 pt outline. Both are capsules
 // (« Atelier clair »). A press shrinks the button a little and springs it back, with a light tap on
 // the primary one, so every touch answers at once.
 export function Button({ label, variant = "primary", haptic, disabled, onPress, onPressIn, onPressOut, style, ...rest }: Props) {
@@ -26,12 +27,13 @@ export function Button({ label, variant = "primary", haptic, disabled, onPress, 
         onPress={e => { if (haptic ?? primary) feel("tap"); onPress?.(e); }}
         style={state => [
           styles.base,
-          primary ? { backgroundColor: c.action } : { borderWidth: tokens.size.border, borderColor: c.line },
+          primary ? { backgroundColor: c.action, overflow: "hidden" } : { borderWidth: tokens.size.border, borderColor: c.line },
           { opacity: disabled ? opacity.disabled : state.pressed ? opacity.pressed : 1 },
           typeof style === "function" ? style(state) : undefined,
         ]}
         {...rest}
       >
+        {primary ? <Gradient /> : null}
         <Text variant="button" tone={primary ? "onAction" : "text"} numberOfLines={1}>{label}</Text>
       </Pressable>
     </Animated.View>

@@ -19,6 +19,9 @@ for (const scheme of ["dark", "light"]) {
       const r = ratio(c[fg], c[bg]);
       if (r < min) fails.push(`${fg} sur ${bg} : ${r.toFixed(2)}:1 < ${min}:1`);
     }
+    // White text stays legible along the whole gradient, not only on its first colour.
+    for (const stop of tokens.gradient[scheme]) if (ratio(c.onAction, stop) < 4.5) fails.push(`onAction sur le dégradé ${stop}`);
+    assert.equal(tokens.gradient[scheme][0], c.action, "le dégradé commence par la couleur d'action");
     assert.deepEqual(fails, []);
   });
 }

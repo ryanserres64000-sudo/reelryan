@@ -3,10 +3,11 @@ import { Animated, Easing, StyleSheet, View } from "react-native";
 import { fr } from "../../copy/fr";
 import { tokens } from "../tokens";
 import { Text } from "../Text";
+import { LogoLabel, LogoSlash } from "./Logo";
 import { useTheme } from "../theme";
 
 // The opening of the app (Ryan, 28 octobre 2026), with logo 15 « Ma / DA étiquette »: « Ma » rises,
-// the blue slash cuts through like scissors between two shots, the « DA » label lands, then the whole
+// the gradient slash cuts through like scissors between two shots, the « DA » camera label lands, then the whole
 // logo fades into the home screen. Under a second; with « Réduire les animations », nothing moves.
 // The native splash is plain white, so the logo only ever appears through this animation.
 export function Intro({ onDone }: { onDone: () => void }) {
@@ -37,10 +38,10 @@ export function Intro({ onDone }: { onDone: () => void }) {
         <Animated.View style={rise(ma)}><Text variant="logo">{fr.intro.ma}</Text></Animated.View>
         {/* The slash sweeps in from above, like a cut. */}
         <Animated.View style={{ opacity: cut, transform: [{ translateY: cut.interpolate({ inputRange: [0, 1], outputRange: [-tokens.space.md, 0] }) }, { translateX: cut.interpolate({ inputRange: [0, 1], outputRange: [tokens.space.xs, 0] }) }] }}>
-          <Text variant="logo" tone="actionStrong">{fr.intro.slash}</Text>
+          <LogoSlash />
         </Animated.View>
-        <Animated.View style={[styles.label, { backgroundColor: c.action, opacity: label, transform: [{ scale: label.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }] }]}>
-          <Text variant="logo" tone="onAction">{fr.intro.da}</Text>
+        <Animated.View style={{ opacity: label, transform: [{ scale: label.interpolate({ inputRange: [0, 1], outputRange: [0.6, 1] }) }] }}>
+          <LogoLabel />
         </Animated.View>
       </View>
     </Animated.View>
@@ -50,5 +51,4 @@ export function Intro({ onDone }: { onDone: () => void }) {
 const styles = StyleSheet.create({
   center: { alignItems: "center", justifyContent: "center", zIndex: 10 },
   row: { flexDirection: "row", alignItems: "center", gap: tokens.space.xxs },
-  label: { borderRadius: tokens.radius.button, paddingHorizontal: tokens.space.xs },
 });

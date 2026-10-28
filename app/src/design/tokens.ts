@@ -41,6 +41,18 @@ export const tokens = {
       "onMedia": "#FFFFFF"
     }
   },
+  "gradient": {
+    "dark": [
+      "#2F4BE0",
+      "#7B2FD0",
+      "#CC2E5D"
+    ],
+    "light": [
+      "#1F3BD6",
+      "#7B2FD0",
+      "#CC2E5D"
+    ]
+  },
   "font": {
     "display": "InstrumentSerif_400Regular",
     "displayItalic": "InstrumentSerif_400Regular_Italic",

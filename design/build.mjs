@@ -21,7 +21,8 @@ export type RadiusName = keyof typeof tokens.radius;
 await writeFile(path.join(here, "..", "app", "src", "design", "tokens.ts"), ts);
 
 const kebab = s => s.replace(/[A-Z]/g, m => "-" + m.toLowerCase());
-const vars = scheme => Object.entries(tokens.color[scheme]).map(([k, v]) => `  --c-${kebab(k)}: ${v};`).join("\n");
+const vars = scheme => [...Object.entries(tokens.color[scheme]).map(([k, v]) => `  --c-${kebab(k)}: ${v};`),
+  `  --g-action: linear-gradient(110deg, ${tokens.gradient[scheme].join(", ")});`].join("\n");
 const css = `/* Fichier généré par design/build.mjs depuis design/tokens.json : ne pas modifier à la main. */
 :root {
 ${vars("dark")}

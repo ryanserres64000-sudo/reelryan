@@ -17,6 +17,7 @@
   --c-scrim: #0E0E0FB3;
   --c-media: #000000;
   --c-on-media: #FFFFFF;
+  --g-action: linear-gradient(110deg, #2F4BE0, #7B2FD0, #CC2E5D);
   --r-chip: 8px;
   --r-button: 12px;
   --r-card: 16px;
@@ -52,5 +53,6 @@
   --c-scrim: #FFFFFFB3;
   --c-media: #000000;
   --c-on-media: #FFFFFF;
+  --g-action: linear-gradient(110deg, #1F3BD6, #7B2FD0, #CC2E5D);
   color-scheme: light;
 }

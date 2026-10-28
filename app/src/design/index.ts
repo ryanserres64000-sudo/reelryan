@@ -17,6 +17,8 @@ export { MadaSays } from "./components/MadaSays";
 export { Swatch } from "./components/Swatch";
 export { Icon, type IconName } from "./components/Icon";
 export { Intro } from "./components/Intro";
+export { Gradient } from "./components/Gradient";
+export { LogoLabel, LogoSlash } from "./components/Logo";
 export { Sheet } from "./components/Sheet";
 export { ToastProvider, useToast } from "./components/Toast";
 export { Skeleton } from "./components/Skeleton";

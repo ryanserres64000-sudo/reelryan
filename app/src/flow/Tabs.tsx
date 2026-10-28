@@ -2,7 +2,7 @@ import { useRef, useState, type ReactNode } from "react";
 import { Animated, Pressable, StyleSheet, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { fr } from "../copy/fr";
-import { Icon, Sheet, Text, haptic, tokens, useTheme, type IconName } from "../design";
+import { Gradient, Icon, Sheet, Text, haptic, tokens, useTheme, type IconName } from "../design";
 
 export type Tab = "home" | "creations" | "ideas" | "brand";
 export type CreateChoice = "reel" | "manual" | "visual" | "idea";
@@ -39,7 +39,8 @@ export function Tabs({ tab, onTab, onCreate, children }: { tab: Tab; onTab: (t: 
         {LEFT.map(item)}
         <Animated.View style={{ transform: [{ scale: pop }] }}>
           <Pressable onPress={plus} accessibilityRole="button" accessibilityLabel={fr.home.tabs.create} style={[styles.plus, { backgroundColor: c.action }]}>
-            <Icon name="plus" tone="onAction" />
+            <Gradient />
+            <View><Icon name="plus" tone="onAction" /></View>
           </Pressable>
         </Animated.View>
         {RIGHT.map(item)}
@@ -67,7 +68,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   tabs: { flexDirection: "row", justifyContent: "space-around", alignItems: "center", paddingTop: tokens.space.xs, borderTopWidth: tokens.size.border },
   tab: { alignItems: "center", gap: tokens.space.xxs, minWidth: tokens.size.touch * 1.5, minHeight: tokens.size.touch },
-  plus: { width: tokens.size.button, height: tokens.size.button, borderRadius: tokens.radius.full, alignItems: "center", justifyContent: "center" },
+  plus: { width: tokens.size.button, height: tokens.size.button, borderRadius: tokens.radius.full, overflow: "hidden", alignItems: "center", justifyContent: "center" },
   choices: { gap: tokens.space.xs },
   choice: { flexDirection: "row", alignItems: "center", gap: tokens.space.sm, padding: tokens.space.sm, borderRadius: tokens.radius.card, minHeight: tokens.size.button },
   choiceIcon: { width: tokens.size.touch, height: tokens.size.touch, borderRadius: tokens.radius.full, alignItems: "center", justifyContent: "center" },

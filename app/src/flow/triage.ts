@@ -1,5 +1,8 @@
 import { requireOptionalNativeModule } from "expo";
 import { File } from "expo-file-system";
+import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
+import * as VideoThumbnails from "expo-video-thumbnails";
+import { Platform } from "react-native";
 import { charteOf, montageStyle } from "../../../core/brand";
 import { badgesOf, candidateTimes, judge, MAX_FRAMES, pickFrames, rushForAi, type Measure, type Probed } from "../../../core/triage";
 import type { Brand } from "../brand/types";
@@ -32,6 +35,37 @@ export async function triageRush(r: Rush): Promise<Rush> {
   const triage: Triaged = { probed, frames };
   return { ...r, duration: info.duration, photo: info.photo, sound: info.hasAudio, badges: badgesOf(frames, voix), triage };
 }
+
+// A small frame of the rush for its card and for the player when the native preview is missing.
+export async function thumbnailOf(r: Rush): Promise<string | null> {
+  if (!r.uri) return null;
+  if (r.photo) return r.uri;
+  try { return (await VideoThumbnails.getThumbnailAsync(r.uri, { time: Math.min(300, r.duration * 500), quality: 0.6 })).uri; } catch { return null; }
+}
+
+// Without Vision (module missing or failing): the same candidate frames, read with expo-video-thumbnails
+// and shrunk to 512 px, without sharpness or faces. The AI still sees the real footage, never a sample.
+const LITE_PER_RUSH = 6, FRAME_PX = 512;
+async function frameAt(r: Rush & { uri: string }, t: number): Promise<string> {
+  const src = r.photo ? r.uri : (await VideoThumbnails.getThumbnailAsync(r.uri, { time: Math.round(t * 1000), quality: 0.7 })).uri;
+  const out = await (await ImageManipulator.manipulate(src).resize({ width: FRAME_PX }).renderAsync()).saveAsync({ format: SaveFormat.JPEG, compress: 0.6 });
+  return out.uri;
+}
+export async function triageLite(r: Rush): Promise<Rush> {
+  if (!r.uri) return r;
+  const uri = r.uri;
+  const all = r.photo ? [0] : candidateTimes(r.duration, []);
+  const times = all.length <= LITE_PER_RUSH ? all : Array.from({ length: LITE_PER_RUSH }, (_, i) => all[Math.round(i * (all.length - 1) / (LITE_PER_RUSH - 1))]);
+  const ms: Measure[] = [];
+  for (const t of times) { try { ms.push({ t, sharp: null, luma: null, faces: 0, jpeg: await frameAt({ ...r, uri }, t) }); } catch { /* a frame that cannot be read is skipped */ } }
+  if (!ms.length) throw new Error("frames");
+  const probed: Probed = { id: r.id, duration: r.duration, photo: r.photo, width: r.width ?? 1080, height: r.height ?? 1920, hasAudio: r.sound, scenes: [], voix: [] };
+  return { ...r, triage: { probed, frames: judge(r.id, ms, []) } };
+}
+
+// Vision when compiled, the light reading otherwise; nothing on the web preview, which keeps its samples.
+export const canRead = () => Platform.OS !== "web";
+export const triageAny = (r: Rush) => (canTriage() ? triageRush(r).catch(() => triageLite(r)) : triageLite(r));
 
 // What the server needs: the rushes, the 15 to 30 frames kept, read only now (after consent).
 export async function montageBody(rushes: Rush[], brief: Brief, music: Music, brand: Brand | null, rules: string[]) {

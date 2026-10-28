@@ -30,11 +30,13 @@ export type ExportFile = {
 // not on the image. The native module writes these as AVMetadataItem (QuickTime keys) and, once
 // chosen, as Content Credentials (C2PA) [À VÉRIFIER : outil C2PA sur iOS]. A montage made by hand says
 // only the software.
-export function provenance(ia: boolean): Record<string, string> {
-  return {
-    "com.apple.quicktime.software": "Ma DA",
-    ...(ia ? { "com.apple.quicktime.description": "Montage assisté par IA (Ma DA, avec Claude d'Anthropic) à partir de vidéos réelles. Aucune image générée." } : {}),
-  };
+// A synthetic voice-over (étape 5) is said too: the voice is generated, the pictures are not.
+export function provenance(ia: boolean, voixIa = false): Record<string, string> {
+  const parts = [
+    ia ? "Montage assisté par IA (Ma DA, avec Claude d'Anthropic) à partir de vidéos réelles. Aucune image générée." : "",
+    voixIa ? "Voix off générée par IA (voix de synthèse)." : "",
+  ].filter(Boolean);
+  return { "com.apple.quicktime.software": "Ma DA", ...(parts.length ? { "com.apple.quicktime.description": parts.join(" ") } : {}) };
 }
 
 // The area no platform button or caption covers, in 1080 × 1920 px.
@@ -97,7 +99,7 @@ export function exportPlan(t: TimelineV1, ia = true): ExportFile[] {
     for (let i = 0; i < textes.length; i++) textes[i] = { ...textes[i], box: under(textes[i].box) };
     return {
       plateforme: p, nom: `MaDa-${slug(t.titre)}-${p}.mp4`, w: W, h: H, fps: FPS, duree: Math.round(duree * 100) / 100, coupe: t.duree > duree_max,
-      textes, sous_titres: sub, logo, zone: z, legende: captionFor(t, p), metadonnees: provenance(ia),
+      textes, sous_titres: sub, logo, zone: z, legende: captionFor(t, p), metadonnees: provenance(ia, (t.audios ?? []).some(a => a.ia)),
       duo: duoById(t.charte.duo), effets: (t.effets ?? []).filter(e => e.t < duree),
     };
   });

@@ -1,5 +1,6 @@
 import AVFoundation
 import CoreImage
+import Vision
 
 final class MadaInstruction: NSObject, AVVideoCompositionInstructionProtocol {
   let timeRange: CMTimeRange
@@ -7,15 +8,15 @@ final class MadaInstruction: NSObject, AVVideoCompositionInstructionProtocol {
   let containsTweening = true
   let requiredSourceTrackIDs: [NSValue]?
   let passthroughTrackID = kCMPersistentTrackID_Invalid
-  let shots: [Shot]; let plan: RenderPlan
-  init(range: CMTimeRange, shots: [Shot], plan: RenderPlan) {
-    timeRange = range; self.shots = shots; self.plan = plan
-    requiredSourceTrackIDs = shots.filter { $0.still == nil }.map { NSNumber(value: $0.track) }
+  let shots: [Shot]; let layers: [Layer]; let plan: RenderPlan
+  init(range: CMTimeRange, shots: [Shot], layers: [Layer], plan: RenderPlan) {
+    timeRange = range; self.shots = shots; self.layers = layers; self.plan = plan
+    requiredSourceTrackIDs = shots.filter { $0.still == nil }.map { NSNumber(value: $0.track) } + layers.filter { $0.still == nil }.map { NSNumber(value: $0.track) }
   }
 }
 
 // Draws each frame: the shot framed to 9:16, its slow motion, its colour, the transition with the next
-// shot, then the texts and the logo. The same code runs under AVPlayer and AVAssetExportSession.
+// shot, the layers over the frame (étape 6), then the texts and the logo. The same code runs under AVPlayer and AVAssetExportSession.
 final class MadaCompositor: NSObject, AVVideoCompositing {
   private let context = CIContext(options: [.cacheIntermediates: false])
   private let queue = DispatchQueue(label: "mada.compositor")
@@ -41,6 +42,7 @@ final class MadaCompositor: NSObject, AVVideoCompositing {
         }
         frame = image.cropped(to: canvas).composited(over: frame)
       }
+      for layer in instruction.layers { if let image = draw(layer, request, t, plan.size) { frame = blend(image, over: frame, layer.calque.fusion) } }
       for o in plan.overlays {
         let a = o.alpha(at: t)
         if a > 0 { frame = fade(o.image, a).composited(over: frame) }
@@ -105,6 +107,73 @@ final class MadaCompositor: NSObject, AVVideoCompositing {
       return fade(image.transformed(by: CGAffineTransform(translationX: -cx, y: -cy).concatenating(CGAffineTransform(scaleX: s, y: s)).concatenating(CGAffineTransform(translationX: cx, y: cy))), p)
     default: return image
     }
+  }
+
+  // A layer at `t`: upright, filling its box, cut out if asked, rounded, turned, faded. The box is in
+  // fractions of the frame from the top left (core/layers.ts); Core Image counts from the bottom left.
+  private func draw(_ layer: Layer, _ request: AVAsynchronousVideoCompositionRequest, _ t: Double, _ size: CGSize) -> CIImage? {
+    var image: CIImage
+    if let still = layer.still { image = still }
+    else {
+      guard let buffer = request.sourceFrame(byTrackID: layer.track) else { return nil }
+      let raw = CIImage(cvPixelBuffer: buffer).oriented(layer.orient)
+      image = raw.transformed(by: CGAffineTransform(translationX: -raw.extent.minX, y: -raw.extent.minY))
+    }
+    let c = layer.calque, p = poseAt(c, t)
+    let w = CGFloat(c.w * p.echelle) * size.width, h = CGFloat(c.h * p.echelle) * size.height
+    guard w > 1, h > 1, p.opacite > 0 else { return nil }
+    if c.detourage == "personne" { image = cutPerson(image) } else if c.detourage == "fond-vert" { image = chromaKey(image) }
+    // Cover the box, centred, then crop to it.
+    let e = image.extent, k = max(w / e.width, h / e.height)
+    image = image.transformed(by: CGAffineTransform(scaleX: k, y: k))
+    let box = CGRect(x: (image.extent.width - w) / 2 + image.extent.minX, y: (image.extent.height - h) / 2 + image.extent.minY, width: w, height: h)
+    image = image.cropped(to: box).transformed(by: CGAffineTransform(translationX: -box.minX, y: -box.minY))
+    if c.arrondi > 0, let mask = CIFilter(name: "CIRoundedRectangleGenerator", parameters: ["inputExtent": CIVector(cgRect: CGRect(x: 0, y: 0, width: w, height: h)), "inputRadius": CGFloat(c.arrondi) * min(w, h), "inputColor": CIColor.white])?.outputImage {
+      image = image.applyingFilter("CIBlendWithAlphaMask", parameters: [kCIInputBackgroundImageKey: CIImage.empty(), kCIInputMaskImageKey: mask])
+    }
+    // Turn around its centre, then place its centre at (x, y), y counted from the top.
+    let turn = CGAffineTransform(translationX: -w / 2, y: -h / 2).concatenating(CGAffineTransform(rotationAngle: -CGFloat(p.rotation) * .pi / 180))
+    image = image.transformed(by: turn.concatenating(CGAffineTransform(translationX: CGFloat(p.x) * size.width, y: size.height - CGFloat(p.y) * size.height)))
+    return p.opacite < 1 ? fade(image, p.opacite) : image
+  }
+
+  private func blend(_ image: CIImage, over frame: CIImage, _ fusion: String) -> CIImage {
+    let name = ["ecran": "CIScreenBlendMode", "produit": "CIMultiplyBlendMode", "incrustation": "CIOverlayBlendMode"][fusion] ?? "CISourceOverCompositing"
+    return image.applyingFilter(name, parameters: [kCIInputBackgroundImageKey: frame]).cropped(to: frame.extent)
+  }
+
+  // The person kept, the rest transparent (Vision, on the phone; « balanced » keeps up with video).
+  private let segmentation: VNGeneratePersonSegmentationRequest = {
+    let r = VNGeneratePersonSegmentationRequest(); r.qualityLevel = .balanced; r.outputPixelFormat = kCVPixelFormatType_OneComponent8; return r
+  }()
+  private func cutPerson(_ image: CIImage) -> CIImage {
+    let handler = VNImageRequestHandler(ciImage: image)
+    guard (try? handler.perform([segmentation])) != nil, let buffer = segmentation.results?.first?.pixelBuffer else { return image }
+    var mask = CIImage(cvPixelBuffer: buffer)
+    mask = mask.transformed(by: CGAffineTransform(scaleX: image.extent.width / mask.extent.width, y: image.extent.height / mask.extent.height))
+    return image.applyingFilter("CIBlendWithMask", parameters: [kCIInputBackgroundImageKey: CIImage.empty(), kCIInputMaskImageKey: mask])
+  }
+
+  // Green made transparent: a colour cube that clears the hues around green, soft at the edges.
+  private static let greenCube: Data = {
+    let n = 32
+    var cube = [Float](repeating: 0, count: n * n * n * 4)
+    var i = 0
+    for b in 0..<n { for g in 0..<n { for r in 0..<n {
+      let rf = Float(r) / Float(n - 1), gf = Float(g) / Float(n - 1), bf = Float(b) / Float(n - 1)
+      let mx = max(rf, gf, bf), mn = min(rf, gf, bf), d = mx - mn
+      var hue: Float = 0
+      if d > 0 { hue = mx == gf ? 60 * ((bf - rf) / d + 2) : mx == rf ? 60 * (((gf - bf) / d).truncatingRemainder(dividingBy: 6)) : 60 * ((rf - gf) / d + 4) }
+      if hue < 0 { hue += 360 }
+      let sat = mx > 0 ? d / mx : 0
+      let green = hue > 80 && hue < 160 && sat > 0.3 && mx > 0.2
+      let a: Float = green ? 0 : 1
+      cube[i] = rf * a; cube[i + 1] = gf * a; cube[i + 2] = bf * a; cube[i + 3] = a; i += 4
+    } } }
+    return cube.withUnsafeBufferPointer { Data(buffer: $0) }
+  }()
+  private func chromaKey(_ image: CIImage) -> CIImage {
+    image.applyingFilter("CIColorCube", parameters: ["inputCubeDimension": 32, "inputCubeData": MadaCompositor.greenCube])
   }
 
   private func fade(_ image: CIImage, _ a: Double) -> CIImage {

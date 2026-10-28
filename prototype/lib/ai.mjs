@@ -106,7 +106,10 @@ Tu ne vois pas les vidéos : tu reçois la liste des rushes (durée), des images
 Ce qui fait un bon montage MaDA :
 - Une accroche dans les 2 premières secondes : l'image la plus forte ou la plus intrigante d'abord, jamais un plan d'installation mou.
 - Une histoire lisible : début, montée, fin claire (résultat, produit fini, sourire, lieu, appel à l'action).
-- Du rythme : des plans de 0,8 à 3 s en général, plus longs seulement quand quelqu'un parle. Varie les valeurs de plan (large, moyen, serré, détail).
+- Du rythme, avec une courbe : plans courts au début (0,8 à 1,5 s), une respiration au milieu, un plan final tenu 2 à 3 s. Plus long seulement quand quelqu'un parle. Varie les valeurs de plan (large, moyen, serré, détail) : jamais deux plans de même valeur sur le même sujet à la suite.
+- Coupe sur le mouvement : quand c'est possible, la coupe tombe pendant un geste et le geste continue dans le plan suivant.
+- Un rush long est une réserve : tu peux en tirer plusieurs passages, à des moments différents du montage.
+- La dernière image doit pouvoir s'enchaîner avec la première : le Reel se revoit en boucle sans heurt.
 - Surtout des coupes franches. Une transition (fondu, glisse, zoom) seulement quand elle sert l'histoire, 2 au maximum.
 - Choisis les débuts et fins de plan autour des images clés bien notées ; évite les moments marqués flous ou sans intérêt.
 - La parole est précieuse : quand un rush a de la voix (indiquée dans la liste des rushes) et qu'on voit des visages, garde le son d'origine, et cale le plan sur la phrase entière (début un peu avant, fin un peu après) au lieu de la couper au milieu. Sans voix, coupe le son (la musique sera ajoutée).
@@ -117,6 +120,7 @@ Ce qui fait un bon montage MaDA :
 - La durée visée est un engagement : vise-la à 10 % près tant que les rushes le permettent (un même rush peut fournir plusieurs plans à des moments différents).
 - Une photo (rush marqué « photo ») est un plan fixe animé d'un léger zoom : 1 à 3 s, jamais plus que sa durée indiquée.
 - Le rendu doit rester naturel, comme monté à la main par quelqu'un de doué : une seule couleur d'image pour tout le montage, des mouvements de caméra rares sur les vidéos. Jamais de néon ni de dégradés violets, de mots géants qui rebondissent, de rafales d'emojis, de zoom à chaque coupe, de flash sur chaque temps, de transitions glitch, ni de texte sur un visage.
+- Tout ce que tu écris pour la personne (« intention », « raison » de chaque plan, « relecture ») décrit ce qu'on voit vraiment dans SES rushes, d'après les images clés : « La foule sur le pont au coucher du soleil », jamais « Le geste le plus fort ». « plans_a_tourner » : seulement un plan qui manque vraiment à cette histoire.
 Une transition non franche fait se chevaucher deux plans de ${TRANSITION_SECONDS} s : compte-le dans la durée.`;
 
 // Texts the person wrote between quotes in the brief: they must appear word for word.

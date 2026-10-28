@@ -14,3 +14,8 @@ export async function saveVisual(v: SavedVisual): Promise<SavedVisual[]> {
   try { await AsyncStorage.setItem(KEY, JSON.stringify(list)); } catch { /* full storage: the visual stays on screen */ }
   return list;
 }
+export async function deleteVisual(id: string): Promise<SavedVisual[]> {
+  const list = (await loadVisuals()).filter(x => x.id !== id);
+  try { await AsyncStorage.setItem(KEY, JSON.stringify(list)); } catch { /* kept */ }
+  return list;
+}

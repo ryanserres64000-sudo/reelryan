@@ -2,15 +2,16 @@ import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 import { fr } from "../copy/fr";
-import { Button, Chip, RushCard, Screen, Text, tokens, useTheme } from "../design";
+import { Button, RushCard, Screen, Text, tokens, useTheme } from "../design";
 import { LIMITS, type Rush } from "../flow/types";
 
-type Props = { rushes: Rush[]; selected: string[]; pro: boolean; onRushes: (r: Rush[]) => void; onSelect: (ids: string[]) => void; onNext: () => void; demo: boolean; onBrand?: () => void; onVisual?: () => void; onSettings?: () => void; freeLeft?: number | null };
+type Props = { rushes: Rush[]; selected: string[]; pro: boolean; onRushes: (r: Rush[]) => void; onSelect: (ids: string[]) => void; onNext: () => void; demo: boolean; onBack?: () => void };
 const COLUMNS = 3;
 
 // Step 1 (étude, ch. 5 §1): 3 to 25 rushes in the order they are tapped, 90 s of rushes on the free plan.
 // The system picker gives access to the chosen items only, so no photo library permission is asked.
-export function ImportScreen({ rushes, selected, pro, onRushes, onSelect, onNext, demo, onBrand, onVisual, onSettings, freeLeft }: Props) {
+// The brand, visuals and settings links moved to the home screen (« Atelier clair »).
+export function ImportScreen({ rushes, selected, pro, onRushes, onSelect, onNext, demo, onBack }: Props) {
   const { layout } = useTheme();
   const { width } = useWindowDimensions();
   const [pickError, setPickError] = useState(false);
@@ -18,7 +19,6 @@ export function ImportScreen({ rushes, selected, pro, onRushes, onSelect, onNext
   const cardWidth = (Math.min(width, tokens.layout.largePhoneWidth * 1.5) - gutter * 2 - tokens.space.xs * (COLUMNS - 1)) / COLUMNS;
 
   const total = selected.reduce((s, id) => s + (rushes.find(r => r.id === id)?.duration ?? 0), 0);
-  const tooLong = !pro && total > LIMITS.freeSeconds;
   const missing = LIMITS.minRushes - selected.length;
   const full = selected.length >= LIMITS.maxRushes;
 
@@ -33,7 +33,7 @@ export function ImportScreen({ rushes, selected, pro, onRushes, onSelect, onNext
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["videos", "images"], allowsMultipleSelection: true, selectionLimit: LIMITS.maxRushes - selected.length, orderedSelection: true });
       if (res.canceled) return;
       const added: Rush[] = res.assets.map((a, i) => ({
-        id: `p${Date.now().toString(36)}${i}`, uri: a.uri, photo: a.type !== "video", sound: a.type === "video", badges: [],
+        id: `p${Date.now().toString(36)}${i}`, uri: a.uri, photo: a.type !== "video", sound: a.type === "video", badges: [], width: a.width, height: a.height,
         duration: a.type === "video" && a.duration ? a.duration / 1000 : 4,
       }));
       onRushes(demo ? added : [...rushes, ...added]);
@@ -44,27 +44,22 @@ export function ImportScreen({ rushes, selected, pro, onRushes, onSelect, onNext
   };
 
   const fmt = fr.rush.duration;
-  const status = missing > 0 ? fr.import.tooFew(missing) : tooLong ? fr.import.tooLong : full ? fr.import.tooMany : null;
+  const status = missing > 0 ? fr.import.tooFew(missing) : full ? fr.import.tooMany : null;
   return (
-    <Screen title={fr.import.title} detail={fr.import.detail}
+    <Screen title={fr.import.title} detail={fr.import.detail} onBack={onBack}
       footer={<>
-        <Text variant="mono" tone={tooLong ? "danger" : "textMuted"}>{pro ? fr.import.countPro(selected.length, fmt(total)) : fr.import.count(selected.length, fmt(total), fmt(LIMITS.freeSeconds))}</Text>
-        {status ? <Text variant="caption" tone={tooLong ? "danger" : "textMuted"} accessibilityLiveRegion="polite">{status}</Text> : null}
-        <Button label={fr.nav.next} disabled={missing > 0 || tooLong} onPress={onNext} haptic />
+        <Text variant="mono" tone="textMuted">{fr.import.countPro(selected.length, fmt(total))}</Text>
+        {status ? <Text variant="caption" tone="textMuted" accessibilityLiveRegion="polite">{status}</Text> : null}
+        <Button label={fr.nav.next} disabled={missing > 0} onPress={onNext} haptic />
       </>}>
-      <View style={styles.links}>
-        {onBrand ? <Chip kind="ai" label={fr.dna.carnet.open} onPress={onBrand} /> : null}
-        {onVisual ? <Chip kind="ai" label={fr.visual.open} onPress={onVisual} /> : null}
-        {onSettings ? <Chip label={fr.settings.open} onPress={onSettings} /> : null}
-      </View>
-      {freeLeft !== undefined && freeLeft !== null ? <Text variant="caption" tone="ai">{fr.status.free(freeLeft)}</Text> : null}
       <Button variant="secondary" label={fr.import.pick} onPress={pick} />
       {pickError ? <Text tone="danger">{fr.import.pickError}</Text> : null}
-      {demo ? <Text variant="caption" tone="ai">{fr.import.sample}</Text> : null}
+      {demo ? <Text variant="caption" tone="textMuted">{fr.import.sample}</Text> : null}
+      {!demo && !rushes.length ? <Text tone="textMuted">{fr.import.empty}</Text> : null}
       <View style={styles.grid}>
         {rushes.map(r => {
           const i = selected.indexOf(r.id);
-          return <RushCard key={r.id} width={cardWidth} duration={r.duration} badges={r.badges} order={i >= 0 ? i + 1 : undefined} thumbnail={r.uri && r.photo ? { uri: r.uri } : undefined} onPress={() => toggle(r.id)} />;
+          return <RushCard key={r.id} width={cardWidth} duration={r.duration} badges={r.badges} order={i >= 0 ? i + 1 : undefined} thumbnail={r.thumb ? { uri: r.thumb } : r.uri && r.photo ? { uri: r.uri } : undefined} onPress={() => toggle(r.id)} />;
         })}
       </View>
       <Text variant="caption" tone="textMuted">{fr.onboarding.privacy}</Text>
@@ -74,5 +69,4 @@ export function ImportScreen({ rushes, selected, pro, onRushes, onSelect, onNext
 
 const styles = StyleSheet.create({
   grid: { flexDirection: "row", flexWrap: "wrap", gap: tokens.space.xs },
-  links: { flexDirection: "row", flexWrap: "wrap", gap: tokens.space.xs },
 });

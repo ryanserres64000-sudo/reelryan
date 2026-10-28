@@ -7,7 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "backgroundColor": "#0F0D12",
+    "backgroundColor": "#FFFFFF",
     "ios": {
       "bundleIdentifier": "com.madastudio.app",
       "supportsTablet": false,
@@ -26,6 +26,13 @@
               "com.microsoft.waveform-audio"
             ]
           }
+        ],
+        "LSApplicationQueriesSchemes": [
+          "instagram",
+          "instagram-stories",
+          "snssdk1233",
+          "tiktok",
+          "youtube"
         ]
       },
       "config": {
@@ -90,9 +97,9 @@
         {
           "image": "./assets/splash-icon.png",
           "imageWidth": 160,
-          "backgroundColor": "#FBF8F3",
+          "backgroundColor": "#FFFFFF",
           "dark": {
-            "backgroundColor": "#0F0D12"
+            "backgroundColor": "#FFFFFF"
           }
         }
       ],
@@ -111,10 +118,24 @@
           "savePhotosPermission": "Ma DA enregistre tes montages et tes visuels dans Photos.",
           "isAccessMediaLocationEnabled": false
         }
-      ]
+      ],
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Ma DA utilise le micro seulement quand tu enregistres ta voix off. L'enregistrement reste sur ton iPhone.",
+          "recordAudioAndroid": false
+        }
+      ],
+      "./plugins/no-push.js"
     ],
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "owner": "ryanserres",
+    "extra": {
+      "eas": {
+        "projectId": "c6bcfc96-9863-4dcf-8a0f-e49b23c2fde8"
+      }
     }
   }
 }

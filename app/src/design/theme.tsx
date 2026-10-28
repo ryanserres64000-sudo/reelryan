@@ -2,12 +2,15 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { AccessibilityInfo, useColorScheme } from "react-native";
 import { tokens, type ColorScheme } from "./tokens";
 
-// Dark by default (better for watching videos), light available (étude, ch. 6 §3).
+// Light by default (« Atelier clair », Ryan, 28 octobre 2026); the video editor nests a dark provider,
+// because footage is judged on a dark ground.
 export type ThemePreference = ColorScheme | "system";
 
 export type Theme = {
   scheme: ColorScheme;
   c: (typeof tokens.color)[ColorScheme];
+  // The Ma DA gradient, first colour = c.action (proposition B2, Ryan, 28 octobre 2026).
+  g: (typeof tokens.gradient)[ColorScheme];
   space: typeof tokens.space;
   radius: typeof tokens.radius;
   size: typeof tokens.size;
@@ -21,7 +24,7 @@ export type Theme = {
 
 const ThemeContext = createContext<Theme | null>(null);
 
-export function ThemeProvider({ children, initial = "dark" }: { children: ReactNode; initial?: ThemePreference }) {
+export function ThemeProvider({ children, initial = "light" }: { children: ReactNode; initial?: ThemePreference }) {
   const system = useColorScheme();
   const [preference, setPreference] = useState<ThemePreference>(initial);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -34,7 +37,7 @@ export function ThemeProvider({ children, initial = "dark" }: { children: ReactN
 
   const scheme: ColorScheme = preference === "system" ? (system === "light" ? "light" : "dark") : preference;
   const value = useMemo<Theme>(() => ({
-    scheme, c: tokens.color[scheme], space: tokens.space, radius: tokens.radius, size: tokens.size,
+    scheme, c: tokens.color[scheme], g: tokens.gradient[scheme], space: tokens.space, radius: tokens.radius, size: tokens.size,
     opacity: tokens.opacity, motion: tokens.motion, layout: tokens.layout, reduceMotion, preference, setPreference,
   }), [scheme, reduceMotion, preference]);
 

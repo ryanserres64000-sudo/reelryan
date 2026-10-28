@@ -3,13 +3,15 @@ import { fr } from "../copy/fr";
 import { Button, Screen, Text, tokens } from "../design";
 
 // Onboarding 1 (étude, ch. 7 « Promesse ») : who MaDa is and what sign-up will do, in three lines.
-export function WelcomeScreen({ onStart }: { onStart: () => void }) {
+// « D'abord un Reel » (étude de la refonte, décision 1): the carnet can wait until after the first Reel.
+export function WelcomeScreen({ onStart, onLater }: { onStart: () => void; onLater?: () => void }) {
   const t = fr.dna.welcome;
   return (
     <Screen title={t.title} detail={t.detail}
       footer={<>
         <Text variant="caption" tone="textMuted">{t.privacy}</Text>
         <Button label={t.start} onPress={onStart} haptic />
+        {onLater ? <Button variant="secondary" label={t.later} onPress={onLater} /> : null}
       </>}>
       <View style={styles.list}>
         {t.points.map((p, i) => (

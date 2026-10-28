@@ -31,6 +31,18 @@ export const PLATEFORMES = {
 } as const;
 export type Plateforme = keyof typeof PLATEFORMES;
 
+// Tracks over the main shots (étude de la refonte, « Un vrai logiciel de montage »): voices and sounds,
+// videos and photos laid over the frame, with keyframes. All optional, so every earlier timeline stays
+// valid and the AI can keep ignoring them.
+export const AUDIO_TYPES = ["voix-off", "enregistrement", "son"] as const;
+export const FUSIONS = ["normal", "ecran", "produit", "incrustation"] as const;
+export const DETOURAGES = ["aucun", "personne", "fond-vert"] as const;
+export const COURBES = ["regulier", "doux", "rebond"] as const;
+// Three layers over the main shots at once at most, to stay smooth on an iPhone.
+export const MAX_CALQUES_SIMULTANES = 3;
+export const MAX_AUDIOS = 12;
+export const MAX_CALQUES = 12;
+
 export const TRANSITION_SECONDS = 0.3;
 const MIN_SHOT = 0.5;
 const MIN_TEXT = 0.4;
@@ -39,8 +51,24 @@ type OneOf<T extends readonly string[]> = T[number];
 export type Plan = {
   source: string; debut: number; fin: number; cadrage: OneOf<typeof CROPS>; transition: OneOf<typeof TRANSITIONS>;
   garder_son: boolean; vitesse: number; etalonnage: OneOf<typeof ETALONNAGES>; mouvement: OneOf<typeof MOUVEMENTS>; raison: string;
+  // Volume of the shot's own sound (1 when absent).
+  volume?: number;
 };
-export type Texte = { texte: string; debut: number; fin: number; position: OneOf<typeof TEXT_POSITIONS>; style: OneOf<typeof TEXT_STYLES>; impose: boolean; accent: string };
+export type AudioClip = {
+  id: string; type: OneOf<typeof AUDIO_TYPES>; source: string; nom: string; t: number; debut: number; fin: number;
+  volume: number; fondu_entree: number; fondu_sortie: number;
+  // Voice-over: the text read, the voice, and whether a synthetic voice made it (AI Act art. 50).
+  texte: string; voix: string | null; ia: boolean;
+};
+// A keyframe: `t` from the start of the layer, position and size as fractions of the 1080 × 1920 frame.
+export type Cle = { t: number; x: number; y: number; echelle: number; rotation: number; opacite: number; courbe: OneOf<typeof COURBES> };
+export type Calque = {
+  id: string; source: string; photo: boolean; t: number; debut: number; fin: number;
+  x: number; y: number; w: number; h: number; rotation: number; opacite: number;
+  fusion: OneOf<typeof FUSIONS>; arrondi: number; detourage: OneOf<typeof DETOURAGES>; volume: number; cles: Cle[];
+};
+// `lie`: the voice-over a subtitle line belongs to (it moves and goes with it).
+export type Texte = { texte: string; debut: number; fin: number; position: OneOf<typeof TEXT_POSITIONS>; style: OneOf<typeof TEXT_STYLES>; impose: boolean; accent: string; lie?: string };
 export type Effet = { t: number; type: OneOf<typeof EFFETS> };
 export type Musique = {
   mode: OneOf<typeof MUSIQUE_MODES>;
@@ -62,6 +90,7 @@ export type TimelineV1 = {
   exports: { plateforme: Plateforme; duree_max: number }[];
   relecture: { corrections: string[]; plans_a_tourner: string[] };
   legende: { texte: string; hashtags: string[] };
+  audios?: AudioClip[]; calques?: Calque[];
 };
 export type Clips = Record<string, { duration: number }>;
 export type SanitizeOptions = { beat?: number; maxDuration?: number; brief?: string };
@@ -133,6 +162,7 @@ function sanitizePlans(raw: unknown, clips: Clips, beat: number, maxDuration: nu
       source: p.source, debut: round(debut), fin: round(fin), cadrage: pick(p.cadrage, CROPS, "centre"), transition,
       garder_son: !!p.garder_son, vitesse: round(vitesse), etalonnage: pick(p.etalonnage, ETALONNAGES, "naturel"),
       mouvement: pick(p.mouvement, MOUVEMENTS, "aucun"), raison: str(p.raison, 200),
+      ...(p.volume !== undefined && num(p.volume, 1) !== 1 ? { volume: round(clamp(num(p.volume, 1), 0, 2)) } : {}),
     });
   }
   return plans;
@@ -148,6 +178,7 @@ function sanitizeTextes(raw: unknown, duration: number, brief: string | undefine
       impose: imposed.includes(norm(texte)) || (!brief && !!t.impose),
       // The duo's accent word goes with titles only (core/typo.ts).
       accent: style === "accroche" || style === "titre" ? str(t.accent, 30) : "",
+      ...(t.lie ? { lie: str(t.lie, 40) } : {}),
     };
   }).filter(t => t.texte && t.fin - t.debut >= MIN_TEXT);
   for (const [i, t] of imposedTexts(brief).entries()) if (!textes.some(x => norm(x.texte) === imposed[i])) warnings.push(`Texte demandé absent du montage : « ${t} »`);
@@ -182,6 +213,54 @@ function sanitizeCharte(raw: unknown): Charte {
     logo: lo.asset ? { asset: str(lo.asset, 60), position: pick(lo.position, LOGO_POSITIONS, "fin"), taille: round(clamp(num(lo.taille, 0.22), 0.1, 0.4)) } : null,
     duo: DUO_IDS.includes(c.duo) ? c.duo : null,
   };
+}
+
+let seq = 0;
+const id = (v: unknown, p: string) => (typeof v === "string" && /^[\w-]{1,40}$/.test(v) ? v : `${p}${(++seq).toString(36)}${Date.now().toString(36).slice(-4)}`);
+
+// Extra sounds on their own tracks (voice-over, recording, imported sound), inside the edit.
+export function sanitizeAudios(raw: unknown, duration: number): AudioClip[] {
+  return arr(raw).map(r => {
+    const a = obj(r), debut = Math.max(0, num(a.debut)), fin = num(a.fin);
+    return {
+      id: id(a.id, "a"), type: pick(a.type, AUDIO_TYPES, "son"), source: str(a.source, 300), nom: str(a.nom, 80),
+      t: round(clamp(num(a.t), 0, Math.max(0, duration - 0.2))), debut: round(debut), fin: round(fin),
+      volume: round(clamp(num(a.volume, 1), 0, 2)), fondu_entree: round(clamp(num(a.fondu_entree), 0, 3)), fondu_sortie: round(clamp(num(a.fondu_sortie), 0, 3)),
+      texte: str(a.texte, 1000), voix: a.voix ? str(a.voix, 60) : null, ia: !!a.ia,
+    };
+  }).filter(a => a.source && a.fin - a.debut >= 0.2).slice(0, MAX_AUDIOS);
+}
+
+const frac = (v: unknown, d: number, lo = -1, hi = 2) => round(clamp(num(v, d), lo, hi) * 1000) / 1000;
+function sanitizeCle(raw: unknown): Cle {
+  const k = obj(raw);
+  return { t: round(Math.max(0, num(k.t))), x: frac(k.x, 0.5), y: frac(k.y, 0.5), echelle: round(clamp(num(k.echelle, 1), 0.1, 5)), rotation: round(clamp(num(k.rotation), -360, 360)), opacite: round(clamp(num(k.opacite, 1), 0, 1)), courbe: pick(k.courbe, COURBES, "doux") };
+}
+
+// Videos and photos over the frame, from the rushes, inside the edit; keyframes sorted inside the layer.
+export function sanitizeCalques(raw: unknown, clips: Clips, duration: number, warnings: string[] = []): Calque[] {
+  const out: Calque[] = [];
+  for (const r of arr(raw)) {
+    const c = obj(r), clip = clips[c.source];
+    if (!clip) { warnings.push(`Calque ignoré : rush inconnu « ${str(c.source, 40)} ».`); continue; }
+    const debut = clamp(num(c.debut), 0, Math.max(0, clip.duration - MIN_SHOT)), fin = clamp(num(c.fin, clip.duration), debut + MIN_SHOT, clip.duration);
+    const t = round(clamp(num(c.t), 0, Math.max(0, duration - MIN_SHOT))), len = Math.min(fin - debut, duration - t);
+    out.push({
+      id: id(c.id, "c"), source: c.source, photo: !!c.photo, t, debut: round(debut), fin: round(debut + len),
+      x: frac(c.x, 0.7), y: frac(c.y, 0.2), w: frac(c.w, 0.35, 0.05, 1.5), h: frac(c.h, 0.35, 0.05, 1.5), rotation: round(clamp(num(c.rotation), -360, 360)),
+      opacite: round(clamp(num(c.opacite, 1), 0, 1)), fusion: pick(c.fusion, FUSIONS, "normal"), arrondi: round(clamp(num(c.arrondi, 0.08), 0, 0.5)),
+      detourage: pick(c.detourage, DETOURAGES, "aucun"), volume: round(clamp(num(c.volume, 0), 0, 2)),
+      cles: arr(c.cles).map(sanitizeCle).filter(k => k.t <= len).sort((a, b) => a.t - b.t).slice(0, 20),
+    });
+  }
+  // No more than MAX_CALQUES_SIMULTANES at any moment: the later ones give way.
+  const kept: Calque[] = [];
+  for (const c of out.slice(0, MAX_CALQUES)) {
+    const end = c.t + c.fin - c.debut;
+    if (kept.filter(k => k.t < end && c.t < k.t + k.fin - k.debut).length >= MAX_CALQUES_SIMULTANES) { warnings.push("Calque retiré : trois calques au plus en même temps."); continue; }
+    kept.push(c);
+  }
+  return kept;
 }
 
 // At most MAX_EFFETS sound effects, EFFET_ECART seconds apart, inside the edit.
@@ -229,6 +308,8 @@ export function sanitizeTimeline(raw: unknown, clips: Clips, opts: SanitizeOptio
     relecture: { corrections: arr(rel.corrections).map(x => str(x, 200)).filter(Boolean).slice(0, 6), plans_a_tourner: arr(rel.plans_a_tourner).map(x => str(x, 200)).filter(Boolean).slice(0, 3) },
     legende: { texte: str(leg.texte, 2200), hashtags: [...new Set(arr(leg.hashtags).map(h => "#" + str(h, 60).replace(/^#+/, "").replace(/\s+/g, "")).filter(h => h.length > 1))].slice(0, 30) },
   };
+  if (Array.isArray(r.audios) && r.audios.length) timeline.audios = sanitizeAudios(r.audios, duration);
+  if (Array.isArray(r.calques) && r.calques.length) timeline.calques = sanitizeCalques(r.calques, clips, duration, warnings);
   return { timeline, duration, warnings };
 }
 
@@ -272,7 +353,7 @@ export const AI_TIMELINE_SCHEMA = object({
     corrections: list({ type: "string" }, "Ce que tu as corrigé en relisant, phrases courtes au passé composé (« J'ai raccourci l'accroche »). Vide si rien"),
     plans_a_tourner: list({ type: "string" }, "Au plus 3 plans qui manquaient, à tourner la prochaine fois"),
   }),
-  legende: object({ texte: field("string", "Légende de la publication, dans le ton de la personne"), hashtags: list({ type: "string" }, "5 hashtags au plus, du plus utile au moins utile (ville, métier, produit), sans le #") }),
+  legende: object({ texte: field("string", "Légende de la publication : accroche concrète en première ligne, un détail vrai tiré des plans, l'appel à l'action ; dans la voix de la marque ; jamais la phrase de la personne recopiée ou paraphrasée"), hashtags: list({ type: "string" }, "5 hashtags au plus, du plus utile au moins utile (ville, métier, produit), sans le #") }),
 });
 
 export const variantsSchema = () => object({ variantes: list(AI_TIMELINE_SCHEMA, "Une timeline par variante demandée, chacune avec un parti pris différent") });

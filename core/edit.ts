@@ -2,7 +2,7 @@
 // limite » ; Ryan, 28 octobre : « donner la main à l'utilisateur »). Pure functions on a timeline v1:
 // the phone applies them instantly, without AI. Every shot and text gets a stable id, and what the
 // person changes by hand is locked, so a later AI retouch cannot overwrite it.
-import { LOGO_POSITIONS, timelineDuration, type Clips, type Plan, type Texte, type TimelineV1 } from "./timeline.ts";
+import { LOGO_POSITIONS, MAX_CALQUES_SIMULTANES, TRANSITION_SECONDS, sanitizeAudios, sanitizeCalques, timelineDuration, type AudioClip, type Calque, type Cle, type Clips, type Plan, type Texte, type TimelineV1 } from "./timeline.ts";
 import type { DuoId } from "./typo.ts";
 
 export type EditDoc = { timeline: TimelineV1; planIds: string[]; texteIds: string[]; locked: string[] };
@@ -24,7 +24,12 @@ function settle(d: EditDoc): EditDoc {
   const keep = d.timeline.textes.map(t => ({ ...t, debut: round(clamp(t.debut, 0, duree)), fin: round(clamp(t.fin, 0, duree)) }));
   const ok = keep.map(t => t.fin - t.debut >= MIN_TEXT);
   return {
-    ...d, timeline: { ...d.timeline, duree, textes: keep.filter((_, i) => ok[i]), effets: (d.timeline.effets ?? []).filter(e => e.t < duree) },
+    ...d, timeline: {
+      ...d.timeline, duree, textes: keep.filter((_, i) => ok[i]), effets: (d.timeline.effets ?? []).filter(e => e.t < duree),
+      // Sounds and layers that start after the end go; the others are cut at the end.
+      ...(d.timeline.audios ? { audios: d.timeline.audios.filter(a => a.t < duree - 0.2).map(a => ({ ...a, fin: round(Math.min(a.fin, a.debut + duree - a.t)) })) } : {}),
+      ...(d.timeline.calques ? { calques: d.timeline.calques.filter(c => c.t < duree - MIN_SHOT).map(c => ({ ...c, fin: round(Math.min(c.fin, c.debut + duree - c.t)) })) } : {}),
+    },
     texteIds: d.texteIds.filter((_, i) => ok[i]),
   };
 }
@@ -66,12 +71,102 @@ export function deletePlan(d: EditDoc, i: number): EditDoc {
   return withPlans(d, plans, d.planIds.filter((_, j) => j !== i), d.locked.filter(x => x !== d.planIds[i]));
 }
 
-export function setPlan(d: EditDoc, i: number, patch: Partial<Pick<Plan, "transition" | "etalonnage" | "vitesse" | "cadrage" | "garder_son" | "mouvement">>): EditDoc {
+export function setPlan(d: EditDoc, i: number, patch: Partial<Pick<Plan, "transition" | "etalonnage" | "vitesse" | "cadrage" | "garder_son" | "mouvement" | "volume">>): EditDoc {
   if (!d.timeline.plans[i]) return d;
   const p = { ...d.timeline.plans[i], ...patch };
   if (patch.vitesse !== undefined) p.vitesse = round(clamp(patch.vitesse, 0.5, 2));
+  if (patch.volume !== undefined) p.volume = round(clamp(patch.volume, 0, 2));
   if (i === 0) p.transition = "coupe";
   return withPlans(d, d.timeline.plans.map((x, j) => (j === i ? p : x)), d.planIds, lock(d, d.planIds[i]));
+}
+
+// Where each shot starts and ends in the edit (speed and transitions counted).
+export function planTimes(t: Pick<TimelineV1, "plans">): { start: number; end: number }[] {
+  let at = 0;
+  return t.plans.map((p, i) => {
+    const start = Math.max(0, at - (i && p.transition !== "coupe" ? TRANSITION_SECONDS : 0)), end = start + (p.fin - p.debut) / (p.vitesse || 1);
+    at = end;
+    return { start, end };
+  });
+}
+
+// Cuts a shot in two at a moment of the edit (« Couper » under the play head). Both halves keep
+// everything; the second starts with a plain cut.
+export function splitPlan(d: EditDoc, at: number): EditDoc {
+  const times = planTimes(d.timeline), i = times.findIndex(x => at > x.start && at < x.end);
+  if (i < 0) return d;
+  const p = d.timeline.plans[i], cut = round(p.debut + (at - times[i].start) * p.vitesse);
+  if (cut - p.debut < MIN_SHOT || p.fin - cut < MIN_SHOT) return d;
+  const a = { ...p, fin: cut }, b = { ...p, debut: cut, transition: "coupe" as const };
+  const plans = [...d.timeline.plans.slice(0, i), a, b, ...d.timeline.plans.slice(i + 1)];
+  const id = newId("p"), ids = [...d.planIds.slice(0, i + 1), id, ...d.planIds.slice(i + 1)];
+  return withPlans(d, plans, ids, lock({ ...d, locked: lock(d, d.planIds[i]) }, id));
+}
+
+export function duplicatePlan(d: EditDoc, i: number): EditDoc {
+  const p = d.timeline.plans[i];
+  if (!p) return d;
+  const id = newId("p");
+  return withPlans(d, [...d.timeline.plans.slice(0, i + 1), { ...p, transition: "coupe" }, ...d.timeline.plans.slice(i + 1)], [...d.planIds.slice(0, i + 1), id, ...d.planIds.slice(i + 1)], lock(d, id));
+}
+
+// ---------- Sounds on their own tracks (voice-over, recording, imported sound) ----------
+
+const withAudios = (d: EditDoc, audios: AudioClip[], id?: string) => settle({ ...d, locked: id ? lock(d, id) : d.locked, timeline: { ...d.timeline, audios: sanitizeAudios(audios, d.timeline.duree) } });
+export function addAudio(d: EditDoc, a: Omit<AudioClip, "id"> & { id?: string }): EditDoc {
+  const id = a.id ?? newId("a");
+  return withAudios(d, [...(d.timeline.audios ?? []), { ...a, id }], id);
+}
+export function setAudio(d: EditDoc, id: string, patch: Partial<Omit<AudioClip, "id">>): EditDoc {
+  const list = d.timeline.audios ?? [], a = list.find(x => x.id === id);
+  if (!a) return d;
+  // Its subtitles follow the voice when it moves.
+  const shift = patch.t !== undefined ? patch.t - a.t : 0;
+  const moved = shift ? { ...d, timeline: { ...d.timeline, textes: d.timeline.textes.map(x => (x.lie === id ? { ...x, debut: round(x.debut + shift), fin: round(x.fin + shift) } : x)) } } : d;
+  return withAudios(moved, list.map(x => (x.id === id ? { ...x, ...patch } : x)), id);
+}
+// The voice goes with its subtitles.
+export function deleteAudio(d: EditDoc, id: string): EditDoc {
+  const keep = d.timeline.textes.map(x => x.lie !== id);
+  const rest = { ...d, texteIds: d.texteIds.filter((_, i) => keep[i]), timeline: { ...d.timeline, textes: d.timeline.textes.filter((_, i) => keep[i]) } };
+  return withAudios(rest, (d.timeline.audios ?? []).filter(a => a.id !== id));
+}
+// A voice-over and its subtitle lines in one step (one « Annuler »).
+// `ducking`: whether the music goes down while someone speaks (left as it was when not given).
+export function addVoiceOver(d: EditDoc, a: Omit<AudioClip, "id"> & { id: string }, lines: Texte[], ducking?: boolean): EditDoc {
+  const withVoice = addAudio(d, a);
+  if (withVoice === d) return d;
+  const ids = lines.map(() => newId("t"));
+  const next = withTextes(withVoice, [...withVoice.timeline.textes, ...lines], [...withVoice.texteIds, ...ids], [...withVoice.locked, ...ids]);
+  return ducking === undefined ? next : { ...next, timeline: { ...next.timeline, musique: { ...next.timeline.musique, ducking_voix: ducking } } };
+}
+
+// ---------- Layers over the frame (picture in picture, cut-out, keyframes) ----------
+
+const withCalques = (d: EditDoc, calques: Calque[], clips: Clips, id?: string) => settle({ ...d, locked: id ? lock(d, id) : d.locked, timeline: { ...d.timeline, calques: sanitizeCalques(calques, clips, d.timeline.duree) } });
+export function addCalque(d: EditDoc, c: Partial<Calque> & { source: string }, clips: Clips): EditDoc {
+  const id = c.id ?? newId("c");
+  const before = (d.timeline.calques ?? []).length, next = withCalques(d, [...(d.timeline.calques ?? []), { ...c, id } as Calque], clips, id);
+  // Refused when three layers already play at that moment: nothing changes.
+  return (next.timeline.calques ?? []).length > before ? next : d;
+}
+export function setCalque(d: EditDoc, id: string, patch: Partial<Omit<Calque, "id">>, clips: Clips): EditDoc {
+  const list = d.timeline.calques ?? [];
+  if (!list.some(c => c.id === id)) return d;
+  return withCalques(d, list.map(c => (c.id === id ? { ...c, ...patch } : c)), clips, id);
+}
+export const deleteCalque = (d: EditDoc, id: string, clips: Clips): EditDoc => withCalques(d, (d.timeline.calques ?? []).filter(c => c.id !== id), clips);
+
+// A keyframe at `t` (from the start of the layer) with the layer's place at that moment; replaces one
+// within a tenth of a second.
+export function setCle(d: EditDoc, id: string, cle: Cle, clips: Clips): EditDoc {
+  const c = (d.timeline.calques ?? []).find(x => x.id === id);
+  if (!c) return d;
+  return setCalque(d, id, { cles: [...c.cles.filter(k => Math.abs(k.t - cle.t) > 0.1), cle].sort((a, b) => a.t - b.t) }, clips);
+}
+export function deleteCle(d: EditDoc, id: string, t: number, clips: Clips): EditDoc {
+  const c = (d.timeline.calques ?? []).find(x => x.id === id);
+  return c ? setCalque(d, id, { cles: c.cles.filter(k => Math.abs(k.t - t) > 0.1) }, clips) : d;
 }
 
 // ---------- Texts ----------

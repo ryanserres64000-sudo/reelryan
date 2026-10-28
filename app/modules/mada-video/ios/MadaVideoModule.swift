@@ -26,8 +26,9 @@ public class MadaVideoModule: Module {
       export.metadata = metadata(f.metadonnees)
       await export.export()
       guard export.status == .completed else { throw export.error ?? RenderError.export("\(export.status.rawValue)") }
-      try await saveToPhotos(out)
-      return ["uri": out.absoluteString]
+      let asset = try await saveToPhotos(out)
+      // The Photos id lets Instagram open on this very video (instagram://library, étape 7).
+      return ["uri": out.absoluteString, "asset": asset ?? NSNull()]
     }
 
     View(MadaVideoView.self) {
@@ -35,6 +36,8 @@ public class MadaVideoModule: Module {
       Prop("source") { (view: MadaVideoView, source: [String: Any]) in view.load(source) }
       AsyncFunction("play") { (view: MadaVideoView) in view.player.play() }
       AsyncFunction("pause") { (view: MadaVideoView) in view.player.pause() }
+      // The full-screen player (étape 3 de la refonte): sound on or off without touching the edit.
+      AsyncFunction("setMuted") { (view: MadaVideoView, muted: Bool) in view.player.isMuted = muted }
       AsyncFunction("seek") { (view: MadaVideoView, seconds: Double) in
         _ = await view.player.seek(to: time(seconds), toleranceBefore: .zero, toleranceAfter: .zero)
       }
@@ -57,10 +60,17 @@ func metadata(_ m: [String: String]) -> [AVMetadataItem] {
   }
 }
 
-func saveToPhotos(_ url: URL) async throws {
+@discardableResult
+func saveToPhotos(_ url: URL) async throws -> String? {
   let status = await PHPhotoLibrary.requestAuthorization(for: .addOnly)
   guard status == .authorized || status == .limited else { throw RenderError.export("Photos") }
-  try await PHPhotoLibrary.shared().performChanges { PHAssetCreationRequest.forAsset().addResource(with: .video, fileURL: url, options: nil) }
+  var id: String?
+  try await PHPhotoLibrary.shared().performChanges {
+    let request = PHAssetCreationRequest.forAsset()
+    request.addResource(with: .video, fileURL: url, options: nil)
+    id = request.placeholderForCreatedAsset?.localIdentifier
+  }
+  return id
 }
 
 // The preview: an AVPlayer on the very composition the export uses.

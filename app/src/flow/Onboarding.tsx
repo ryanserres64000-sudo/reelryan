@@ -19,7 +19,7 @@ type Step = "welcome" | "profile" | "questions" | "logo" | "consent" | "analysis
 
 // Sign-up (lot 4) : welcome → profile → questions → logo → one AI analysis → carnet. Starting again
 // keeps the answers, so « Refaire le questionnaire » only asks to change what is wrong.
-export function Onboarding({ initial, onDone }: { initial: Brand | null; onDone: (b: Brand) => void }) {
+export function Onboarding({ initial, onDone, onLater }: { initial: Brand | null; onDone: (b: Brand) => void; onLater?: () => void }) {
   const [step, setStep] = useState<Step>(initial?.dna ? "carnet" : initial ? "profile" : "welcome");
   const [profil, setProfil] = useState<Profil | null>(initial?.profil ?? null);
   const [answers, setAnswers] = useState<Answers>(initial?.answers ?? {});
@@ -31,8 +31,8 @@ export function Onboarding({ initial, onDone }: { initial: Brand | null; onDone:
   const brand = (dna: Dna | null, byAi: boolean): Brand => ({ profil: profil!, answers, kit, logoUri: logo?.uri ?? initial?.logoUri ?? null, dna, byAi, at: new Date().toISOString(), memory });
 
   switch (step) {
-    case "welcome": return <WelcomeScreen onStart={() => setStep("profile")} />;
-    case "profile": return <ProfileScreen profil={profil} onChange={setProfil} onBack={() => setStep("welcome")} onNext={() => setStep("questions")} />;
+    case "welcome": return <WelcomeScreen onStart={() => setStep("profile")} onLater={onLater} />;
+    case "profile": return <ProfileScreen profil={profil} onChange={setProfil} onBack={() => (initial && onLater ? onLater() : setStep("welcome"))} onNext={() => setStep("questions")} />;
     case "questions": return <QuestionsScreen profil={profil!} answers={answers} onChange={setAnswers} onBack={() => setStep("profile")} onDone={() => setStep("logo")} />;
     case "logo": return <LogoScreen kit={kit} logo={logo} onChange={(k, l) => { setKit(k); setLogo(l); }} onBack={() => setStep("questions")} onNext={() => setStep(consent() ? "analysis" : "consent")} />;
     // The analysis is the first AI call: permission first (lot 9). No writes the carnet without AI.

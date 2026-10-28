@@ -2,7 +2,8 @@ import { createContext, useContext, useEffect, useMemo, useState, type ReactNode
 import { AccessibilityInfo, useColorScheme } from "react-native";
 import { tokens, type ColorScheme } from "./tokens";
 
-// Dark by default (better for watching videos), light available (étude, ch. 6 §3).
+// Light by default (« Atelier clair », Ryan, 28 octobre 2026); the video editor nests a dark provider,
+// because footage is judged on a dark ground.
 export type ThemePreference = ColorScheme | "system";
 
 export type Theme = {
@@ -21,7 +22,7 @@ export type Theme = {
 
 const ThemeContext = createContext<Theme | null>(null);
 
-export function ThemeProvider({ children, initial = "dark" }: { children: ReactNode; initial?: ThemePreference }) {
+export function ThemeProvider({ children, initial = "light" }: { children: ReactNode; initial?: ThemePreference }) {
   const system = useColorScheme();
   const [preference, setPreference] = useState<ThemePreference>(initial);
   const [reduceMotion, setReduceMotion] = useState(false);

@@ -2,15 +2,16 @@ import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
 import { fr } from "../copy/fr";
-import { Button, Chip, RushCard, Screen, Text, tokens, useTheme } from "../design";
+import { Button, RushCard, Screen, Text, tokens, useTheme } from "../design";
 import { LIMITS, type Rush } from "../flow/types";
 
-type Props = { rushes: Rush[]; selected: string[]; pro: boolean; onRushes: (r: Rush[]) => void; onSelect: (ids: string[]) => void; onNext: () => void; demo: boolean; onBrand?: () => void; onVisual?: () => void; onSettings?: () => void; freeLeft?: number | null };
+type Props = { rushes: Rush[]; selected: string[]; pro: boolean; onRushes: (r: Rush[]) => void; onSelect: (ids: string[]) => void; onNext: () => void; demo: boolean; onBack?: () => void };
 const COLUMNS = 3;
 
 // Step 1 (étude, ch. 5 §1): 3 to 25 rushes in the order they are tapped, 90 s of rushes on the free plan.
 // The system picker gives access to the chosen items only, so no photo library permission is asked.
-export function ImportScreen({ rushes, selected, pro, onRushes, onSelect, onNext, demo, onBrand, onVisual, onSettings, freeLeft }: Props) {
+// The brand, visuals and settings links moved to the home screen (« Atelier clair »).
+export function ImportScreen({ rushes, selected, pro, onRushes, onSelect, onNext, demo, onBack }: Props) {
   const { layout } = useTheme();
   const { width } = useWindowDimensions();
   const [pickError, setPickError] = useState(false);
@@ -46,21 +47,15 @@ export function ImportScreen({ rushes, selected, pro, onRushes, onSelect, onNext
   const fmt = fr.rush.duration;
   const status = missing > 0 ? fr.import.tooFew(missing) : tooLong ? fr.import.tooLong : full ? fr.import.tooMany : null;
   return (
-    <Screen title={fr.import.title} detail={fr.import.detail}
+    <Screen title={fr.import.title} detail={fr.import.detail} onBack={onBack}
       footer={<>
         <Text variant="mono" tone={tooLong ? "danger" : "textMuted"}>{pro ? fr.import.countPro(selected.length, fmt(total)) : fr.import.count(selected.length, fmt(total), fmt(LIMITS.freeSeconds))}</Text>
         {status ? <Text variant="caption" tone={tooLong ? "danger" : "textMuted"} accessibilityLiveRegion="polite">{status}</Text> : null}
         <Button label={fr.nav.next} disabled={missing > 0 || tooLong} onPress={onNext} haptic />
       </>}>
-      <View style={styles.links}>
-        {onBrand ? <Chip kind="ai" label={fr.dna.carnet.open} onPress={onBrand} /> : null}
-        {onVisual ? <Chip kind="ai" label={fr.visual.open} onPress={onVisual} /> : null}
-        {onSettings ? <Chip label={fr.settings.open} onPress={onSettings} /> : null}
-      </View>
-      {freeLeft !== undefined && freeLeft !== null ? <Text variant="caption" tone="ai">{fr.status.free(freeLeft)}</Text> : null}
       <Button variant="secondary" label={fr.import.pick} onPress={pick} />
       {pickError ? <Text tone="danger">{fr.import.pickError}</Text> : null}
-      {demo ? <Text variant="caption" tone="ai">{fr.import.sample}</Text> : null}
+      {demo ? <Text variant="caption" tone="textMuted">{fr.import.sample}</Text> : null}
       <View style={styles.grid}>
         {rushes.map(r => {
           const i = selected.indexOf(r.id);
@@ -74,5 +69,4 @@ export function ImportScreen({ rushes, selected, pro, onRushes, onSelect, onNext
 
 const styles = StyleSheet.create({
   grid: { flexDirection: "row", flexWrap: "wrap", gap: tokens.space.xs },
-  links: { flexDirection: "row", flexWrap: "wrap", gap: tokens.space.xs },
 });

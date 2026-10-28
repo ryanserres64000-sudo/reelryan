@@ -27,11 +27,13 @@ test("les deux modes ont les mêmes rôles de couleur", () => {
   assert.deepEqual(Object.keys(tokens.color.light).sort(), Object.keys(tokens.color.dark).sort());
 });
 
-test("les valeurs de l'étude sont respectées (ch. 6 §3)", () => {
+test("les valeurs « Atelier clair » choisies par Ryan sont respectées (28 octobre 2026)", () => {
   const d = tokens.color.dark, l = tokens.color.light;
-  assert.equal(d.bg, "#0F0D12"); assert.equal(d.action, "#E8C27A"); assert.equal(d.ai, "#B9A6F0");
-  assert.equal(l.bg, "#FBF8F3"); assert.equal(l.actionStrong, "#8A6516"); assert.equal(l.ai, "#5B47A8");
-  assert.ok(Math.abs(ratio(d.onAction, d.action) - 10.7) < 0.3);
+  assert.equal(l.bg, "#FFFFFF"); assert.equal(l.text, "#121212"); assert.equal(l.action, "#1F3BD6");
+  // Une seule couleur d'action : l'IA n'a plus sa propre couleur.
+  assert.equal(l.ai, l.action); assert.equal(d.ai, d.actionStrong);
+  assert.equal(d.bg, "#0E0E0F");
+  assert.ok(ratio(l.onAction, l.action) >= 7);
   assert.deepEqual(tokens.radius.chip + "/" + tokens.radius.button + "/" + tokens.radius.card + "/" + tokens.radius.sheet, "8/12/16/24");
   for (const v of Object.values(tokens.space)) assert.equal(v % tokens.layout.grid, 0, `${v} hors grille de 4`);
   assert.ok(tokens.size.touch >= 44);

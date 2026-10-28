@@ -2,16 +2,16 @@ import { useEffect, useRef, useState } from "react";
 import { Animated, Image, Pressable, StyleSheet, View, type ImageSourcePropType } from "react-native";
 import { fr } from "../../copy/fr";
 import { tokens } from "../tokens";
-import { Text } from "../Text";
 import { useTheme } from "../theme";
 
 export type FriseShot = { id: string; duration: number; thumbnail?: ImageSourcePropType; changed?: boolean };
 export type FriseText = { start: number; end: number; label: string };
 type Props = { shots: FriseShot[]; beats?: number[]; texts?: FriseText[]; selected?: number; onSelect?: (i: number) => void };
 
-// Blocks proportional to their duration, gold dots on the beats, texts as lavender pills above,
-// what MaDa just changed highlighted for 2 s (étude, ch. 6 §4 ; ch. 5 §6). With `onSelect`, a tap
-// picks a shot to adjust by hand (lot 5) and the picked one is outlined in gold.
+// Blocks proportional to their duration, dots on the beats, texts as a thin track above (no label
+// to cut: the words are read by VoiceOver and shown in the Texte tool), what Ma DA just changed
+// highlighted for 2 s (étude, ch. 6 §4 ; ch. 5 §6). With `onSelect`, a tap picks a shot to adjust by
+// hand (lot 5) and the picked one is outlined.
 export function Frise({ shots, beats = [], texts = [], selected, onSelect }: Props) {
   const { c } = useTheme();
   const [width, setWidth] = useState(0);
@@ -21,9 +21,7 @@ export function Frise({ shots, beats = [], texts = [], selected, onSelect }: Pro
     <View accessibilityLabel={fr.frise.label} onLayout={e => setWidth(e.nativeEvent.layout.width)} style={styles.wrap}>
       <View style={styles.texts}>
         {width ? texts.map((t, i) => (
-          <View key={i} style={[styles.textPill, { left: px(t.start), width: Math.max(px(t.end - t.start), tokens.size.touch), borderColor: c.ai }]}>
-            <Text variant="caption" tone="ai" numberOfLines={1}>{t.label}</Text>
-          </View>
+          <View key={i} accessibilityLabel={t.label} style={[styles.textBar, { left: px(t.start), width: Math.max(px(t.end - t.start), tokens.size.textBar), backgroundColor: c.ai }]} />
         )) : null}
       </View>
       <View style={styles.track}>
@@ -51,15 +49,15 @@ function Block({ shot, index, width, selected, onPress }: { shot: FriseShot; ind
       disabled={!onPress} onPress={onPress} style={[styles.block, { width, backgroundColor: c.surfaceRaised, borderColor: c.line }]}>
       {shot.thumbnail ? <Image source={shot.thumbnail} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
       <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.glow, { borderColor: c.ai, opacity: glow }]} />
-      {selected ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.glow, { borderColor: c.action }]} /> : null}
+      {selected ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.glow, { borderColor: c.text }]} /> : null}
     </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: { gap: tokens.space.xxs },
-  texts: { height: tokens.size.pill },
-  textPill: { position: "absolute", height: tokens.size.pill, borderWidth: tokens.size.border, borderRadius: tokens.radius.chip, paddingHorizontal: tokens.space.xxs, justifyContent: "center" },
+  texts: { height: tokens.size.textBar },
+  textBar: { position: "absolute", height: tokens.size.textBar, borderRadius: tokens.radius.full },
   track: { flexDirection: "row", height: tokens.size.frise, borderRadius: tokens.radius.chip, overflow: "hidden" },
   block: { height: tokens.size.frise, borderRightWidth: tokens.size.border, overflow: "hidden" },
   glow: { borderWidth: tokens.size.selection, borderRadius: tokens.radius.chip },

@@ -12,14 +12,15 @@ const ORDER: MusicChoice[] = ["mine", "catalog", "trending", "none"];
 type Props = { value?: MusicChoice; recommended?: MusicChoice; catalogAvailable?: boolean; onChange?: (v: MusicChoice) => void; onLink?: (url: string) => void };
 
 // 4 cards in a 2 × 2 grid, the recommended one badged, the MP3 link field unfolding in « Mon son »
-// (étude, ch. 6 §4 ; ch. 5 §3). The licensed catalogue stays « Bientôt » until a contract exists (ch. 9).
+// (étude, ch. 6 §4 ; ch. 5 §3). The licensed catalogue is hidden until a contract exists (ch. 9): Apple
+// refuses features announced but absent.
 export function MusicPicker({ value, recommended, catalogAvailable = false, onChange, onLink }: Props) {
   const { c } = useTheme();
   const [link, setLink] = useState("");
   return (
     <View style={styles.grid}>
-      {ORDER.map(k => {
-        const card = fr.music.cards[k], selected = value === k, off = k === "catalog" && !catalogAvailable;
+      {ORDER.filter(k => k !== "catalog" || catalogAvailable).map(k => {
+        const card = fr.music.cards[k], selected = value === k, off = false;
         return (
           <Pressable key={k} disabled={off} onPress={() => onChange?.(k)} accessibilityRole="button" accessibilityState={{ selected, disabled: off }}
             style={[styles.card, value === "mine" && k === "mine" ? styles.wide : null, { backgroundColor: c.surface, borderColor: selected ? c.actionStrong : c.line, borderWidth: selected ? tokens.size.selection : tokens.size.border }]}>

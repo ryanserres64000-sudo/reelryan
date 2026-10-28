@@ -1,4 +1,6 @@
 import * as Linking from "expo-linking";
+import { StatusBar } from "expo-status-bar";
+import { ThemeProvider } from "../design";
 import { useEffect, useState } from "react";
 import type { Profil } from "../../../core/brand";
 import { emptyMemory } from "../../../core/corrections";
@@ -22,6 +24,7 @@ import { DesignCatalogue } from "../screens/DesignCatalogue";
 import { BriefScreen } from "../screens/BriefScreen";
 import { GenerationScreen } from "../screens/GenerationScreen";
 import { ImportScreen } from "../screens/ImportScreen";
+import { HomeScreen } from "../screens/HomeScreen";
 import { MusicScreen } from "../screens/MusicScreen";
 import { ResultScreen } from "../screens/ResultScreen";
 import { ExportScreen } from "../screens/ExportScreen";
@@ -37,7 +40,7 @@ import { canTriage, montageBody, triageRush } from "./triage";
 import { Onboarding } from "./Onboarding";
 import type { Brief, MontageResult, Music, Rush, Trade } from "./types";
 
-type Step = "brand" | "import" | "brief" | "music" | "generation" | "result" | "editor" | "catalogue" | "visual" | "visual-editor" | "export" | "paywall" | "consent" | "settings";
+type Step = "home" | "brand" | "import" | "brief" | "music" | "generation" | "result" | "editor" | "catalogue" | "visual" | "visual-editor" | "export" | "paywall" | "consent" | "settings";
 // The brief's trade chips (lot 2) start from the sign-up profile.
 const TRADE_OF: Record<Profil, Trade> = { commerce: "commerce", restaurant: "restaurant", "petite-entreprise": "artisan", "grande-entreprise": "freelance", ecole: "freelance", createur: "freelance", debutant: "freelance" };
 const START_BRIEF: Brief = { text: "", trade: "restaurant", goal: null, tone: null, duration: 30, platforms: ["reels", "tiktok", "shorts"], cta: null };
@@ -46,7 +49,7 @@ const START_BRIEF: Brief = { text: "", trade: "restaurant", goal: null, tone: nu
 // result, with sample data until the native module (Vision triage, AVFoundation preview) and the
 // server are plugged in.
 export function Flow() {
-  const [step, setStep] = useState<Step>(() => typeof location !== "undefined" && location.hash === "#catalogue" ? "catalogue" : "import");
+  const [step, setStep] = useState<Step>(() => typeof location !== "undefined" && location.hash === "#catalogue" ? "catalogue" : "home");
   const [brand, setBrand] = useState<BrandDna | null | undefined>(undefined);
   useEffect(() => { Promise.all([loadBrand(), loadConsent()]).then(([b]) => { setBrand(b); if (!b) setStep(s => (s === "catalogue" ? s : "brand")); else setBrief(x => ({ ...x, trade: TRADE_OF[b.profil] })); }); }, []);
   const [rushes, setRushes] = useState<Rush[]>(SAMPLE_RUSHES);
@@ -93,17 +96,21 @@ export function Flow() {
   if (brand === undefined && step !== "catalogue") return null;
   switch (step) {
     case "catalogue": return <DesignCatalogue />;
-    case "brand": return <Onboarding initial={brand ?? null} onDone={b => { setBrand(b); setBrief(x => ({ ...x, trade: TRADE_OF[b.profil] })); setStep("import"); }} />;
-    case "visual": return <VisualBriefScreen brand={brand ?? null} saved={visuals} initial={visual} onBack={() => setStep("import")}
+    case "brand": return <Onboarding initial={brand ?? null} onDone={b => { setBrand(b); setBrief(x => ({ ...x, trade: TRADE_OF[b.profil] })); setStep("home"); }} />;
+    case "home": return <HomeScreen brand={brand ?? null} visuals={visuals} freeLeft={plans && !plans.pro ? verdict(plans, "montage").restant : null}
+      lastReel={result ? { title: result.r.variantes[0].timeline.titre, duration: result.r.variantes[0].duration } : null}
+      onNewReel={idea => { if (idea) setBrief(b => ({ ...b, text: idea.titre })); setStep("import"); }}
+      onVisual={() => (consent() ? setStep("visual") : askConsent("home", () => setStep("visual"), () => setStep("visual")))}
+      onBrand={() => setStep("brand")} onSettings={() => setStep("settings")} onOpenReel={() => setStep("result")}
+      onOpenVisual={v => { setVisual({ id: v.id, result: { design: v.design, concept: "", relecture: [], byAi: true }, brief: v.brief, photos: v.photos }); setStep("visual-editor"); }} />;
+    case "visual": return <VisualBriefScreen brand={brand ?? null} saved={visuals} initial={visual} onBack={() => setStep("home")}
       canAi={!plans || verdict(plans, "visuel").ok} onBlocked={(b, photos) => { setVisual(v => (v ? { ...v, brief: b, photos } : v)); setPaywall({ mode: "bloquant", back: "visual", offline: { brief: b, photos } }); setStep("paywall"); }}
       onCreated={(r, b, photos) => { if (plans && r.byAi) updatePlans(record(plans, "visuel")); setVisual({ id: Date.now().toString(36), result: r, brief: b, photos }); setStep("visual-editor"); }}
       onOpen={v => { setVisual({ id: v.id, result: { design: v.design, concept: "", relecture: [], byAi: true }, brief: v.brief, photos: v.photos }); setStep("visual-editor"); }} />;
     case "visual-editor": return visual ? <VisualEditorScreen key={visual.id} result={visual.result} brief={visual.brief} photos={visual.photos} brand={brand ?? null}
       onBack={() => setStep("visual")}
       onSave={d => { saveVisual({ id: visual.id, brief: visual.brief, design: d, photos: visual.photos, at: new Date().toISOString() }).then(setVisuals); setStep("visual"); }} /> : null;
-    case "import": return <ImportScreen onBrand={() => setStep("brand")} onVisual={() => (consent() ? setStep("visual") : askConsent("import", () => setStep("visual"), () => setStep("visual")))}
-      onSettings={() => setStep("settings")} rushes={rushes} selected={selected} pro={!!plans?.pro} demo={demo}
-      freeLeft={plans && !plans.pro ? verdict(plans, "montage").restant : null}
+    case "import": return <ImportScreen onBack={() => setStep("home")} rushes={rushes} selected={selected} pro={!!plans?.pro} demo={demo}
       onRushes={r => { setRushes(r); setDemo(false); }} onSelect={setSelected} onNext={() => setStep("brief")} />;
     case "brief": return <BriefScreen brief={brief} onChange={b => { setBrief(b); if (b.duration !== brief.duration) setMusic(m => ({ ...m, length: b.duration })); }} onBack={() => setStep("import")} onNext={() => setStep("music")} />;
     case "music": return <MusicScreen music={music} onChange={setMusic} briefDuration={brief.duration} incoming={incoming} onBack={() => setStep("brief")} onNext={() => {
@@ -122,7 +129,7 @@ export function Flow() {
         return montageBody(chosen, brief, music, brand ?? null, brand?.memory?.rules.map(r => r.text) ?? []).then(body => streamMontage(url, body, onStep, signal));
       }}
       onDone={(r, s) => { if (plans) updatePlans(record(plans, "montage")); setKeptVersion(null); setResult({ r, s }); setStep("result"); }} onCancel={() => setStep("music")} />;
-    case "result": return result ? <ResultScreen result={result.r} seconds={result.s} onBack={() => setStep("brief")} onRestart={() => { setResult(null); setStep("import"); }}
+    case "result": return result ? <ResultScreen result={result.r} seconds={result.s} onBack={() => setStep("brief")} onRestart={() => { setResult(null); setStep("home"); }}
       sources={i => videoSources(result.r.variantes[i].timeline, chosen, brand ?? null, music)}
       onEdit={i => { setEditing(i); setStep("editor"); }} onExport={i => { setEditing(i); setStep("export"); }}
       kept={keptVersion} onKeep={i => {
@@ -138,7 +145,7 @@ export function Flow() {
         createVisual(o.brief, brand ?? null, o.photos, undefined, false).then(r => { setVisual({ id: Date.now().toString(36), result: r, brief: o.brief, photos: o.photos }); setStep("visual-editor"); });
       } : undefined} /> : null;
     case "consent": return ask ? <ConsentScreen onBack={() => setStep(ask.back)} onAnswer={ok => setConsent(ok).then(() => (ok ? ask.yes() : ask.no()))} /> : null;
-    case "settings": return <SettingsScreen plans={plans} onPlans={updatePlans} onBack={() => setStep("import")}
+    case "settings": return <SettingsScreen plans={plans} onPlans={updatePlans} onBack={() => setStep("home")}
       onDeleted={() => { setBrand(null); setVisuals([]); setVisual(null); setResult(null); setStep("brand"); }} />;
     case "export": {
       const v = result?.r.variantes[editing];
@@ -149,7 +156,8 @@ export function Flow() {
       const v = result?.r.variantes[editing];
       if (!result || !v) return null;
       const memory = brand?.memory ?? emptyMemory();
-      return <EditorScreen key={editing} timeline={v.timeline} brief={composeBrief(brief)}
+      // The editor stays dark in « Atelier clair »: footage is judged on a dark ground.
+      return <ThemeProvider initial="dark"><StatusBar style="light" /><EditorScreen key={editing} timeline={v.timeline} brief={composeBrief(brief)}
         clips={Object.fromEntries(chosen.map(r => [r.id, { duration: r.duration }]))} bad={chosen.filter(r => r.badges.includes("blur") || r.badges.includes("dark")).map(r => r.id)}
         style={montageStyle(brand?.dna ?? null, memory.rules.map(r => r.text))} memory={memory}
         onMemory={m => { if (!brand) return; const b = { ...brand, memory: m }; setBrand(b); saveBrand(b); }}
@@ -157,7 +165,7 @@ export function Flow() {
         onSave={tl => {
           const variantes = result.r.variantes.map((x, j) => (j === editing ? { ...x, timeline: tl, duration: tl.duree } : x));
           setResult({ ...result, r: { ...result.r, variantes } }); setStep("result");
-        }} />;
+        }} /></ThemeProvider>;
     }
   }
 }

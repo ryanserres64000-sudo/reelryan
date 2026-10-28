@@ -5,11 +5,12 @@ import { useTheme } from "./theme";
 type Tone = Extract<ColorName, "text" | "textMuted" | "actionStrong" | "ai" | "danger" | "ok" | "onAction" | "onAi" | "onMedia">;
 
 export function typeStyle(variant: TypeName): TextStyle {
-  const v = tokens.type[variant];
-  const family = tokens.font[v.font];
+  // Widened on purpose: « system » (SF Pro) and a weight stay possible in tokens.json.
+  const v: { font: keyof typeof tokens.font; size: number; lineHeight: number; letterSpacing: number; weight?: TextStyle["fontWeight"] } = tokens.type[variant];
+  const family: string = tokens.font[v.font];
   return {
     fontFamily: family === "system" ? Platform.select({ ios: undefined, default: "system-ui" }) : family,
-    fontWeight: "weight" in v ? v.weight : undefined,
+    fontWeight: v.weight,
     fontSize: v.size, lineHeight: v.lineHeight, letterSpacing: v.letterSpacing,
   };
 }

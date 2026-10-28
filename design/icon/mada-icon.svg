@@ -1,14 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
-  <!-- Icône « D-frise » (étude, ch. 6 §3) : un D dont le dos est fait de 4 segments de frise de montage. Or #E8C27A sur prune #0F0D12. -->
-  <rect width="1024" height="1024" fill="#0F0D12"/>
-  <defs>
-    <mask id="frise">
-      <rect width="1024" height="1024" fill="#fff"/>
-      <rect x="382" y="230" width="30" height="560" fill="#000"/>
-      <rect x="412" y="374" width="500" height="26" fill="#000"/>
-      <rect x="412" y="499" width="500" height="26" fill="#000"/>
-      <rect x="412" y="624" width="500" height="26" fill="#000"/>
-    </mask>
-  </defs>
-  <path mask="url(#frise)" fill="#E8C27A" d="M312 250 H500 A262 262 0 0 1 500 774 H312 A20 20 0 0 1 292 754 V270 A20 20 0 0 1 312 250 Z"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" width="1024" height="1024">
+  <!-- Icône « Ma / DA étiquette » (piste 15, provisoire en attendant le choix final de Ryan, 28 octobre 2026) : « Ma » à l'encre, la barre oblique bleue de la coupe, « DA » dans l'étiquette bleue. Police Instrument Sans (OFL). -->
+  <rect width="100" height="100" fill="#FFFFFF"/>
+  <text x="23" y="59" text-anchor="middle" font-family="Instrument Sans" font-weight="600" font-size="21" fill="#121212">Ma</text>
+  <text x="43" y="60" text-anchor="middle" font-family="Instrument Sans" font-weight="500" font-size="24" fill="#1F3BD6">/</text>
+  <rect x="51" y="39" width="36" height="27" rx="5.94" fill="#1F3BD6"/>
+  <text x="69" y="58.7" text-anchor="middle" font-family="Instrument Sans" font-weight="700" font-size="21" fill="#FFFFFF">DA</text>
 </svg>

@@ -1,13 +1,13 @@
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
-import { useEffect } from "react";
-import { ThemeProvider, useMadaFonts, useTheme } from "./src/design";
+import { useEffect, useState } from "react";
+import { Intro, ThemeProvider, useMadaFonts, useTheme } from "./src/design";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Flow } from "./src/flow/Flow";
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
-// Web preview only: ?light opens the light mode, for screenshots.
-const WEB_LIGHT = typeof location !== "undefined" && location.search.includes("light");
+// Light by default (« Atelier clair »). Web preview only: ?dark opens the dark mode, for screenshots.
+const WEB_DARK = typeof location !== "undefined" && location.search.includes("dark");
 
 export default function App() {
   const [loaded, error] = useMadaFonts();
@@ -15,7 +15,7 @@ export default function App() {
   if (!loaded && !error) return null;
   return (
     <SafeAreaProvider>
-      <ThemeProvider initial={WEB_LIGHT ? "light" : "dark"}>
+      <ThemeProvider initial={WEB_DARK ? "dark" : "light"}>
         <Root />
       </ThemeProvider>
     </SafeAreaProvider>
@@ -24,10 +24,13 @@ export default function App() {
 
 function Root() {
   const { scheme } = useTheme();
+  // The logo animation plays over the first screen, once per launch.
+  const [intro, setIntro] = useState(true);
   return (
     <>
       <StatusBar style={scheme === "dark" ? "light" : "dark"} />
       <Flow />
+      {intro ? <Intro onDone={() => setIntro(false)} /> : null}
     </>
   );
 }

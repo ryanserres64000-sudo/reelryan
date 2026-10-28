@@ -7,7 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
-    "backgroundColor": "#0F0D12",
+    "backgroundColor": "#FFFFFF",
     "ios": {
       "bundleIdentifier": "com.madastudio.app",
       "supportsTablet": false,
@@ -90,9 +90,9 @@
         {
           "image": "./assets/splash-icon.png",
           "imageWidth": 160,
-          "backgroundColor": "#FBF8F3",
+          "backgroundColor": "#FFFFFF",
           "dark": {
-            "backgroundColor": "#0F0D12"
+            "backgroundColor": "#FFFFFF"
           }
         }
       ],

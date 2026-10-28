@@ -1,4 +1,4 @@
-// Tous les textes de l'app, au ton MaDa (étude, ch. 6 §3) : tutoiement, « je » pour MaDa,
+// Tous les textes de l'app, au ton Ma DA (étude, ch. 6 §3) : tutoiement, « je » pour Ma DA,
 // phrases courtes, verbes d'action, pas de jargon (ni « timeline » ni « BPM » hors Réglages),
 // une pointe d'humour, jamais de culpabilisation. Aucun écran n'écrit de texte en dur.
 
@@ -6,7 +6,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : 
 const secondes = (s: number) => `${Math.round(s)} seconde${Math.round(s) > 1 ? "s" : ""}`;
 
 export const fr = {
-  app: { name: "Ma DA", fullName: "Ma DA : Studio créatif IA", tagline: "Tu fais ton métier, MaDa fait tes Reels." },
+  app: { name: "Ma DA", fullName: "Ma DA : Studio créatif IA", tagline: "Tu fais ton métier, Ma DA fait tes Reels." },
 
   onboarding: {
     step1: "Choisis quelques vidéos de ta journée. Je m'occupe du montage.",
@@ -59,7 +59,7 @@ export const fr = {
     soon: "Bientôt",
     cards: {
       mine: { title: "Mon son", detail: "Un lien MP3 ou un fichier" },
-      catalog: { title: "Catalogue MaDa", detail: "Des morceaux sous licence" },
+      catalog: { title: "Catalogue Ma DA", detail: "Des morceaux sous licence" },
       trending: { title: "Son tendance", detail: "Je cale le montage, tu ajoutes le son dans Instagram ou TikTok" },
       none: { title: "Sans musique", detail: "Ta voix, nettoyée, avec sous-titres" },
     },
@@ -209,10 +209,10 @@ export const fr = {
   },
 
 
-  // Sign-up: the brand DNA (lot 4). MaDa speaks in lavender, the person answers in gold.
+  // Sign-up: the brand DNA (lot 4). Ma DA speaks in plain text, the person answers with the blue.
   dna: {
     welcome: {
-      title: "Je suis MaDa, ta directrice artistique.",
+      title: "Je suis Ma DA, ta directrice artistique.",
       detail: "Avant ton premier Reel, apprends-moi ta marque. Deux minutes, et tout ce que je crée te ressemblera.",
       points: [
         "Je te pose quelques questions. Tu peux en passer, et y revenir quand tu veux.",
@@ -360,6 +360,23 @@ export const fr = {
   },
 
   nav: { back: "Retour", next: "Continuer", retry: "Réessayer", restart: "Recommencer" },
+  // The logo of the opening animation (logo 15, « Ma / DA étiquette »).
+  intro: { ma: "Ma", slash: "/", da: "DA" },
+
+  // The home screen (« Atelier clair », Ryan, 28 octobre 2026): the idea of the week, one button to start
+  // a Reel, and what to pick up again.
+  home: {
+    title: "Ton studio",
+    idea: "Idée de la semaine",
+    newReel: "Nouveau Reel",
+    visual: "Affiche ou post",
+    brand: "Ta marque",
+    resume: "Reprendre",
+    lastReel: "Ton dernier Reel",
+    empty: "Tes Reels et tes visuels s'afficheront ici.",
+    settings: "Réglages",
+    tabs: { home: "Accueil", create: "Créer", brand: "Marque" },
+  },
 
   import: {
     title: "Choisis tes rushes",
@@ -453,7 +470,9 @@ export const fr = {
     open: "Modifier",
     save: "Enregistrer mes changements",
     saved: "Changements gardés",
-    tabs: { plans: "Plans", textes: "Textes", marque: "Style et sons" },
+    tools: { plan: "Plan", vitesse: "Vitesse", texte: "Texte", son: "Son", couleur: "Couleur", marque: "Marque" },
+    toolsLabel: "Outils de montage",
+    ask: "Demander à Ma DA",
     planTitle: (i: number, s: string) => `Plan ${i} · ${s}`,
     locked: "Réglé à la main",
     start: "Début",
@@ -564,11 +583,11 @@ export const fr = {
 
   catalogue: {
     title: "Design system",
-    intro: "Tous les composants de MaDa, en mode clair et sombre.",
+    intro: "Tous les composants de Ma DA, en mode clair et sombre.",
     sections: { colors: "Couleurs", type: "Typographie", buttons: "Boutons", rushes: "Cartes de rush", frise: "Frise", music: "Musique", wave: "Forme d'onde", generation: "Génération", paywall: "Paywall", saved: "Pastille" },
     themeDark: "Sombre",
     themeLight: "Clair",
     replay: "Rejouer",
-    sample: { body: "Le Reel à ton image, en 2 minutes.", caption: "Monté avec MaDa", mono: "0:12" },
+    sample: { body: "Le Reel à ton image, en 2 minutes.", caption: "Monté avec Ma DA", mono: "0:12" },
   },
 } as const;

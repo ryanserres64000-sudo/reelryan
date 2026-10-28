@@ -3,64 +3,65 @@
 export const tokens = {
   "color": {
     "dark": {
-      "bg": "#0F0D12",
-      "surface": "#17141C",
-      "surfaceRaised": "#211D27",
-      "line": "#2F2937",
-      "text": "#F0EBF5",
-      "textMuted": "#9C93A8",
-      "action": "#E8C27A",
-      "onAction": "#1C1509",
-      "actionStrong": "#E8C27A",
-      "ai": "#B9A6F0",
-      "aiFill": "#B9A6F0",
-      "onAi": "#1C1509",
-      "danger": "#E5847A",
+      "bg": "#0E0E0F",
+      "surface": "#18181A",
+      "surfaceRaised": "#222225",
+      "line": "#2C2C2F",
+      "text": "#F2F2F0",
+      "textMuted": "#9C9C97",
+      "action": "#2F4BE0",
+      "onAction": "#FFFFFF",
+      "actionStrong": "#93A5FF",
+      "ai": "#93A5FF",
+      "aiFill": "#93A5FF",
+      "onAi": "#0E0E0F",
+      "danger": "#EE8A80",
       "ok": "#7FC7A6",
-      "scrim": "#0F0D12B3",
+      "scrim": "#0E0E0FB3",
       "media": "#000000",
       "onMedia": "#FFFFFF"
     },
     "light": {
-      "bg": "#FBF8F3",
-      "surface": "#FFFFFF",
-      "surfaceRaised": "#F3EEE6",
-      "line": "#E7E1D8",
-      "text": "#1A1620",
-      "textMuted": "#6B6275",
-      "action": "#E8C27A",
-      "onAction": "#1C1509",
-      "actionStrong": "#8A6516",
-      "ai": "#5B47A8",
-      "aiFill": "#5B47A8",
+      "bg": "#FFFFFF",
+      "surface": "#F4F4F2",
+      "surfaceRaised": "#EBEBE7",
+      "line": "#E2E2DE",
+      "text": "#121212",
+      "textMuted": "#5F5F5A",
+      "action": "#1F3BD6",
+      "onAction": "#FFFFFF",
+      "actionStrong": "#1F3BD6",
+      "ai": "#1F3BD6",
+      "aiFill": "#1F3BD6",
       "onAi": "#FFFFFF",
       "danger": "#B3261E",
       "ok": "#1F7A55",
-      "scrim": "#FBF8F3B3",
+      "scrim": "#FFFFFFB3",
       "media": "#000000",
       "onMedia": "#FFFFFF"
     }
   },
   "font": {
-    "display": "BricolageGrotesque_800ExtraBold",
-    "displayMedium": "BricolageGrotesque_600SemiBold",
-    "body": "DMSans_400Regular",
-    "bodyStrong": "DMSans_600SemiBold",
+    "display": "InstrumentSerif_400Regular",
+    "displayItalic": "InstrumentSerif_400Regular_Italic",
+    "displayMedium": "InstrumentSans_600SemiBold",
+    "body": "InstrumentSans_400Regular",
+    "bodyStrong": "InstrumentSans_600SemiBold",
     "mono": "DMMono_500Medium",
     "ui": "system"
   },
   "type": {
     "display": {
       "font": "display",
-      "size": 34,
-      "lineHeight": 40,
-      "letterSpacing": -0.6
+      "size": 40,
+      "lineHeight": 44,
+      "letterSpacing": -0.4
     },
     "title": {
       "font": "display",
-      "size": 28,
-      "lineHeight": 34,
-      "letterSpacing": -0.4
+      "size": 34,
+      "lineHeight": 38,
+      "letterSpacing": -0.3
     },
     "headline": {
       "font": "displayMedium",
@@ -98,12 +99,17 @@ export const tokens = {
       "lineHeight": 18,
       "letterSpacing": 0
     },
+    "logo": {
+      "font": "bodyStrong",
+      "size": 44,
+      "lineHeight": 52,
+      "letterSpacing": -0.5
+    },
     "button": {
-      "font": "ui",
+      "font": "bodyStrong",
       "size": 17,
       "lineHeight": 22,
-      "letterSpacing": 0,
-      "weight": "600"
+      "letterSpacing": 0
     }
   },
   "maxFontScale": 1.6,
@@ -140,7 +146,8 @@ export const tokens = {
     "waveHeight": 72,
     "beatDot": 6,
     "frise": 64,
-    "pill": 28
+    "pill": 28,
+    "textBar": 8
   },
   "opacity": {
     "waveOutside": 0.4,

@@ -6,7 +6,8 @@ import { useTheme } from "../theme";
 
 type Props = Omit<PressableProps, "children"> & { label: string; variant?: "primary" | "secondary"; haptic?: boolean };
 
-// Primary: gold, one per screen, full width at the bottom. Secondary: 1 pt outline (étude, ch. 6 §4).
+// Primary: the blue, one per screen, full width at the bottom. Secondary: 1 pt outline. Both are capsules
+// (« Atelier clair »).
 export function Button({ label, variant = "primary", haptic = false, disabled, onPress, style, ...rest }: Props) {
   const { c, opacity } = useTheme();
   const primary = variant === "primary";
@@ -30,5 +31,5 @@ export function Button({ label, variant = "primary", haptic = false, disabled, o
 }
 
 const styles = StyleSheet.create({
-  base: { minHeight: tokens.size.button, borderRadius: tokens.radius.button, paddingHorizontal: tokens.space.lg, alignItems: "center", justifyContent: "center", alignSelf: "stretch" },
+  base: { minHeight: tokens.size.button, borderRadius: tokens.radius.full, paddingHorizontal: tokens.space.lg, alignItems: "center", justifyContent: "center", alignSelf: "stretch" },
 });

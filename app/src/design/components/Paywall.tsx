@@ -16,7 +16,7 @@ type Props = {
 const euro = (n: number) => `${n.toFixed(2).replace(".", ",")} €`;
 
 // The person's own work blurred behind, title, 3 benefits, the offers with the yearly one preselected,
-// gold button, Restore, terms, privacy, a visible close cross (étude, ch. 6 §4 ; ch. 8 §2). The offers
+// one blue button, Restore, terms, privacy, a visible close cross (étude, ch. 6 §4 ; ch. 8 §2). The offers
 // come from the server config, the prices from StoreKit when the app is compiled (lot 8). Apple's
 // renewal terms are written under the button (App Store, règle 3.1.2).
 export function Paywall({ background, title = fr.paywall.title, offres = DEFAULT_CONFIG.offres, preselection = DEFAULT_CONFIG.preselection, prices = {}, launch = true, message, status, busy, extra, onClose, onBuy, onRestore, onTerms, onPrivacy }: Props) {
@@ -28,10 +28,10 @@ export function Paywall({ background, title = fr.paywall.title, offres = DEFAULT
       {background ? <View style={StyleSheet.absoluteFill}>{background}</View> : null}
       <BlurView intensity={60} tint={scheme} style={StyleSheet.absoluteFill} />
       <View style={[StyleSheet.absoluteFill, { backgroundColor: c.scrim }]} />
-      <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel={fr.paywall.close} style={styles.close}>
-        <Text variant="headline">×</Text>
-      </Pressable>
       <View style={styles.body}>
+        <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel={fr.paywall.close} style={[styles.close, { backgroundColor: c.surface }]}>
+          <Text variant="headline">×</Text>
+        </Pressable>
         <Text variant="title" accessibilityRole="header">{title}</Text>
         {message ? <Text tone="textMuted">{message}</Text> : null}
         <View style={styles.benefits}>
@@ -79,7 +79,8 @@ export function Paywall({ background, title = fr.paywall.title, offres = DEFAULT
 
 const styles = StyleSheet.create({
   wrap: { borderRadius: tokens.radius.sheet, overflow: "hidden", minHeight: tokens.size.button * 12 },
-  close: { position: "absolute", top: tokens.space.xs, right: tokens.space.xs, width: tokens.size.touch, height: tokens.size.touch, alignItems: "center", justifyContent: "center", zIndex: 1 },
+  // The cross sits in its own row, above the title, so a long title never runs under it.
+  close: { alignSelf: "flex-start", width: tokens.size.touch, height: tokens.size.touch, borderRadius: tokens.radius.full, alignItems: "center", justifyContent: "center", marginBottom: tokens.space.xs },
   body: { flex: 1, justifyContent: "flex-end", padding: tokens.layout.gutter, gap: tokens.space.sm },
   benefits: { gap: tokens.space.xs, marginBottom: tokens.space.xs },
   benefit: { flexDirection: "row", gap: tokens.space.xs },

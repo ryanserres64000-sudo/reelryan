@@ -2,20 +2,18 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { Animated, PanResponder, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { H, W, exportPlan, inside, safeZone, textBox } from "../../../core/export";
-import { clock, jump, segments, shotAt, textsAt } from "../../../core/playback";
+import { clock, jump, segments, shotAt } from "../../../core/playback";
 import type { Plateforme, TimelineV1 } from "../../../core/timeline";
-import { duoById } from "../../../core/typo";
 import { fr } from "../copy/fr";
 import { Button, Chip, Icon, Text, haptic, tokens, useTheme } from "../design";
-import { DuoTitle } from "../video/DuoTitle";
-import { Player, type PlayerHandle } from "../video/Player";
+import { Frame } from "../video/Frame";
+import type { PlayerHandle } from "../video/Player";
 import type { Sources } from "../video/sources";
 
 type Props = { timeline: TimelineV1; sources: () => Promise<Sources>; onClose: () => void; onRetouch: (shot: number) => void; onExport: () => void };
 const t = fr.player;
 const PLATFORMS: Plateforme[] = ["reels", "tiktok", "shorts"];
 const CONTROLS = tokens.size.button * 3 + tokens.size.touch * 2 + tokens.space.lg * 2;
-const POSITION = { haut: "flex-start", centre: "center", bas: "flex-end" } as const;
 
 // The full-screen player (étude de la refonte, ch. 4 « Voir en grand, puis retoucher »): bars per
 // shot like the stories, tap to pause, tap left or right to change shot, drag the bar to move, drag
@@ -71,8 +69,6 @@ export function PlayerScreen({ timeline, sources, onClose, onRetouch, onExport }
 
   const hidden = as ? timeline.textes.filter(x => !inside(textBox(x, as), safeZone(as))).length : 0;
   const zone = as ? safeZone(as) : null;
-  const shown = textsAt(timeline, time);
-  const duo = duoById(timeline.charte.duo);
 
   return (
     <SafeAreaView style={[styles.flex, { backgroundColor: c.media }]} edges={["top", "bottom"]}>
@@ -91,22 +87,7 @@ export function PlayerScreen({ timeline, sources, onClose, onRetouch, onExport }
           accessibilityActions={[{ name: "activate" }, { name: "increment" }, { name: "decrement" }]}
           onAccessibilityAction={e => e.nativeEvent.actionName === "activate" ? setPlaying(p => !p) : seek(jump(segs, time, e.nativeEvent.actionName === "increment" ? 1 : -1))}
           style={[styles.frame, { width: fw, height: fh, backgroundColor: c.media }]}>
-          <Player ref={player} timeline={timeline} file={file} sources={src} duration={duration} playing={playing} onTime={onTime} style={StyleSheet.absoluteFill}
-            fallback={
-              <View style={[StyleSheet.absoluteFill, styles.fallback, { backgroundColor: c.surface }]}>
-                <Text variant="mono" tone="textMuted">{t.shot(index + 1, segs.length)}</Text>
-              </View>
-            } />
-          {/* Texts drawn over the frame, as the native render places them (Overlay.swift). */}
-          <View pointerEvents="none" style={[StyleSheet.absoluteFill, { paddingTop: file.zone.y * k, paddingBottom: (H - file.zone.y - file.zone.h) * k, paddingHorizontal: file.zone.x * k }]}>
-            {(["haut", "centre", "bas"] as const).map(pos => (
-              <View key={pos} style={[styles.flex, { justifyContent: POSITION[pos] }]}>
-                {shown.filter(x => x.position === pos).map(x => x.accent && duo
-                  ? <DuoTitle key={x.texte} duo={duo} texte={x.texte} accent={x.accent} variant="headline" />
-                  : <Text key={x.texte} variant={x.style === "accroche" || x.style === "titre" ? "headline" : "callout"} tone="onMedia" style={styles.center}>{x.texte}</Text>)}
-              </View>
-            ))}
-          </View>
+          <Frame ref={player} timeline={timeline} file={file} sources={src} time={time} playing={playing} onTime={onTime} width={fw} />
           <View pointerEvents="none" style={styles.bars}>
             {segs.map((s, i) => (
               <View key={i} style={[styles.seg, { flex: s.end - s.start, backgroundColor: c.line }]}>

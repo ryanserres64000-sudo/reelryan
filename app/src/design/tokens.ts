@@ -152,7 +152,14 @@ export const tokens = {
     "handleWidth": 36,
     "skeletonLine": 14,
     "dismissDrag": 96,
-    "toastOffset": 96
+    "toastOffset": 96,
+    "lane": 30,
+    "laneMain": 52,
+    "handleGrip": 14,
+    "ruler": 18,
+    "laneIcon": 28,
+    "playhead": 2,
+    "snapPx": 10
   },
   "opacity": {
     "waveOutside": 0.4,

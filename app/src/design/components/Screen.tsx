@@ -6,10 +6,10 @@ import { tokens } from "../tokens";
 import { Text } from "../Text";
 import { useTheme } from "../theme";
 
-type Props = { title: string; detail?: string; onBack?: () => void; footer?: ReactNode; children: ReactNode; scroll?: boolean };
+type Props = { title: string; detail?: string; onBack?: () => void; footer?: ReactNode; children: ReactNode; scroll?: boolean; scrollEnabled?: boolean };
 
 // Frame of every step: back link, title, scrolling content, and the one gold button at the bottom (étude, ch. 6 §4).
-export function Screen({ title, detail, onBack, footer, children, scroll = true }: Props) {
+export function Screen({ title, detail, onBack, footer, children, scroll = true, scrollEnabled = true }: Props) {
   const { c, layout, opacity } = useTheme();
   const { width } = useWindowDimensions();
   const gutter = width >= layout.largePhoneWidth ? layout.gutterLarge : layout.gutter;
@@ -27,7 +27,7 @@ export function Screen({ title, detail, onBack, footer, children, scroll = true 
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={["top", "bottom"]}>
       {scroll ? (
-        <ScrollView contentContainerStyle={[styles.content, { paddingHorizontal: gutter }]} keyboardShouldPersistTaps="handled">{head}{children}</ScrollView>
+        <ScrollView scrollEnabled={scrollEnabled} contentContainerStyle={[styles.content, { paddingHorizontal: gutter }]} keyboardShouldPersistTaps="handled">{head}{children}</ScrollView>
       ) : (
         <View style={[styles.root, styles.content, { paddingHorizontal: gutter }]}>{head}{children}</View>
       )}

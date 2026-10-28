@@ -397,6 +397,39 @@ export const fr = {
     draftSteps: { import: "Choix des rushes", brief: "Ta demande", music: "La musique", result: "Les versions", editor: "Retouches", export: "Export" } as Record<string, string>,
   },
 
+  // La frise à pistes de l'éditeur (étape 4).
+  tracks: {
+    label: "Frise du montage",
+    lanes: { textes: "Textes", calques: "Vidéos par-dessus", plans: "Plans", voix: "Voix et sons", musique: "Musique", effets: "Bruitages" },
+    piece: (lane: string, n: number, from: string, to: string) => `${lane} ${n}, de ${from} à ${to}`,
+    selected: "sélectionné",
+    startHandle: "Début",
+    endHandle: "Fin",
+    longer: "Allonger d'une demi-seconde",
+    shorter: "Raccourcir d'une demi-seconde",
+    later: "Décaler d'une demi-seconde plus tard",
+    earlier: "Décaler d'une demi-seconde plus tôt",
+    modes: { simple: "Simple", complet: "Complet" },
+    mode: "Affichage de la frise",
+    hidden: (n: number) => `+ ${n} ${n > 1 ? "pistes cachées" : "piste cachée"}`,
+    zoomIn: "Zoomer",
+    zoomOut: "Dézoomer",
+    split: "Couper ici",
+    duplicate: "Dupliquer",
+    remove: "Supprimer",
+    edit: "Modifier",
+    add: "Ajouter",
+    addTitle: "Ajouter au montage",
+    addText: "Un texte",
+    addTextWhy: "Posé sous la tête de lecture, 2 secondes.",
+    moved: "Plan déplacé",
+    split_done: "Plan coupé en deux",
+    duplicated: "Plan dupliqué",
+    volume: "Volume du son",
+    volumeValue: (v: number) => `${Math.round(v * 100)} %`,
+    playPause: "Lire ou mettre en pause",
+  },
+
   // Le lecteur plein écran (étape 3) : voir en grand, vérifier, retoucher le bon moment.
   player: {
     open: "Voir en grand",
@@ -467,6 +500,8 @@ export const fr = {
     planRemoved: "Plan retiré",
     textRemoved: "Texte retiré",
     effetRemoved: "Bruitage retiré",
+    soundRemoved: "Son retiré",
+    layerRemoved: "Calque retiré",
     textAdded: "Texte ajouté",
   },
 

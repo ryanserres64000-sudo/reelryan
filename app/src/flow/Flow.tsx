@@ -251,7 +251,7 @@ export function Flow() {
       if (!result || !v) return null;
       const memory = brand?.memory ?? emptyMemory();
       // The editor stays dark in « Atelier clair »: footage is judged on a dark ground.
-      return <ThemeProvider initial="dark"><StatusBar style="light" /><EditorScreen key={editing} timeline={editorTl ?? v.timeline} onChange={setEditorTl} initialShot={focusShot} onPlay={() => play("editor")} brief={composeBrief(brief)}
+      return <ThemeProvider initial="dark"><StatusBar style="light" /><EditorScreen key={editing} timeline={editorTl ?? v.timeline} onChange={setEditorTl} sources={() => videoSources(editorTl ?? v.timeline, chosen, brand ?? null, music)} initialShot={focusShot} onPlay={() => play("editor")} brief={composeBrief(brief)}
         clips={Object.fromEntries(chosen.map(r => [r.id, { duration: r.duration }]))} bad={chosen.filter(r => r.badges.includes("blur") || r.badges.includes("dark")).map(r => r.id)}
         style={montageStyle(brand?.dna ?? null, memory.rules.map(r => r.text))} memory={memory}
         onMemory={m => { if (!brand) return; const b = { ...brand, memory: m }; setBrand(b); saveBrand(b); }}

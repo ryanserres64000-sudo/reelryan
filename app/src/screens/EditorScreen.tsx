@@ -1,11 +1,19 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { Pressable, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
 import { applyCorrection, learn, type Memory } from "../../../core/corrections";
-import { addTexte, changedPlans, deleteEffet, deletePlan, deleteTexte, isLocked, movePlan, push, redo, replaceSource, setDuo, setLogo, setPlan, setSubtitles, setTexte, startHistory, toDoc, trimPlan, undo, type EditDoc, type History } from "../../../core/edit";
-import { ETALONNAGES, LOGO_POSITIONS, TEXT_POSITIONS, TRANSITIONS, TRANSITION_SECONDS, type Clips, type TimelineV1 } from "../../../core/timeline";
+import { addTexte, changedPlans, deleteAudio, deleteCalque, deleteEffet, deletePlan, deleteTexte, duplicatePlan, isLocked, movePlan, planTimes, push, redo, replaceSource, setAudio, setCalque, setDuo, setLogo, setPlan, setSubtitles, setTexte, splitPlan, startHistory, toDoc, trimPlan, undo, type EditDoc, type History } from "../../../core/edit";
+import { exportPlan } from "../../../core/export";
+import { clock } from "../../../core/playback";
+import { ZOOM, clampZoom, lanes as laneList, type Mode } from "../../../core/tracks";
+import { Timeline, type Selection } from "../editor/Timeline";
+import { loadMode, saveMode } from "../editor/mode";
+import { Frame } from "../video/Frame";
+import type { PlayerHandle } from "../video/Player";
+import type { Sources } from "../video/sources";
+import { ETALONNAGES, LOGO_POSITIONS, TEXT_POSITIONS, TRANSITIONS, type Clips, type TimelineV1 } from "../../../core/timeline";
 import { DUOS, duoById } from "../../../core/typo";
 import { fr } from "../copy/fr";
-import { Button, Card, Chip, Frise, Icon, MadaSays, Screen, Text, haptic, tokens, typeStyle, useTheme, useToast, type IconName } from "../design";
+import { Button, Card, Chip, Icon, MadaSays, Screen, Sheet, Text, haptic, tokens, typeStyle, useTheme, useToast, type IconName } from "../design";
 import { aiRetouche } from "../flow/retouche";
 import { DuoTitle } from "../video/DuoTitle";
 
@@ -16,6 +24,7 @@ type Props = {
   onChange?: (t: TimelineV1) => void;
   // The full-screen player, and the shot it was paused on when « Retoucher ce moment » brought us here.
   onPlay?: (t: TimelineV1) => void; initialShot?: number;
+  sources?: () => Promise<Sources>;
 };
 type Tool = keyof typeof fr.editor.tools;
 const TOOLS: [Tool, IconName][] = [["plan", "plan"], ["vitesse", "speed"], ["texte", "text"], ["son", "sound"], ["couleur", "color"], ["marque", "brand"]];
@@ -28,7 +37,7 @@ const LOGO_KEYS = LOGO_POSITIONS;
 // first through plain rules on the phone; only what they cannot do goes to the AI. « Atelier clair »:
 // six named tools under the frise instead of rows of tabs, one « Demander à Ma DA » field, on a dark
 // ground (Flow nests a dark theme) so the footage is judged as it will be seen.
-export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMemory, onSave, onBack, onChange, onPlay, initialShot = 0 }: Props) {
+export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMemory, onSave, onBack, onChange, onPlay, initialShot = 0, sources }: Props) {
   const { c } = useTheme();
   const [h, setH] = useState<History>(() => startHistory(toDoc(timeline)));
   const [sel, setSel] = useState(initialShot);
@@ -45,6 +54,51 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
   const remove = (next: EditDoc, message: string) => { haptic("warning"); apply(next); toast({ message, action: fr.nav.undo, onAction: () => setH(x => undo(x)) }); };
   useEffect(() => { onChange?.(tl); }, [tl]);
   const i = Math.min(sel, tl.plans.length - 1), p = tl.plans[i];
+  // The preview and the strip (étape 4 de la refonte): one play head for both, the strip in Simple or
+  // Complet, a selection that opens its own actions.
+  const { height: wh } = useWindowDimensions();
+  const player = useRef<PlayerHandle>(null);
+  const [time, setTime] = useState(() => planTimes(timeline)[initialShot]?.start ?? 0);
+  const [playing, setPlaying] = useState(false);
+  const [zoom, setZoom] = useState<number>(ZOOM.start);
+  const [mode, setMode] = useState<Mode>("simple");
+  useEffect(() => { loadMode().then(setMode); }, []);
+  const [selection, setSelection] = useState<Selection>(null);
+  const [dragging, setDragging] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const file = useMemo(() => exportPlan(tl)[0], [tl]);
+  const src = useMemo(() => sources?.() ?? null, []);
+  const ids = { plans: d.planIds, textes: d.texteIds };
+  const { shown, hidden } = laneList(tl, ids, mode);
+  const seek = (s: number) => { setTime(s); player.current?.seek(s); };
+  const select = (s: Selection) => {
+    setSelection(s);
+    if (s?.lane === "plans") { setSel(s.index); if (tool === "texte" || tool === "marque") setTool("plan"); }
+    if (s?.lane === "textes") setTool("texte");
+  };
+  const trim = (s: NonNullable<Selection>, start: number, end: number) => {
+    if (s.lane === "plans") {
+      const q = tl.plans[s.index], at = planTimes(tl)[s.index];
+      apply(trimPlan(d, s.index, q.debut + (start - at.start) * q.vitesse, q.fin + (end - at.end) * q.vitesse, clips));
+    } else if (s.lane === "textes") apply(setTexte(d, s.index, { debut: start, fin: end }));
+    else if (s.lane === "voix") { const a = (tl.audios ?? [])[s.index]; apply(setAudio(d, s.id, { t: start, debut: a.debut + start - a.t, fin: a.fin + end - (a.t + a.fin - a.debut) })); }
+    else if (s.lane === "calques") { const l = (tl.calques ?? [])[s.index]; apply(setCalque(d, s.id, { t: start, debut: l.debut + start - l.t, fin: l.fin + end - (l.t + l.fin - l.debut) }, clips)); }
+  };
+  const move = (s: NonNullable<Selection>, start: number) => {
+    if (s.lane === "textes") { const x = tl.textes[s.index]; apply(setTexte(d, s.index, { debut: start, fin: start + x.fin - x.debut })); }
+    else if (s.lane === "voix") apply(setAudio(d, s.id, { t: start }));
+    else if (s.lane === "calques") apply(setCalque(d, s.id, { t: start }, clips));
+  };
+  const removeSelected = () => {
+    if (!selection) return;
+    const s = selection; setSelection(null);
+    if (s.lane === "plans") remove(deletePlan(d, s.index), fr.toast.planRemoved);
+    else if (s.lane === "textes") remove(deleteTexte(d, s.index), fr.toast.textRemoved);
+    else if (s.lane === "voix") remove(deleteAudio(d, s.id), fr.toast.soundRemoved);
+    else if (s.lane === "calques") remove(deleteCalque(d, s.id, clips), fr.toast.layerRemoved);
+    else if (s.lane === "effets") remove(deleteEffet(d, s.index), fr.toast.effetRemoved);
+  };
+  const fw = Math.min(wh * 0.3, tokens.layout.largePhoneWidth) * 9 / 16;
   const rushIds = Object.keys(clips);
   const fmt = fr.rush.duration;
 
@@ -71,22 +125,61 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
     setAsk("");
   };
 
-  const shots = tl.plans.map((x, j) => ({ id: d.planIds[j], duration: (x.fin - x.debut) / x.vitesse - (j && x.transition !== "coupe" ? TRANSITION_SECONDS : 0), changed: changed.includes(d.planIds[j]) }));
+  const times = planTimes(tl);
   const planTools = tool === "plan" || tool === "vitesse" || tool === "son" || tool === "couleur";
   return (
-    <Screen title={t.title} detail={t.detail} onBack={onBack}
+    <Screen title={t.title} onBack={onBack} scrollEnabled={!dragging}
       footer={<Button label={t.save} disabled={busy} onPress={() => onSave(tl)} haptic />}>
-      <Frise shots={shots} texts={tl.textes.map(x => ({ start: x.debut, end: x.fin, label: x.texte }))} selected={planTools ? i : undefined} onSelect={j => { haptic("tick"); setSel(j); if (!planTools) setTool("plan"); }} />
+      <View style={styles.preview}>
+        <Pressable onPress={() => { haptic("tap"); setPlaying(x => !x); }} accessibilityRole="button" accessibilityLabel={fr.tracks.playPause}>
+          <Frame ref={player} timeline={tl} file={file} sources={src} time={time} playing={playing} onTime={setTime} width={fw} />
+        </Pressable>
+        {onPlay ? <IconButton icon="expand" label={fr.player.open} onPress={() => { setPlaying(false); onPlay(tl); }} /> : null}
+      </View>
       <View style={styles.between}>
         <View style={styles.row}>
           <IconButton icon="undo" label={t.undo} disabled={!h.past.length} onPress={() => setH(undo(h))} />
           <IconButton icon="redo" label={t.redo} disabled={!h.future.length} onPress={() => setH(redo(h))} />
         </View>
+        <IconButton icon={playing ? "pause" : "play"} label={playing ? fr.player.pause : fr.player.play} onPress={() => setPlaying(x => !x)} />
+        <Text variant="mono" tone="textMuted">{fr.player.time(clock(time), clock(tl.duree))}</Text>
+      </View>
+      <View style={styles.between}>
+        <View style={styles.row} accessibilityRole="radiogroup" accessibilityLabel={fr.tracks.mode}>
+          {(["simple", "complet"] as const).map(m => <Chip key={m} label={fr.tracks.modes[m]} selected={mode === m} onPress={() => { setMode(m); saveMode(m); }} />)}
+        </View>
         <View style={styles.row}>
-          <Text variant="mono" tone="textMuted">{t.duration(fmt(tl.duree))}</Text>
-          {onPlay ? <IconButton icon="play" label={fr.player.open} onPress={() => onPlay(tl)} /> : null}
+          <IconButton icon="minus" label={fr.tracks.zoomOut} onPress={() => setZoom(z => clampZoom(z / 1.5))} />
+          <IconButton icon="plus" label={fr.tracks.zoomIn} onPress={() => setZoom(z => clampZoom(z * 1.5))} />
         </View>
       </View>
+      <Timeline timeline={tl} lanes={shown} time={time} zoom={zoom} selection={selection}
+        onSeek={s => { setPlaying(false); setTime(s); player.current?.seek(s); }} onZoom={setZoom} onSelect={select}
+        onTrim={trim} onMove={move} onDragging={setDragging}
+        onReorder={(from, to) => { apply(movePlan(d, from, to)); setSel(to); setSelection(null); toast({ message: fr.tracks.moved, action: fr.nav.undo, onAction: () => setH(x => undo(x)) }); }} />
+      {hidden.length ? <Chip label={fr.tracks.hidden(hidden.length)} onPress={() => { setMode("complet"); saveMode("complet"); }} style={styles.start} /> : null}
+      <View style={styles.row}>
+        {selection?.lane === "plans" ? (
+          <>
+            <Chip label={fr.tracks.split} onPress={() => { const n = splitPlan(d, time); if (n !== d) { apply(n); setSelection(null); toast({ message: fr.tracks.split_done, action: fr.nav.undo, onAction: () => setH(x => undo(x)) }); } }} />
+            <Chip label={fr.tracks.duplicate} onPress={() => { apply(duplicatePlan(d, selection.index)); setSelection(null); toast({ message: fr.tracks.duplicated }); }} />
+            {tl.plans.length > 1 ? <Chip label={fr.tracks.remove} onPress={removeSelected} /> : null}
+          </>
+        ) : selection ? (
+          <>
+            {selection.lane === "textes" ? <Chip label={fr.tracks.edit} onPress={() => setTool("texte")} /> : null}
+            <Chip label={fr.tracks.remove} onPress={removeSelected} />
+          </>
+        ) : (
+          <>
+            <Chip label={fr.tracks.split} onPress={() => { const n = splitPlan(d, time); if (n !== d) { apply(n); toast({ message: fr.tracks.split_done, action: fr.nav.undo, onAction: () => setH(x => undo(x)) }); } }} />
+            <Chip label={`+ ${fr.tracks.add}`} onPress={() => setAdding(true)} />
+          </>
+        )}
+      </View>
+      <Sheet visible={adding} onClose={() => setAdding(false)} title={fr.tracks.addTitle}>
+        <AddChoice icon="text" title={fr.tracks.addText} why={fr.tracks.addTextWhy} onPress={() => { setAdding(false); apply(addTexte(d, t.newText, time + 2)); setTool("texte"); }} />
+      </Sheet>
 
       <View style={styles.field}>
         <View style={styles.row}>
@@ -115,21 +208,13 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
 
       {planTools && p ? (
         <View style={styles.between}>
-          <Text variant="headline">{t.planTitle(i + 1, t.seconds(shots[i].duration))}</Text>
+          <Text variant="headline">{t.planTitle(i + 1, t.seconds(times[i].end - times[i].start))}</Text>
           {isLocked(d, d.planIds[i]) ? <Text variant="caption" tone="actionStrong">{t.locked}</Text> : null}
         </View>
       ) : null}
 
       {tool === "plan" && p ? (
         <Card>
-          <Group label={`${t.start} ${t.seconds(p.debut)}`}>
-            <Chip label={t.earlier} onPress={() => apply(trimPlan(d, i, p.debut - 0.5, p.fin, clips))} />
-            <Chip label={t.later} onPress={() => apply(trimPlan(d, i, p.debut + 0.5, p.fin, clips))} />
-          </Group>
-          <Group label={`${t.end} ${t.seconds(p.fin)}`}>
-            <Chip label={t.earlier} onPress={() => apply(trimPlan(d, i, p.debut, p.fin - 0.5, clips))} />
-            <Chip label={t.later} onPress={() => apply(trimPlan(d, i, p.debut, p.fin + 0.5, clips))} />
-          </Group>
           <View style={styles.row}>
             <Chip label={t.moveBefore} disabled={i === 0} onPress={() => { apply(movePlan(d, i, i - 1)); setSel(i - 1); }} />
             <Chip label={t.moveAfter} disabled={i === tl.plans.length - 1} onPress={() => { apply(movePlan(d, i, i + 1)); setSel(i + 1); }} />
@@ -217,6 +302,19 @@ function IconButton({ icon, label, disabled, onPress }: { icon: IconName; label:
   );
 }
 
+function AddChoice({ icon, title, why, onPress }: { icon: IconName; title: string; why: string; onPress: () => void }) {
+  const { c } = useTheme();
+  return (
+    <Pressable accessibilityRole="button" onPress={() => { haptic("tap"); onPress(); }} style={({ pressed }) => [styles.choice, { backgroundColor: pressed ? c.surfaceRaised : c.surface }]}>
+      <Icon name={icon} tone="actionStrong" />
+      <View style={styles.flex}>
+        <Text variant="bodyStrong">{title}</Text>
+        <Text variant="caption" tone="textMuted">{why}</Text>
+      </View>
+    </Pressable>
+  );
+}
+
 function Group({ label, children }: { label: string; children: ReactNode }) {
   return (
     <View style={styles.group}>
@@ -251,5 +349,7 @@ const styles = StyleSheet.create({
   tool: { flex: 1, alignItems: "center", gap: tokens.space.xxs, minHeight: tokens.size.touch },
   toolMark: { height: tokens.size.selection, alignSelf: "stretch", marginHorizontal: tokens.space.xs, borderRadius: tokens.radius.full },
   iconButton: { width: tokens.size.touch, height: tokens.size.touch, borderRadius: tokens.radius.full, borderWidth: tokens.size.border, alignItems: "center", justifyContent: "center" },
+  preview: { flexDirection: "row", alignItems: "flex-end", justifyContent: "center", gap: tokens.space.sm },
+  choice: { flexDirection: "row", alignItems: "center", gap: tokens.space.sm, padding: tokens.space.sm, borderRadius: tokens.radius.card, minHeight: tokens.size.button },
   sample: { borderRadius: tokens.radius.card, paddingVertical: tokens.space.lg, paddingHorizontal: tokens.space.md, alignItems: "center" },
 });

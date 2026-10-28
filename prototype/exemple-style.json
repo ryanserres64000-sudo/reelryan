@@ -1,0 +1,11 @@
+{
+  "nom": "Chez Élise",
+  "activite": "Restaurant de cuisine maison à Bayonne, menu du midi",
+  "public": "Actifs du quartier qui déjeunent vite mais bien",
+  "ton": "Chaleureux, direct, un peu d'humour, tutoiement",
+  "couleurs": {
+    "principale": "#C2410C",
+    "texte": "#FFFFFF"
+  },
+  "corrections": []
+}

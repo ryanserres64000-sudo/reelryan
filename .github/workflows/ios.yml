@@ -51,7 +51,7 @@ jobs:
       # The build runs on Expo's servers, which do not see this job's variables: the server address,
       # and the App Store Connect key used to send to TestFlight, go into eas.json for this run only.
       - name: Server address for the app
-        run: node -e 'const f="eas.json",j=JSON.parse(require("fs").readFileSync(f));const e=Object.fromEntries([["EXPO_PUBLIC_MADA_API",process.env.API],["EXPO_PUBLIC_MADA_ACCESS",process.env.ACCESS]].filter(x=>x[1]));if(Object.keys(e).length)j.build[process.env.PROFIL=="envoi-seul"?"production":process.env.PROFIL].env=e;if(process.env.KEY_ID){j.submit.production.ios={...j.submit.production.ios,ascApiKeyPath:process.env.RUNNER_TEMP+"/asc.p8",ascApiKeyId:process.env.KEY_ID,ascApiKeyIssuerId:process.env.ISSUER_ID}};require("fs").writeFileSync(f,JSON.stringify(j,null,2))'
+        run: node -e 'const f="eas.json",j=JSON.parse(require("fs").readFileSync(f));const e=Object.fromEntries([["EXPO_PUBLIC_MADA_API",process.env.API],["EXPO_PUBLIC_MADA_ACCESS",process.env.ACCESS]].filter(x=>x[1]));const b=j.build[process.env.PROFIL=="envoi-seul"?"production":process.env.PROFIL];if(b&&Object.keys(e).length)b.env={...b.env,...e};if(process.env.KEY_ID){j.submit.production.ios={...j.submit.production.ios,ascApiKeyPath:process.env.RUNNER_TEMP+"/asc.p8",ascApiKeyId:process.env.KEY_ID,ascApiKeyIssuerId:process.env.ISSUER_ID}};require("fs").writeFileSync(f,JSON.stringify(j,null,2))'
         env: { PROFIL: "${{ inputs.profil }}", API: "${{ secrets.MADA_API_URL }}", ACCESS: "${{ secrets.MADA_ACCESS }}", KEY_ID: "${{ secrets.ASC_API_KEY_ID }}", ISSUER_ID: "${{ secrets.ASC_API_ISSUER_ID }}" }
       - name: App Store Connect key
         if: inputs.profil != 'simulateur'
@@ -62,6 +62,9 @@ jobs:
         with: { eas-version: latest, token: "${{ secrets.EXPO_TOKEN }}" }
       - name: Link the Expo project
         run: eas init --non-interactive --force
+      # EXPO_USE_PRECOMPILED_MODULES=0 (eas.json): Expo modules are compiled from source with the app.
+      # Build 1.0.0 (2) used precompiled ones and crashed at launch: ExpoFileSystem had been built
+      # against another ExpoModulesCore (« Symbol not found … EventEmitter … eventRuntime »).
       # EAS packs the repository from git (the app reads ../core): the two edits above are committed
       # in this runner only, never pushed.
       - name: Commit the build settings locally

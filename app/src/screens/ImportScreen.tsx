@@ -34,7 +34,7 @@ export function ImportScreen({ rushes, selected, pro, onRushes, onSelect, onNext
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["videos", "images"], allowsMultipleSelection: true, selectionLimit: LIMITS.maxRushes - selected.length, orderedSelection: true });
       if (res.canceled) return;
       const added: Rush[] = res.assets.map((a, i) => ({
-        id: `p${Date.now().toString(36)}${i}`, uri: a.uri, photo: a.type !== "video", sound: a.type === "video", badges: [],
+        id: `p${Date.now().toString(36)}${i}`, uri: a.uri, photo: a.type !== "video", sound: a.type === "video", badges: [], width: a.width, height: a.height,
         duration: a.type === "video" && a.duration ? a.duration / 1000 : 4,
       }));
       onRushes(demo ? added : [...rushes, ...added]);
@@ -56,10 +56,11 @@ export function ImportScreen({ rushes, selected, pro, onRushes, onSelect, onNext
       <Button variant="secondary" label={fr.import.pick} onPress={pick} />
       {pickError ? <Text tone="danger">{fr.import.pickError}</Text> : null}
       {demo ? <Text variant="caption" tone="textMuted">{fr.import.sample}</Text> : null}
+      {!demo && !rushes.length ? <Text tone="textMuted">{fr.import.empty}</Text> : null}
       <View style={styles.grid}>
         {rushes.map(r => {
           const i = selected.indexOf(r.id);
-          return <RushCard key={r.id} width={cardWidth} duration={r.duration} badges={r.badges} order={i >= 0 ? i + 1 : undefined} thumbnail={r.uri && r.photo ? { uri: r.uri } : undefined} onPress={() => toggle(r.id)} />;
+          return <RushCard key={r.id} width={cardWidth} duration={r.duration} badges={r.badges} order={i >= 0 ? i + 1 : undefined} thumbnail={r.thumb ? { uri: r.thumb } : r.uri && r.photo ? { uri: r.uri } : undefined} onPress={() => toggle(r.id)} />;
         })}
       </View>
       <Text variant="caption" tone="textMuted">{fr.onboarding.privacy}</Text>

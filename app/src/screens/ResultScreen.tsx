@@ -7,6 +7,7 @@ import { exportPlan } from "../../../core/export";
 import type { MontageResult, Variant } from "../flow/types";
 import type { Sources } from "../video/sources";
 import { VideoPreview } from "../video/Preview";
+import { ShotStill } from "../video/Still";
 import { DuoTitle } from "../video/DuoTitle";
 import { duoById } from "../../../core/typo";
 
@@ -66,7 +67,7 @@ function Page({ variant, width, seconds, sources, onPlay }: { variant: Variant; 
         <Pressable onPress={onPlay} disabled={!onPlay} accessibilityRole="button" accessibilityLabel={fr.player.open} style={styles.previewTap}>
         <VideoPreview timeline={t} file={exportPlan(t)[0]} sources={sources} style={[styles.preview, { backgroundColor: c.media }]}
           fallback={<View style={[styles.preview, { backgroundColor: c.media }]} accessibilityLabel={`${fr.resultScreen.preview}, ${t.titre}`}>
-            <Text variant="headline" tone="onMedia" style={styles.previewTitle}>{t.titre}</Text>
+            <ShotStill timeline={t} index={0} sources={sources} />
             {first?.accent && t.charte.duo
               ? <View style={styles.previewText}><DuoTitle duo={duoById(t.charte.duo)} texte={first.texte} accent={first.accent} variant="title" /></View>
               : first ? <Text variant="callout" tone="onMedia" style={styles.previewText} numberOfLines={2}>{first.texte}</Text> : null}

@@ -10,6 +10,7 @@ import { Icon, Text, tokens, useTheme } from "../design";
 import { LayerGrip, type LayerMove } from "../editor/LayerGrip";
 import { DuoTitle } from "./DuoTitle";
 import { Player, type PlayerHandle } from "./Player";
+import { ShotStill } from "./Still";
 import type { Sources } from "./sources";
 
 type Props = {
@@ -35,6 +36,7 @@ export const Frame = forwardRef<PlayerHandle, Props>(function Frame({ timeline, 
         fallback={
           <View style={[StyleSheet.absoluteFill, styles.center, { backgroundColor: c.surface }]}>
             <Text variant="mono" tone="textMuted">{fr.player.shot(index + 1, segs.length)}</Text>
+            <ShotStill timeline={timeline} index={index} sources={sources} />
             {/* Layers over the frame, placed as the export will (fractions of 1080 × 1920). */}
             {layers.map(l => {
               const b = boxAt(l, time);

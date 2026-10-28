@@ -3,6 +3,7 @@ import { forwardRef, useEffect, useImperativeHandle, useRef, useState, type Reac
 import type { StyleProp, ViewStyle } from "react-native";
 import type { ExportFile } from "../../../core/export";
 import type { TimelineV1 } from "../../../core/timeline";
+import { noteError } from "../diag";
 import type { Sources } from "./sources";
 
 // The engine of the full-screen player: the native AVPlayer on the export's composition when the
@@ -10,7 +11,7 @@ import type { Sources } from "./sources";
 // same time (web preview, simulator without rushes). Both are driven the same way.
 export type PlayerHandle = { play: () => void; pause: () => void; seek: (s: number) => void; mute: (m: boolean) => void };
 type NativeRef = { play: () => Promise<void>; pause: () => Promise<void>; seek: (s: number) => Promise<void>; setMuted: (m: boolean) => Promise<void> };
-type NativeProps = { source: { timeline: TimelineV1; file: ExportFile; sources: Sources }; style?: StyleProp<ViewStyle>; onTime?: (e: { nativeEvent: { time: number } }) => void; onError?: () => void; ref?: unknown };
+type NativeProps = { source: { timeline: TimelineV1; file: ExportFile; sources: Sources }; style?: StyleProp<ViewStyle>; onTime?: (e: { nativeEvent: { time: number } }) => void; onError?: (e: { nativeEvent?: { message?: string } }) => void; ref?: unknown };
 const Native = requireOptionalNativeModule("MadaVideo") ? requireNativeView<NativeProps>("MadaVideo") : null;
 const TICK = 50;
 
@@ -40,7 +41,7 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player({ timeline
   }), [onTime]);
 
   if (!live || !Native) return <>{fallback}</>;
-  return <Native ref={native} source={{ timeline, file, sources: ready! }} style={style} onError={() => setFailed(true)}
+  return <Native ref={native} source={{ timeline, file, sources: ready! }} style={style} onError={e => { noteError("Aperçu", e.nativeEvent?.message ?? "erreur inconnue"); setFailed(true); }}
     onTime={e => {
       const t = e.nativeEvent.time;
       // Loops like a Reel.

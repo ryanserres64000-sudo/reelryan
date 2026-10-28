@@ -1,3 +1,4 @@
+import { diagnostic, lastErrors } from "../diag";
 import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { fr } from "../copy/fr";
@@ -92,6 +93,15 @@ export function SettingsScreen({ plans, onPlans, onDeleted, onBack }: Props) {
           <Text variant="headline">{t.docs}</Text>
           {[link(t.terms, LEGAL.terms), link(t.privacy, LEGAL.privacy), link(t.notices, LEGAL.notices), link(t.help, LEGAL.support), link(t.rights, LEGAL.rights)]}
           {!LEGAL.terms ? <Text variant="caption" tone="textMuted">{t.noSite}</Text> : null}
+        </View>
+      </Card>
+
+      <Card>
+        <View style={styles.block}>
+          <Text variant="headline">{fr.diag.title}</Text>
+          <Text variant="caption" tone="textMuted">{fr.diag.detail}</Text>
+          {diagnostic().map(d => <Text key={d.key} tone={d.ok ? "text" : "danger"}>{fr.diag.line(fr.diag.labels[d.key], d.ok)}</Text>)}
+          {lastErrors().map(e => <Text key={e} variant="caption" tone="danger">{e}</Text>)}
         </View>
       </Card>
 

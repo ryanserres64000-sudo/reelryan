@@ -48,7 +48,7 @@ import { deleteVisual, loadVisuals, saveVisual, type SavedVisual } from "../visu
 import { SAMPLE_RUSHES, fakeMontage } from "./fake";
 import { streamMontage } from "./api";
 import { aiUrl } from "./server";
-import { canTriage, montageBody, triageRush } from "./triage";
+import { canRead, montageBody, thumbnailOf, triageAny } from "./triage";
 import { Onboarding } from "./Onboarding";
 import { clearDraft, loadDraft, saveDraft, type FlowDraft } from "./draft";
 import type { Draft } from "../../../core/draft";
@@ -68,9 +68,10 @@ export function Flow() {
   const [step, setStep] = useState<Step>(() => typeof location !== "undefined" && location.hash === "#catalogue" ? "catalogue" : "home");
   const [brand, setBrand] = useState<BrandDna | null | undefined>(undefined);
   useEffect(() => { Promise.all([loadBrand(), loadConsent()]).then(([b]) => { setBrand(b); if (!b) setStep(s => (s === "catalogue" ? s : "brand")); else setBrief(x => ({ ...x, trade: TRADE_OF[b.profil] })); }); }, []);
-  const [rushes, setRushes] = useState<Rush[]>(SAMPLE_RUSHES);
-  const [demo, setDemo] = useState(true);
-  const [selected, setSelected] = useState<string[]>(["r1", "r2", "r4", "r6", "r8"]);
+  // Sample rushes only on the web preview: on the iPhone, the person's own footage or nothing.
+  const [rushes, setRushes] = useState<Rush[]>(canRead() ? [] : SAMPLE_RUSHES);
+  const [demo, setDemo] = useState(!canRead());
+  const [selected, setSelected] = useState<string[]>(canRead() ? [] : ["r1", "r2", "r4", "r6", "r8"]);
   const [brief, setBrief] = useState<Brief>(START_BRIEF);
   const [music, setMusic] = useState<Music>({ choice: "trending", sound: null, fromLink: false, analysis: null, passage: null, length: 30, rightsAt: null, trendingTempo: 110 });
   const [incoming, setIncoming] = useState<{ uri: string } | null>(null);
@@ -117,11 +118,16 @@ export function Flow() {
   // The AI permission (lot 9), asked where it is first needed, with where each answer leads.
   const [ask, setAsk] = useState<{ back: Step; yes: () => void; no: () => void } | null>(null);
   const askConsent = (back: Step, yes: () => void, no: () => void) => { setAsk({ back, yes, no }); setStep("consent"); };
-  // Each new rush is measured on the iPhone as soon as it is picked (Vision, lot 2 native part).
+  // Each new rush gets its card picture and is measured as soon as it is picked: Vision when compiled,
+  // plain frames otherwise (flow/triage.ts). One pass per rush, even if the list changes meanwhile.
+  const [reading] = useState(() => new Set<string>());
   useEffect(() => {
-    if (!canTriage()) return;
-    for (const r of rushes.filter(x => x.uri && !x.triage)) {
-      triageRush(r).then(t => setRushes(list => list.map(x => (x.id === t.id ? t : x)))).catch(() => {});
+    if (!canRead()) return;
+    for (const r of rushes.filter(x => x.uri && !x.triage && !reading.has(x.id))) {
+      reading.add(r.id);
+      const put = (p: Partial<Rush>) => setRushes(list => list.map(x => (x.id === r.id ? { ...x, ...p } : x)));
+      thumbnailOf(r).then(thumb => put({ thumb }));
+      triageAny(r).then(t => put({ triage: t.triage, badges: t.badges, duration: t.duration })).catch(() => {});
     }
   }, [rushes]);
   // Saved a moment after each change while a Reel is in progress; the home offers to pick it up.
@@ -219,12 +225,17 @@ export function Flow() {
     }} />;
     case "generation": return <GenerationScreen rushes={chosen.length} kept={kept} variants={3}
       run={(onStep, signal) => {
-        // The real montage once the iPhone has measured the rushes and the person agreed to the AI;
-        // the sample answer otherwise (web preview, no server).
+        // The web preview keeps its sample answer. On the iPhone, only the real AI edit: a missing server
+        // or unreadable rushes are said plainly (Ryan's first test, 28 octobre 2026), never faked.
         const url = aiUrl();
-        if (!url || demo || !chosen.every(r => r.triage)) return fakeMontage(chosen, brief, music, onStep, signal, undefined, charteOf(brand?.dna ?? null, !!brand?.logoUri));
-        onStep(1);
-        return montageBody(chosen, brief, music, brand ?? null, brand?.memory?.rules.map(r => r.text) ?? []).then(body => streamMontage(url, body, onStep, signal));
+        if (!canRead()) return fakeMontage(chosen, brief, music, onStep, signal, undefined, charteOf(brand?.dna ?? null, !!brand?.logoUri));
+        if (!url) return Promise.reject(Object.assign(new Error("server"), { code: "no_server" }));
+        return (async () => {
+          const ready = await Promise.all(chosen.map(r => (r.triage ? r : triageAny(r).then(t => { setRushes(list => list.map(x => (x.id === t.id ? t : x))); return t; }).catch(() => r))));
+          if (!ready.every(r => r.triage)) throw Object.assign(new Error("rushes"), { code: "unreadable" });
+          onStep(1);
+          return streamMontage(url, await montageBody(ready, brief, music, brand ?? null, brand?.memory?.rules.map(r => r.text) ?? []), onStep, signal);
+        })();
       }}
       onDone={(r, s) => { if (plans) updatePlans(record(plans, "montage")); setKeptVersion(null); setReelId(Date.now().toString(36)); setResult({ r, s }); setStep("result"); }} onCancel={() => setStep("music")} />;
     case "result": return result ? <ResultScreen result={result.r} seconds={result.s} onBack={() => setStep("brief")} onRestart={() => { setResult(null); setEditorTl(null); clearDraft(); setStep("home"); }}

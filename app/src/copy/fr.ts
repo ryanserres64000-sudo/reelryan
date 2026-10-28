@@ -688,6 +688,7 @@ export const fr = {
     pick: "Ajouter depuis la photothèque",
     pickError: "Je n'ai pas pu ouvrir ta photothèque. Réessaie, ou vérifie l'accès dans Réglages.",
     sample: "Ce sont des rushes d'exemple : ajoute les tiens quand tu veux.",
+    empty: "Touche « Ajouter depuis la photothèque » et choisis tes vidéos et photos, dans l'ordre que tu veux.",
     count: (n: number, total: string, max: string) => `${plural(n, "rush", "rushes")} · ${total} sur ${max}`,
     countPro: (n: number, total: string) => `${plural(n, "rush", "rushes")} · ${total}`,
     tooFew: (n: number) => `Encore ${plural(n, "rush", "rushes")} et je peux monter.`,
@@ -752,9 +753,23 @@ export const fr = {
     noneDetail: "Je garde ta voix et je te propose des sous-titres.",
   },
 
+  diag: {
+    title: "Ce que contient cette version",
+    detail: "Fais une capture de cet écran si quelque chose ne marche pas : elle dit ce qui manque.",
+    labels: { vision: "Tri des plans (Vision)", video: "Aperçu et export vidéo", store: "Achats App Store", audio: "Lecture des sons", server: "Serveur IA", access: "Code d'accès du serveur" },
+    line: (label: string, ok: boolean) => `${ok ? "✓" : "✗"} ${label}`,
+  },
+
   generationScreen: {
     title: "Je monte ton Reel",
     error: "Le montage n'a pas abouti. Ton brief et tes rushes sont gardés.",
+    errors: {
+      no_server: "Le serveur de Ma DA n'est pas branché dans cette version de l'app : je ne peux pas monter avec l'IA. Tu peux monter à la main en attendant.",
+      unreadable: "Je n'arrive pas à lire tes rushes. Vérifie qu'ils sont bien sur ton iPhone (pas seulement dans iCloud), puis réessaie.",
+      server_config: "Le serveur de Ma DA n'est pas encore prêt pour l'IA. Réessaie un peu plus tard, ou monte à la main.",
+      unauthorized: "Le serveur a refusé l'accès (code d'accès manquant). Ton brief et tes rushes sont gardés.",
+      network: "Pas de connexion au serveur. Vérifie ton réseau, puis réessaie.",
+    },
   },
 
   resultScreen: {

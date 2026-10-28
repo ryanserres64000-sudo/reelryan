@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
 import { applyCorrection, learn, type Memory } from "../../../core/corrections";
-import { addTexte, addVoiceOver, changedPlans, deleteAudio, deleteCalque, deleteEffet, deletePlan, deleteTexte, duplicatePlan, isLocked, movePlan, planTimes, push, redo, replaceSource, setAudio, setCalque, setDuo, setLogo, setPlan, setSubtitles, setTexte, splitPlan, startHistory, toDoc, trimPlan, undo, type EditDoc, type History } from "../../../core/edit";
+import { addCalque, addTexte, addVoiceOver, changedPlans, deleteAudio, deleteCalque, deleteCle, deleteEffet, deletePlan, deleteTexte, duplicatePlan, isLocked, movePlan, planTimes, push, redo, replaceSource, setAudio, setCalque, setDuo, setLogo, setPlan, setSubtitles, setTexte, splitPlan, startHistory, toDoc, trimPlan, undo, type EditDoc, type History } from "../../../core/edit";
 import { exportPlan } from "../../../core/export";
+import { PRESETS, addKey, isOn, moveLayer, newLayer, placeAt, presetOf, type Preset } from "../../../core/layers";
 import { clock } from "../../../core/playback";
 import { ZOOM, clampZoom, lanes as laneList, type Mode } from "../../../core/tracks";
 import { Timeline, type Selection } from "../editor/Timeline";
@@ -10,7 +11,7 @@ import { loadMode, saveMode } from "../editor/mode";
 import { Frame } from "../video/Frame";
 import type { PlayerHandle } from "../video/Player";
 import type { Sources } from "../video/sources";
-import { ETALONNAGES, LOGO_POSITIONS, TEXT_POSITIONS, TRANSITIONS, type Clips, type TimelineV1 } from "../../../core/timeline";
+import { COURBES, DETOURAGES, ETALONNAGES, FUSIONS, LOGO_POSITIONS, TEXT_POSITIONS, TRANSITIONS, type Calque, type Clips, type TimelineV1 } from "../../../core/timeline";
 import { DUOS, duoById } from "../../../core/typo";
 import { fr } from "../copy/fr";
 import { Button, Card, Chip, Icon, MadaSays, Screen, Sheet, Text, haptic, tokens, typeStyle, useTheme, useToast, type IconName } from "../design";
@@ -68,6 +69,7 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
   const [dragging, setDragging] = useState(false);
   const [adding, setAdding] = useState(false);
   const [voicing, setVoicing] = useState(false);
+  const [layering, setLayering] = useState<null | "pip" | "detoure">(null);
   const file = useMemo(() => exportPlan(tl)[0], [tl]);
   const src = useMemo(() => sources?.() ?? null, []);
   const ids = { plans: d.planIds, textes: d.texteIds };
@@ -77,6 +79,8 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
     setSelection(s);
     if (s?.lane === "plans") { setSel(s.index); if (tool === "texte" || tool === "marque") setTool("plan"); }
     if (s?.lane === "textes") setTool("texte");
+    // A layer is moved on the picture: show it.
+    if (s?.lane === "calques") { const l = (tl.calques ?? [])[s.index]; if (l && !isOn(l, time)) { setPlaying(false); seek(l.t + 0.05); } }
   };
   const trim = (s: NonNullable<Selection>, start: number, end: number) => {
     if (s.lane === "plans") {
@@ -134,7 +138,8 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
       footer={<Button label={t.save} disabled={busy} onPress={() => onSave(tl)} haptic />}>
       <View style={styles.preview}>
         <Pressable onPress={() => { haptic("tap"); setPlaying(x => !x); }} accessibilityRole="button" accessibilityLabel={fr.tracks.playPause}>
-          <Frame ref={player} timeline={tl} file={file} sources={src} time={time} playing={playing} onTime={setTime} width={fw} />
+          <Frame ref={player} timeline={tl} file={file} sources={src} time={time} playing={playing} onTime={setTime} width={fw}
+            selectedLayer={selection?.lane === "calques" ? selection.id : null} onLayerMove={(id, m) => apply(moveLayer(d, id, time, m, clips))} onDragging={setDragging} />
         </Pressable>
         {onPlay ? <IconButton icon="expand" label={fr.player.open} onPress={() => { setPlaying(false); onPlay(tl); }} /> : null}
       </View>
@@ -181,8 +186,20 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
       </View>
       <Sheet visible={adding} onClose={() => setAdding(false)} title={fr.tracks.addTitle}>
         <AddChoice icon="text" title={fr.tracks.addText} why={fr.tracks.addTextWhy} onPress={() => { setAdding(false); apply(addTexte(d, t.newText, time + 2)); setTool("texte"); }} />
+        <AddChoice icon="layers" title={fr.tracks.addLayer} why={fr.tracks.addLayerWhy} onPress={() => { setAdding(false); setPlaying(false); setLayering("pip"); }} />
+        <AddChoice icon="cutout" title={fr.tracks.addCutout} why={fr.tracks.addCutoutWhy} onPress={() => { setAdding(false); setPlaying(false); setLayering("detoure"); }} />
         <AddChoice icon="voice" title={fr.tracks.addVoice} why={fr.tracks.addVoiceWhy} onPress={() => { setAdding(false); setPlaying(false); setVoicing(true); }} />
       </Sheet>
+      <LayerAdd kind={layering} onClose={() => setLayering(null)} clips={clips} at={time} duree={tl.duree}
+        onAdd={l => {
+          const next = addCalque(d, l, clips);
+          if (next === d) { haptic("warning"); toast({ message: fr.layers.full }); return; }
+          setLayering(null); apply(next);
+          const added = next.timeline.calques!.findIndex(c => !(tl.calques ?? []).some(x => x.id === c.id));
+          if (mode === "simple") { setMode("complet"); saveMode("complet"); }
+          if (added >= 0) setSelection({ lane: "calques", index: added, id: next.timeline.calques![added].id } as Selection);
+          toast({ message: fr.layers.added, action: fr.nav.undo, onAction: () => setH(x => undo(x)) });
+        }} />
       <VoiceSheet visible={voicing} onClose={() => setVoicing(false)} at={time} duree={tl.duree} brief={brief} ducking={tl.musique.ducking_voix}
         onPlace={(a, lines, ducking) => {
           const next = addVoiceOver(d, a, lines, ducking);
@@ -191,6 +208,16 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
           apply(next); if (mode === "simple" && !laneList(next.timeline, { plans: next.planIds, textes: next.texteIds }, "simple").shown.some(l => l.key === "voix")) { setMode("complet"); saveMode("complet"); }
           toast({ message: fr.voice.placed, action: fr.nav.undo, onAction: () => setH(x => undo(x)) });
         }} />
+
+      {selection?.lane === "calques" && (tl.calques ?? [])[selection.index] ? (
+        <LayerPanel layer={(tl.calques ?? [])[selection.index]} n={selection.index + 1} time={time}
+          set={patch => apply(setCalque(d, selection.id, patch, clips))}
+          place={p => apply(placeAt(d, selection.id, p, clips))}
+          move={m => apply(moveLayer(d, selection.id, time, m, clips))}
+          key_={() => apply(addKey(d, selection.id, time, clips))}
+          dropKey={k => remove(deleteCle(d, selection.id, k, clips), fr.layers.keyRemoved)}
+          seek={s => { setPlaying(false); seek(s); }} />
+      ) : null}
 
       <View style={styles.field}>
         <View style={styles.row}>
@@ -300,6 +327,70 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
         </Card>
       ) : null}
     </Screen>
+  );
+}
+
+// Adding a video over the frame: which rush, and where (or how to cut it out).
+function LayerAdd({ kind, onClose, clips, at, duree, onAdd }: { kind: null | "pip" | "detoure"; onClose: () => void; clips: Clips; at: number; duree: number; onAdd: (l: Partial<Calque> & { source: string }) => void }) {
+  const ids = Object.keys(clips);
+  const [source, setSource] = useState(ids[0]);
+  const [preset, setPreset] = useState<Preset>("coin");
+  const [cut, setCut] = useState<Calque["detourage"]>("personne");
+  const l = fr.layers;
+  return (
+    <Sheet visible={!!kind} onClose={onClose} title={kind === "detoure" ? l.cutoutTitle : l.title}>
+      <Group label={l.which}>{ids.map((id, k) => <Chip key={id} label={l.rush(k + 1)} selected={source === id} onPress={() => setSource(id)} />)}</Group>
+      {kind === "detoure" ? (
+        <>
+          <Group label={l.cutoutHow}>{(["personne", "fond-vert"] as const).map(x => <Chip key={x} label={l.cutouts[x]} selected={cut === x} onPress={() => setCut(x)} />)}</Group>
+          <Text variant="caption" tone="textMuted">{l.cutoutWhy}</Text>
+        </>
+      ) : (
+        <Group label={l.place}>{(Object.keys(PRESETS) as Preset[]).map(p => <Chip key={p} label={l.presets[p]} selected={preset === p} onPress={() => setPreset(p)} />)}</Group>
+      )}
+      <Button label={l.add(clock(at))} disabled={!source} haptic
+        onPress={() => source && onAdd(newLayer(source, at, clips[source], kind === "detoure" ? "detoure" : preset, duree, kind === "detoure" ? cut : "aucun"))} />
+    </Sheet>
+  );
+}
+
+// The selected layer's settings, under the frise.
+function LayerPanel({ layer, n, time, set, place, move, key_, dropKey, seek }: {
+  layer: Calque; n: number; time: number; set: (p: Partial<Calque>) => void; place: (p: Preset) => void;
+  move: (m: { echelle: number }) => void; key_: () => void; dropKey: (t: number) => void; seek: (s: number) => void;
+}) {
+  const l = fr.layers, preset = presetOf(layer), on = isOn(layer, time);
+  const corner = layer.arrondi === 0 ? "droits" : layer.arrondi >= 0.5 ? "ronds" : "arrondis";
+  return (
+    <Card>
+      <Text variant="headline">{l.panel(n)}</Text>
+      <Text variant="caption" tone="textMuted">{l.gesture}</Text>
+      <Group label={l.place}>{(Object.keys(PRESETS) as Preset[]).map(p => <Chip key={p} label={l.presets[p]} selected={preset === p} onPress={() => place(p)} />)}</Group>
+      <Group label={l.size}>
+        <Chip label={l.smaller} onPress={() => move({ echelle: 0.87 })} />
+        <Chip label={l.bigger} onPress={() => move({ echelle: 1.15 })} />
+      </Group>
+      <Group label={l.opacity}>{[1, 0.75, 0.5].map(v => <Chip key={v} label={l.opacityValue(v)} selected={layer.opacite === v} onPress={() => set({ opacite: v })} />)}</Group>
+      <Group label={l.fusion}>{FUSIONS.map(f => <Chip key={f} label={l.fusions[f]} selected={layer.fusion === f} onPress={() => set({ fusion: f })} />)}</Group>
+      <Group label={l.corners}>
+        {(["droits", "arrondis", "ronds"] as const).map(k => <Chip key={k} label={l.cornerNames[k]} selected={corner === k} onPress={() => set({ arrondi: k === "droits" ? 0 : k === "ronds" ? 0.5 : 0.08 })} />)}
+      </Group>
+      <Group label={l.cutout}>{DETOURAGES.map(x => <Chip key={x} label={l.cutoutNames[x]} selected={layer.detourage === x} onPress={() => set({ detourage: x })} />)}</Group>
+      {!layer.photo ? (
+        <Group label={l.sound}>
+          <Chip label={l.soundOff} selected={layer.volume === 0} onPress={() => set({ volume: 0 })} />
+          <Chip label={l.soundOn} selected={layer.volume > 0} onPress={() => set({ volume: 1 })} />
+        </Group>
+      ) : null}
+      <Group label={l.motion}>
+        {layer.cles.map(k => <Chip key={k.t} label={l.keyAt(clock(layer.t + k.t))} onPress={() => seek(layer.t + k.t)} onLongPress={() => dropKey(k.t)} accessibilityActions={[{ name: "longpress", label: fr.tracks.remove }]} onAccessibilityAction={() => dropKey(k.t)} />)}
+        <Chip label={`+ ${l.addKey}`} disabled={!on} onPress={key_} />
+      </Group>
+      {layer.cles.length ? <Text variant="caption" tone="textMuted">{l.keyHint}</Text> : null}
+      {layer.cles.length > 1 ? (
+        <View style={styles.row}>{COURBES.map(cb => <Chip key={cb} label={l.curves[cb]} selected={layer.cles.every(k => k.courbe === cb)} onPress={() => set({ cles: layer.cles.map(k => ({ ...k, courbe: cb })) })} />)}</View>
+      ) : <Text variant="caption" tone="textMuted">{l.motionWhy}</Text>}
+    </Card>
   );
 }
 

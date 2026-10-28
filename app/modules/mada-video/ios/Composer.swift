@@ -14,8 +14,17 @@ final class Shot {
   }
 }
 
+// A layer over the frame (étape 6): its own video track (or a photo), drawn by the compositor.
+final class Layer {
+  let calque: Timeline.Calque; let start: Double; let end: Double
+  let track: CMPersistentTrackID; let still: CIImage?; let orient: CGImagePropertyOrientation
+  init(calque: Timeline.Calque, start: Double, end: Double, track: CMPersistentTrackID, still: CIImage?, orient: CGImagePropertyOrientation) {
+    self.calque = calque; self.start = start; self.end = end; self.track = track; self.still = still; self.orient = orient
+  }
+}
+
 final class RenderPlan {
-  let size: CGSize; var shots: [Shot] = []; var overlays: [Overlay] = []
+  let size: CGSize; var shots: [Shot] = []; var layers: [Layer] = []; var overlays: [Overlay] = []
   init(size: CGSize) { self.size = size }
 }
 
@@ -72,9 +81,36 @@ enum Composer {
     let duration = min(at, file.duree)
     plan.overlays = try Overlay.make(t, file: file, sources: sources, duration: duration)
 
+    // Layers over the frame (étape 6): each on its own track, its sound only when asked (volume > 0).
+    var layerSound: [AVMutableAudioMixInputParameters] = []
+    for c in t.calques ?? [] where c.t < duration {
+      guard let uriString = sources.rushes[c.source], let uri = URL(string: uriString),
+            let track = comp.addMutableTrack(withMediaType: .video, preferredTrackID: kCMPersistentTrackID_Invalid) else { continue }
+      let length = min(c.fin - c.debut, duration - c.t)
+      guard length > 0.05 else { continue }
+      let target = CMTimeRange(start: time(c.t), duration: time(length))
+      if isImage(uri) {
+        guard let image = CIImage(contentsOf: uri, options: [.applyOrientationProperty: true]) else { continue }
+        try insertFiller(filler.track, length: filler.duration, into: track, range: target)
+        plan.layers.append(Layer(calque: c, start: c.t, end: c.t + length, track: track.trackID, still: image, orient: .up))
+      } else {
+        let asset = AVURLAsset(url: uri)
+        guard let src = try await asset.loadTracks(withMediaType: .video).first else { continue }
+        let transform = try await src.load(.preferredTransform)
+        try track.insertTimeRange(CMTimeRange(start: time(c.debut), duration: time(length)), of: src, at: target.start)
+        plan.layers.append(Layer(calque: c, start: c.t, end: c.t + length, track: track.trackID, still: nil, orient: orientation(transform)))
+        if c.volume > 0, let srcAudio = try await asset.loadTracks(withMediaType: .audio).first,
+           let audio = comp.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {
+          try audio.insertTimeRange(CMTimeRange(start: time(c.debut), duration: time(length)), of: srcAudio, at: target.start)
+          let p = AVMutableAudioMixInputParameters(track: audio); p.setVolume(Float(min(2, c.volume)), at: .zero)
+          layerSound.append(p)
+        }
+      }
+    }
+
     // Voice-overs and recordings (étape 5), each on its own track so they may overlap, faded in and
     // out; the music goes down under them like under the voices of the rushes.
-    var params: [AVMutableAudioMixInputParameters] = []
+    var params: [AVMutableAudioMixInputParameters] = layerSound
     for a in t.audios ?? [] where a.t < duration && a.fin > a.debut {
       guard let uri = sources.audios?[a.id], let url = URL(string: uri),
             let src = try await AVURLAsset(url: url).loadTracks(withMediaType: .audio).first,
@@ -147,16 +183,19 @@ enum Composer {
     return Built(composition: comp, video: video, audio: mix, duration: time(duration))
   }
 
-  // One instruction per span where the same shots are on screen: one shot, or two during a transition.
+  // One instruction per span where the same shots and layers are on screen: one shot, or two during
+  // a transition, and the layers playing then.
   static func instructions(_ plan: RenderPlan, duration: Double) -> [MadaInstruction] {
     var cuts = Set<Double>([0, duration])
     for s in plan.shots { cuts.insert(min(s.start, duration)); cuts.insert(min(s.end, duration)) }
+    for l in plan.layers { cuts.insert(min(l.start, duration)); cuts.insert(min(l.end, duration)) }
     let times = cuts.sorted()
     var out: [MadaInstruction] = []
     for (a, b) in zip(times, times.dropFirst()) where b - a > 0.0005 {
       let mid = (a + b) / 2
       let on = plan.shots.filter { $0.start <= mid && mid < $0.end }
-      out.append(MadaInstruction(range: CMTimeRange(start: time(a), end: time(b)), shots: on, plan: plan))
+      let layers = plan.layers.filter { $0.start <= mid && mid < $0.end }
+      out.append(MadaInstruction(range: CMTimeRange(start: time(a), end: time(b)), shots: on, layers: layers, plan: plan))
     }
     return out
   }

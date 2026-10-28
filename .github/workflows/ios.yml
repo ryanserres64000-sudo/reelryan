@@ -35,7 +35,7 @@ jobs:
       # The build runs on Expo's servers, which do not see this job's variables: the server address
       # goes into eas.json for this run only.
       - name: Server address for the app
-        run: node -e 'const f="eas.json",j=JSON.parse(require("fs").readFileSync(f));const e=Object.fromEntries([["EXPO_PUBLIC_MADA_API",process.env.API],["EXPO_PUBLIC_MADA_ACCESS",process.env.ACCESS]].filter(x=>x[1]));if(Object.keys(e).length)j.build[process.env.PROFIL==='envoi-seul'?'production':process.env.PROFIL].env=e;require("fs").writeFileSync(f,JSON.stringify(j,null,2))'
+        run: node -e 'const f="eas.json",j=JSON.parse(require("fs").readFileSync(f));const e=Object.fromEntries([["EXPO_PUBLIC_MADA_API",process.env.API],["EXPO_PUBLIC_MADA_ACCESS",process.env.ACCESS]].filter(x=>x[1]));if(Object.keys(e).length)j.build[process.env.PROFIL=="envoi-seul"?"production":process.env.PROFIL].env=e;require("fs").writeFileSync(f,JSON.stringify(j,null,2))'
         env: { PROFIL: "${{ inputs.profil }}", API: "${{ secrets.MADA_API_URL }}", ACCESS: "${{ secrets.MADA_ACCESS }}" }
       - name: App Store Connect key
         if: inputs.profil != 'simulateur'

@@ -10,6 +10,7 @@ L'inscription (lot 4 : profil, questionnaire, logo, carnet de marque), puis le p
 - `src/music/` : téléchargement du lien MP3, import de fichier, cache (`sound.ts` sur iPhone, `sound.web.ts` pour l'aperçu web). Les règles et la détection du tempo sont dans `../core/music.ts`.
 - `modules/mada-audio/` : module natif Swift qui décode un son avec AVAudioFile. Pas encore compilé : il faut Xcode. Sans lui, l'app propose « Tape le rythme ».
 - `src/visual/` : les visuels (lot 6) : rendu des calques `{w, h, background, fx, layers[]}` en vues natives (`DesignView.tsx`, SVG pour formes et photos, vrais `Text` pour les textes), les 12 polices OFL, l'appel à `POST /api/visuel` avec mise en page hors ligne, et les 20 derniers visuels gardés sur l'iPhone.
+- `src/export/` : export PNG d'un visuel (capture à taille réelle, Photos en écriture seule, feuille de partage) et pont vers le futur module natif `MadaVideo` (AVFoundation), absent tant que l'app n'est pas compilée sur Mac.
 - `src/screens/` : les écrans. Aucune couleur, taille ni texte en dur : `node ../design/check-hardcoded.mjs` le vérifie.
 
 Serveur : `EXPO_PUBLIC_MADA_API` (adresse du serveur) et `EXPO_PUBLIC_MADA_ACCESS` (code `APP_PASSWORD`) dans `app/.env`. Sans eux, l'app fonctionne hors ligne avec des réponses d'exemple.

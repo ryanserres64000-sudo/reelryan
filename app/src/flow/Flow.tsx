@@ -13,6 +13,7 @@ import { GenerationScreen } from "../screens/GenerationScreen";
 import { ImportScreen } from "../screens/ImportScreen";
 import { MusicScreen } from "../screens/MusicScreen";
 import { ResultScreen } from "../screens/ResultScreen";
+import { ExportScreen } from "../screens/ExportScreen";
 import { VisualBriefScreen } from "../screens/VisualBriefScreen";
 import { VisualEditorScreen } from "../screens/VisualEditorScreen";
 import type { VisualBrief } from "../../../core/design";
@@ -22,7 +23,7 @@ import { SAMPLE_RUSHES, fakeMontage } from "./fake";
 import { Onboarding } from "./Onboarding";
 import type { Brief, MontageResult, Music, Rush, Trade } from "./types";
 
-type Step = "brand" | "import" | "brief" | "music" | "generation" | "result" | "editor" | "catalogue" | "visual" | "visual-editor";
+type Step = "brand" | "import" | "brief" | "music" | "generation" | "result" | "editor" | "catalogue" | "visual" | "visual-editor" | "export";
 // The brief's trade chips (lot 2) start from the sign-up profile.
 const TRADE_OF: Record<Profil, Trade> = { commerce: "commerce", restaurant: "restaurant", "petite-entreprise": "artisan", "grande-entreprise": "freelance", ecole: "freelance", createur: "freelance", debutant: "freelance" };
 const START_BRIEF: Brief = { text: "", trade: "restaurant", goal: null, tone: null, duration: 30, platforms: ["reels", "tiktok", "shorts"], cta: null };
@@ -71,7 +72,12 @@ export function Flow() {
       run={(onStep, signal) => fakeMontage(chosen, brief, music, onStep, signal)}
       onDone={(r, s) => { setResult({ r, s }); setStep("result"); }} onCancel={() => setStep("music")} />;
     case "result": return result ? <ResultScreen result={result.r} seconds={result.s} onBack={() => setStep("brief")} onRestart={() => { setResult(null); setStep("import"); }}
-      onEdit={i => { setEditing(i); setStep("editor"); }} /> : null;
+      onEdit={i => { setEditing(i); setStep("editor"); }} onExport={i => { setEditing(i); setStep("export"); }} /> : null;
+    case "export": {
+      const v = result?.r.variantes[editing];
+      return v ? <ExportScreen timeline={v.timeline} brief={composeBrief(brief)} brand={brand ?? null} onBack={() => setStep("result")}
+        rushes={Object.fromEntries(chosen.flatMap(r => (r.uri ? [[r.id, r.uri]] : [])))} /> : null;
+    }
     case "editor": {
       const v = result?.r.variantes[editing];
       if (!result || !v) return null;

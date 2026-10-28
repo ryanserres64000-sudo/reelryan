@@ -98,6 +98,31 @@ export const fr = {
     remaining: (s: number) => `Encore ${secondes(s)}`,
   },
 
+  // The export screen (lot 7).
+  exportScreen: {
+    title: "Prêt à publier",
+    detail: "Un fichier par plateforme, les textes hors des zones cachées par les boutons.",
+    files: "Tes fichiers",
+    names: { reels: "Instagram Reels", tiktok: "TikTok", shorts: "YouTube Shorts" },
+    file: (d: string) => `1080 × 1920 · 30 i/s · ${d}`,
+    cut: (max: string) => `Coupé à ${max} pour cette plateforme.`,
+    zone: (name: string) => `Zone sûre de ${name} : les textes restent dans le cadre clair.`,
+    caption: "Ta légende",
+    captionWhy: "Écrite dans ton ton. Change ce que tu veux, puis copie-la pour chaque plateforme.",
+    hashtags: "Hashtags",
+    hashtagsWhy: (n: number) => `Instagram en garde ${n} au plus : les premiers comptent.`,
+    copy: (name: string) => `Copier pour ${name}`,
+    copied: (name: string) => `Légende copiée pour ${name}, il n'y a plus qu'à coller.`,
+    trend: "Ton son tendance",
+    trendTip: (bpm: number) => `J'ai calé les coupes sur ${bpm} BPM. Au moment de publier, choisis un son tendance autour de ce tempo dans Instagram ou TikTok : les coupes tomberont sur ses temps.`,
+    save: "Enregistrer les vidéos",
+    saving: (i: number, n: number) => `Vidéo ${i} sur ${n}…`,
+    saved: "C'est dans ta pellicule. Ta légende est copiée, il n'y a plus qu'à coller.",
+    share: "Partager",
+    native: "L'export vidéo se fait sur ton iPhone, avec le module AVFoundation de l'app compilée. Dans cet aperçu, il n'est pas encore là : ta légende est copiée quand même.",
+    error: "L'export s'est arrêté. Rien n'est perdu : réessaie, et vérifie qu'il reste de la place sur ton iPhone.",
+  },
+
   paywall: {
     title: "Tu as aimé ? Garde ta DA.",
     detail: "30 montages par mois, ton style qui s'affine, sans filigrane. 6,99 € par mois, sans engagement.",
@@ -355,7 +380,7 @@ export const fr = {
     shot: (i: number, raison: string) => `Plan ${i} : ${raison}`,
     missing: "À vérifier",
     preview: "Aperçu",
-    chosen: "Version gardée. L'export arrive juste après.",
+    chosen: "Version gardée.",
   },
 
   // Full control over an edit (lot 5): everything by hand, or in a sentence.
@@ -454,7 +479,11 @@ export const fr = {
     retouchOffline: "Pour ça j'ai besoin de l'IA, et le serveur n'est pas joignable. Fais-le à la main avec les outils ci-dessous.",
     retouchError: "Je n'ai pas réussi cette retouche. Ton visuel n'a pas changé.",
     save: "Enregistrer le visuel",
-    exportSoon: "L'export en image arrive avec le partage.",
+    exportImage: "Exporter en image",
+    exporting: "J'exporte…",
+    exported: "C'est dans ta pellicule, en pleine résolution.",
+    shared: "Image prête, choisis où l'envoyer.",
+    exportError: "Je n'ai pas pu exporter l'image ici. Sur iPhone, elle part dans ta pellicule et dans la feuille de partage.",
   },
 
   dev: { catalogue: "Voir le design system", demo: "Données d'exemple" },

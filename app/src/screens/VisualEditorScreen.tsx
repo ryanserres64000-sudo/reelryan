@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
+import { useRef, useState, type ComponentRef } from "react";
+import { PixelRatio, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
 import { NEUTRALS, addText, deleteLayer, moveLayer, pushDesign, redoDesign, reorder, resizeText, setLayer, startDesignHistory, undoDesign, type Design, type DesignHistory, type TextLayer, type VisualBrief } from "../../../core/design";
 import type { Brand } from "../brand/types";
 import { fr } from "../copy/fr";
@@ -7,6 +7,7 @@ import { Button, Card, Chip, MadaSays, Screen, Swatch, Text, tokens, typeStyle, 
 import { assetsOf, lookOf, retouchVisual, type Photo, type VisualResult } from "../visual/api";
 import { DesignView } from "../visual/DesignView";
 import { useVisualFonts } from "../visual/fonts";
+import { exportImage } from "../export/image";
 
 type Props = { result: VisualResult; brief: VisualBrief; photos: Photo[]; brand: Brand | null; onSave: (d: Design) => void; onBack: () => void };
 const t = fr.visual;
@@ -26,6 +27,8 @@ export function VisualEditorScreen({ result, brief, photos, brand, onSave, onBac
   const [say, setSay] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const ctl = useRef<AbortController | null>(null);
+  const full = useRef<ComponentRef<typeof View>>(null);
+  const [out, setOut] = useState<string | null>(null);
   const d = h.present, look = lookOf(brand), assets = assetsOf(photos, brand);
   const l = d.layers.find(x => x.id === sel) ?? null;
   const [typing, setTyping] = useState<string | null>(null);
@@ -49,17 +52,27 @@ export function VisualEditorScreen({ result, brief, photos, brand, onSave, onBac
     finally { setBusy(false); }
   };
 
+  const exportPng = async () => {
+    setBusy(true); setOut(t.exporting);
+    try { const r = await exportImage(full, d.w, d.h); setOut(r.saved ? t.exported : t.shared); }
+    catch { setOut(t.exportError); }
+    finally { setBusy(false); }
+  };
+
   const review = result.relecture;
   return (
     <Screen title={t.editorTitle} detail={t.editorDetail} onBack={onBack}
       footer={<>
-        <Text variant="caption" tone="textMuted">{t.exportSoon}</Text>
+        {out ? <MadaSays text={out} /> : null}
+        <Button variant="secondary" label={t.exportImage} disabled={busy || !fonts} onPress={exportPng} />
         <Button label={t.save} disabled={busy} onPress={() => onSave(d)} haptic />
       </>}>
       {!result.byAi ? <MadaSays text={t.offline} /> : null}
       {result.concept ? <MadaSays text={t.concept(result.concept)} /> : null}
       {result.byAi || review.length ? <MadaSays text={[t.review(review.length), ...review].join(" ")} /> : null}
 
+      {/* The full-size render the PNG is taken from, out of sight (1 px of it = 1 px of the file). */}
+      {fonts ? <View ref={full} collapsable={false} pointerEvents="none" style={[styles.offscreen, { left: -width * 4 }]}><DesignView design={d} width={d.w / PixelRatio.get()} assets={assets} id="full" /></View> : null}
       <View style={[styles.canvas, { borderColor: c.line }]}>
         {fonts ? <DesignView design={d} width={canvas} assets={assets} selected={sel} onSelect={setSel} onMove={(id, dx, dy) => apply(moveLayer(d, id, dx, dy))} /> : null}
       </View>
@@ -125,6 +138,7 @@ function TextTools({ l, d, colors, apply, type }: { l: TextLayer; d: Design; col
 }
 
 const styles = StyleSheet.create({
+  offscreen: { position: "absolute", top: 0 },
   canvas: { alignSelf: "center", borderWidth: tokens.size.border, borderRadius: tokens.radius.chip, overflow: "hidden" },
   row: { flexDirection: "row", flexWrap: "wrap", gap: tokens.space.xs, alignItems: "center" },
   tools: { gap: tokens.space.sm },

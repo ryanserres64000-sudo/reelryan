@@ -5,12 +5,12 @@ import { fr } from "../copy/fr";
 import { Button, Card, Chip, Frise, SavedPill, Screen, Text, tokens, useTheme } from "../design";
 import type { MontageResult, Variant } from "../flow/types";
 
-type Props = { result: MontageResult; seconds: number; onBack: () => void; onRestart: () => void; onEdit?: (i: number) => void };
+type Props = { result: MontageResult; seconds: number; onBack: () => void; onRestart: () => void; onEdit?: (i: number) => void; onExport?: (i: number) => void };
 const LABELS = { "accroche-forte": fr.result.variants.hook, posee: fr.result.variants.calm, rythmee: fr.result.variants.rhythm } as const;
 
 // Step 5 (étude, ch. 5 §5 ; ch. 4 « relecture visible »): 2 or 3 versions to swipe, what MaDa corrected
 // before showing them, why this edit, and the shots to film next time.
-export function ResultScreen({ result, seconds, onBack, onRestart, onEdit }: Props) {
+export function ResultScreen({ result, seconds, onBack, onRestart, onEdit, onExport }: Props) {
   const [index, setIndex] = useState(0);
   const [page, setPage] = useState(0);
   const [chosen, setChosen] = useState<number | null>(null);
@@ -21,7 +21,9 @@ export function ResultScreen({ result, seconds, onBack, onRestart, onEdit }: Pro
     <Screen title={fr.resultScreen.title} detail={fr.resultScreen.swipe} onBack={onBack}
       footer={<>
         {chosen === index ? <View style={styles.saved}><SavedPill visible /><Text variant="caption" tone="textMuted">{fr.resultScreen.chosen}</Text></View> : null}
-        <Button label={fr.result.choose} onPress={() => setChosen(index)} haptic />
+        {chosen === index && onExport
+          ? <Button label={fr.export.cta} onPress={() => onExport(index)} haptic />
+          : <Button label={fr.result.choose} onPress={() => setChosen(index)} haptic />}
       </>}>
       <View style={styles.tabs} accessibilityRole="tablist">
         {result.variantes.map((v, i) => (

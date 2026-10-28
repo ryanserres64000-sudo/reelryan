@@ -18,8 +18,9 @@ export type Music = {
 export type Variant = { timeline: TimelineV1; duration: number; warnings: string[] };
 export type MontageResult = { variantes: Variant[]; cout_usd: number; temps_s: number; manuel?: boolean };
 
-// Free plan limits (étude, ch. 8 §2 ; décisions de Ryan : rushes de 60 à 90 s en gratuit).
-export const LIMITS = { minRushes: 3, maxRushes: 25, freeSeconds: 90 } as const;
+// Limits (Ryan, 28 octobre 2026): 30 rushes for everyone, and the free plan caps the finished video
+// at 60 s rather than the length of the rushes.
+export const LIMITS = { minRushes: 3, maxRushes: 30, freeVideo: 60 } as const;
 
 // Runs one AI edit: the sample one for now, POST /api/montage later (flow/api.ts).
 export type Runner = (onStep: (step: number) => void, signal: AbortSignal) => Promise<MontageResult>;

@@ -19,7 +19,6 @@ export function ImportScreen({ rushes, selected, pro, onRushes, onSelect, onNext
   const cardWidth = (Math.min(width, tokens.layout.largePhoneWidth * 1.5) - gutter * 2 - tokens.space.xs * (COLUMNS - 1)) / COLUMNS;
 
   const total = selected.reduce((s, id) => s + (rushes.find(r => r.id === id)?.duration ?? 0), 0);
-  const tooLong = !pro && total > LIMITS.freeSeconds;
   const missing = LIMITS.minRushes - selected.length;
   const full = selected.length >= LIMITS.maxRushes;
 
@@ -45,13 +44,13 @@ export function ImportScreen({ rushes, selected, pro, onRushes, onSelect, onNext
   };
 
   const fmt = fr.rush.duration;
-  const status = missing > 0 ? fr.import.tooFew(missing) : tooLong ? fr.import.tooLong : full ? fr.import.tooMany : null;
+  const status = missing > 0 ? fr.import.tooFew(missing) : full ? fr.import.tooMany : null;
   return (
     <Screen title={fr.import.title} detail={fr.import.detail} onBack={onBack}
       footer={<>
-        <Text variant="mono" tone={tooLong ? "danger" : "textMuted"}>{pro ? fr.import.countPro(selected.length, fmt(total)) : fr.import.count(selected.length, fmt(total), fmt(LIMITS.freeSeconds))}</Text>
-        {status ? <Text variant="caption" tone={tooLong ? "danger" : "textMuted"} accessibilityLiveRegion="polite">{status}</Text> : null}
-        <Button label={fr.nav.next} disabled={missing > 0 || tooLong} onPress={onNext} haptic />
+        <Text variant="mono" tone="textMuted">{fr.import.countPro(selected.length, fmt(total))}</Text>
+        {status ? <Text variant="caption" tone="textMuted" accessibilityLiveRegion="polite">{status}</Text> : null}
+        <Button label={fr.nav.next} disabled={missing > 0} onPress={onNext} haptic />
       </>}>
       <Button variant="secondary" label={fr.import.pick} onPress={pick} />
       {pickError ? <Text tone="danger">{fr.import.pickError}</Text> : null}

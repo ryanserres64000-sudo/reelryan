@@ -260,7 +260,7 @@ export function Flow() {
       onDeleted={() => { setBrand(null); setVisuals([]); setVisual(null); setResult(null); setStep("brand"); }} />;
     case "export": {
       const v = result?.r.variantes[editing];
-      return v ? <ExportScreen timeline={v.timeline} byAi={!result?.r.manuel} brief={composeBrief(brief)} brand={brand ?? null} onBack={() => setStep("result")}
+      return v ? <ExportScreen timeline={v.timeline} byAi={!result?.r.manuel} brief={composeBrief(brief)} brand={brand ?? null} style={montageStyle(brand?.dna ?? null, brand?.memory?.rules.map(r => r.text) ?? [])} onBack={() => setStep("result")}
         sources={() => videoSources(v.timeline, chosen, brand ?? null, music)}
         onNext={() => { const next = ideaOfTheDay(plan, new Date()); newReel(next?.idee.titre ?? ""); }} onHome={() => { clearDraft(); setStep("home"); }} /> : null;
     }

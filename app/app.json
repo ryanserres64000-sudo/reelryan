@@ -115,6 +115,12 @@
     ],
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "owner": "ryanserres",
+    "extra": {
+      "eas": {
+        "projectId": "c6bcfc96-9863-4dcf-8a0f-e49b23c2fde8"
+      }
     }
   }
 }

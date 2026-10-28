@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { StyleSheet, TextInput, View } from "react-native";
 import { applyCorrection, learn, type Memory } from "../../../core/corrections";
-import { addTexte, changedPlans, deletePlan, deleteTexte, isLocked, movePlan, push, redo, replaceSource, setLogo, setPlan, setSubtitles, setTexte, startHistory, toDoc, trimPlan, undo, type EditDoc, type History } from "../../../core/edit";
+import { addTexte, changedPlans, deleteEffet, deletePlan, deleteTexte, isLocked, movePlan, push, redo, replaceSource, setDuo, setLogo, setPlan, setSubtitles, setTexte, startHistory, toDoc, trimPlan, undo, type EditDoc, type History } from "../../../core/edit";
 import { ETALONNAGES, LOGO_POSITIONS, TEXT_POSITIONS, TRANSITIONS, TRANSITION_SECONDS, type Clips, type TimelineV1 } from "../../../core/timeline";
+import { DUOS, duoById } from "../../../core/typo";
 import { fr } from "../copy/fr";
 import { Button, Card, Chip, Frise, MadaSays, Screen, Text, tokens, typeStyle, useTheme } from "../design";
 import { aiRetouche } from "../flow/retouche";
+import { DuoTitle } from "../video/DuoTitle";
 
 type Props = {
   timeline: TimelineV1; clips: Clips; bad: string[]; brief: string; style: object; memory: Memory;
@@ -126,6 +128,12 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
                 {x.impose || isLocked(d, d.texteIds[j]) ? <Text variant="caption" tone="actionStrong">{x.impose ? t.imposed : t.locked}</Text> : null}
               </View>
               <TextField value={x.texte} label={t.text(j + 1)} onDone={v => apply(setTexte(d, j, { texte: v }))} />
+              {x.style === "accroche" || x.style === "titre" ? (
+                <View style={styles.group}>
+                  <Text variant="caption" tone="textMuted">{t.accent}</Text>
+                  <TextField value={x.accent} label={t.accent} placeholder={t.accentPlaceholder} max={30} onDone={v => apply(setTexte(d, j, { accent: v }))} />
+                </View>
+              ) : null}
               <Group label={t.position}>{TEXT_POSITIONS.map(pos => <Chip key={pos} label={t.positions[pos]} selected={x.position === pos} onPress={() => apply(setTexte(d, j, { position: pos }))} />)}</Group>
               <Chip label={t.deleteText} onPress={() => apply(deleteTexte(d, j))} style={styles.start} />
             </Card>
@@ -141,6 +149,16 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
             <Chip label={t.on} selected={tl.sous_titres.actifs} onPress={() => apply(setSubtitles(d, true))} />
             <Chip label={t.off} selected={!tl.sous_titres.actifs} onPress={() => apply(setSubtitles(d, false))} />
           </Group>
+          <Group label={t.duo}>
+            {DUOS.map(x => <Chip key={x.id} label={x.nom} selected={tl.charte.duo === x.id} onPress={() => apply(setDuo(d, x.id))} />)}
+            <Chip label={t.noDuo} selected={!tl.charte.duo} onPress={() => apply(setDuo(d, null))} />
+          </Group>
+          {tl.charte.duo ? <View style={[styles.sample, { backgroundColor: c.media }]}><DuoTitle duo={duoById(tl.charte.duo)} texte={t.duoSample.titre} accent={t.duoSample.accent} /></View> : null}
+          <Text variant="caption" tone="textMuted">{t.duoWhy}</Text>
+          <Group label={t.effets}>
+            {(tl.effets ?? []).map((e, k) => <Chip key={`${e.type}${e.t}`} label={t.effet(t.effetNames[e.type], t.seconds(e.t))} onPress={() => apply(deleteEffet(d, k))} />)}
+          </Group>
+          <Text variant="caption" tone="textMuted">{(tl.effets ?? []).length ? t.effetsWhy : t.effetsNone}</Text>
         </Card>
       ) : null}
     </Screen>
@@ -156,11 +174,12 @@ function Group({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function TextField({ value, label, onDone }: { value: string; label: string; onDone: (v: string) => void }) {
+function TextField({ value, label, onDone, placeholder, max = 140 }: { value: string; label: string; onDone: (v: string) => void; placeholder?: string; max?: number }) {
   const { c } = useTheme();
   const [v, setV] = useState(value);
   useEffect(() => setV(value), [value]);
-  return <TextInput value={v} onChangeText={setV} onBlur={() => v !== value && onDone(v)} onSubmitEditing={() => v !== value && onDone(v)} accessibilityLabel={label} maxLength={140}
+  return <TextInput value={v} onChangeText={setV} onBlur={() => v !== value && onDone(v)} onSubmitEditing={() => v !== value && onDone(v)} accessibilityLabel={label} maxLength={max}
+    placeholder={placeholder} placeholderTextColor={c.textMuted}
     style={[typeStyle("body"), styles.input, { color: c.text, borderColor: c.line, backgroundColor: c.surface }]} />;
 }
 
@@ -174,4 +193,5 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   auto: { alignSelf: "auto" },
   start: { alignSelf: "flex-start" },
+  sample: { borderRadius: tokens.radius.card, paddingVertical: tokens.space.lg, paddingHorizontal: tokens.space.md, alignItems: "center" },
 });

@@ -2,6 +2,7 @@
 // (étude, ch. 5 « Format JSON de la timeline MaDa (v1) »). It extends the prototype format
 // (prototype/lib/timeline.mjs) without breaking it: a prototype timeline is a valid v1 timeline.
 // Plain TypeScript with erasable syntax only, so Node runs it as is and Metro bundles it.
+import { DUO_IDS, type DuoId } from "./typo.ts";
 
 export const TRANSITIONS = ["coupe", "fondu", "glisse", "zoom"] as const;
 export const TEXT_POSITIONS = ["haut", "centre", "bas"] as const;
@@ -13,9 +14,13 @@ export const VARIANTES = ["accroche-forte", "posee", "rythmee"] as const;
 export const SOUS_TITRES_STYLES = ["marque", "sobre", "mot-a-mot"] as const;
 export const MUSIQUE_MODES = ["fichier", "catalogue", "tendance", "aucune"] as const;
 export const MUSIQUE_SOURCES = ["lien", "fichier", "catalogue"] as const;
+// Sound effects on key moments (Ryan, référence coachtijoux du 28 octobre), few and spaced.
+export const EFFETS = ["whoosh", "pop", "clic", "ding", "impact"] as const;
+export const MAX_EFFETS = 4;
+export const EFFET_ECART = 3;
 export const LOGO_POSITIONS = ["debut", "fin", "partout", "aucun"] as const;
 // OFL fonts only, so they can be burnt into videos (étude, ch. 6 §3).
-export const POLICES = ["Bricolage Grotesque", "DM Sans", "Fraunces", "Inter", "Playfair Display", "Bebas Neue", "Anton", "Archivo Black", "Cormorant Garamond", "Caveat", "Montserrat", "Poppins"] as const;
+export const POLICES = ["Bricolage Grotesque", "DM Sans", "Fraunces", "Inter", "Playfair Display", "Bebas Neue", "Anton", "Archivo Black", "Cormorant Garamond", "Caveat", "Montserrat", "Poppins", "Pinyon Script", "Bodoni Moda", "Abril Fatface", "Dela Gothic One"] as const;
 
 // Maximum durations and UI-safe margins (px on 1080 × 1920). The study flags them [À VÉRIFIER]:
 // check them again against each platform before submitting to the App Store.
@@ -35,7 +40,8 @@ export type Plan = {
   source: string; debut: number; fin: number; cadrage: OneOf<typeof CROPS>; transition: OneOf<typeof TRANSITIONS>;
   garder_son: boolean; vitesse: number; etalonnage: OneOf<typeof ETALONNAGES>; mouvement: OneOf<typeof MOUVEMENTS>; raison: string;
 };
-export type Texte = { texte: string; debut: number; fin: number; position: OneOf<typeof TEXT_POSITIONS>; style: OneOf<typeof TEXT_STYLES>; impose: boolean };
+export type Texte = { texte: string; debut: number; fin: number; position: OneOf<typeof TEXT_POSITIONS>; style: OneOf<typeof TEXT_STYLES>; impose: boolean; accent: string };
+export type Effet = { t: number; type: OneOf<typeof EFFETS> };
 export type Musique = {
   mode: OneOf<typeof MUSIQUE_MODES>;
   source: { type: OneOf<typeof MUSIQUE_SOURCES>; empreinte: string; droits_confirmes_le: string } | null;
@@ -46,12 +52,13 @@ export type Charte = {
   couleurs: { principale: string | null; texte: string | null };
   polices: { titre: OneOf<typeof POLICES>; texte: OneOf<typeof POLICES> };
   logo: { asset: string; position: OneOf<typeof LOGO_POSITIONS>; taille: number } | null;
+  duo: DuoId | null;
 };
 export type TimelineV1 = {
   version: 1; titre: string; intention: string; variante: OneOf<typeof VARIANTES> | null;
   format: { w: 1080; h: 1920; fps: 30 }; duree: number; plans: Plan[]; textes: Texte[];
   sous_titres: { actifs: boolean; style: OneOf<typeof SOUS_TITRES_STYLES>; position: "bas" | "centre" };
-  musique: Musique; charte: Charte; style_utilise: string[];
+  musique: Musique; effets: Effet[]; charte: Charte; style_utilise: string[];
   exports: { plateforme: Plateforme; duree_max: number }[];
   relecture: { corrections: string[]; plans_a_tourner: string[] };
   legende: { texte: string; hashtags: string[] };
@@ -134,11 +141,13 @@ function sanitizePlans(raw: unknown, clips: Clips, beat: number, maxDuration: nu
 function sanitizeTextes(raw: unknown, duration: number, brief: string | undefined, warnings: string[]): Texte[] {
   const imposed = imposedTexts(brief).map(norm);
   const textes = arr(raw).map(r => {
-    const t = obj(r), texte = str(t.texte, 140);
+    const t = obj(r), texte = str(t.texte, 140), style = pick(t.style, TEXT_STYLES, "titre");
     return {
       texte, debut: round(clamp(num(t.debut), 0, duration)), fin: round(clamp(num(t.fin), 0, duration)),
-      position: pick(t.position, TEXT_POSITIONS, "centre"), style: pick(t.style, TEXT_STYLES, "titre"),
+      position: pick(t.position, TEXT_POSITIONS, "centre"), style,
       impose: imposed.includes(norm(texte)) || (!brief && !!t.impose),
+      // The duo's accent word goes with titles only (core/typo.ts).
+      accent: style === "accroche" || style === "titre" ? str(t.accent, 30) : "",
     };
   }).filter(t => t.texte && t.fin - t.debut >= MIN_TEXT);
   for (const [i, t] of imposedTexts(brief).entries()) if (!textes.some(x => norm(x.texte) === imposed[i])) warnings.push(`Texte demandé absent du montage : « ${t} »`);
@@ -171,7 +180,19 @@ function sanitizeCharte(raw: unknown): Charte {
     couleurs: { principale: hex(co.principale), texte: hex(co.texte) },
     polices: { titre: pick(po.titre, POLICES, "Bricolage Grotesque"), texte: pick(po.texte, POLICES, "DM Sans") },
     logo: lo.asset ? { asset: str(lo.asset, 60), position: pick(lo.position, LOGO_POSITIONS, "fin"), taille: round(clamp(num(lo.taille, 0.22), 0.1, 0.4)) } : null,
+    duo: DUO_IDS.includes(c.duo) ? c.duo : null,
   };
+}
+
+// At most MAX_EFFETS sound effects, EFFET_ECART seconds apart, inside the edit.
+function sanitizeEffets(raw: unknown, duration: number, warnings: string[]): Effet[] {
+  const all = arr(raw).map(e => obj(e)).filter(e => (EFFETS as readonly string[]).includes(e.type))
+    .map(e => ({ t: round(clamp(num(e.t, -1), 0, Math.max(0, duration - 0.2))), type: e.type as Effet["type"] }))
+    .filter(e => num(e.t, -1) >= 0).sort((a, b) => a.t - b.t);
+  const out: Effet[] = [];
+  for (const e of all) if (out.length < MAX_EFFETS && (!out.length || e.t - out[out.length - 1].t >= EFFET_ECART)) out.push(e);
+  if (out.length < all.length) warnings.push(`Effets sonores réduits à ${out.length} : peu, et espacés.`);
+  return out;
 }
 
 function sanitizeExports(raw: unknown, duration: number, warnings: string[]): TimelineV1["exports"] {
@@ -202,7 +223,7 @@ export function sanitizeTimeline(raw: unknown, clips: Clips, opts: SanitizeOptio
     format: { w: 1080, h: 1920, fps: 30 }, duree: duration, plans,
     textes: sanitizeTextes(r.textes, duration, opts.brief, warnings),
     sous_titres: { actifs: !!st.actifs, style: pick(st.style, SOUS_TITRES_STYLES, "marque"), position: st.position === "centre" ? "centre" : "bas" },
-    musique, charte: sanitizeCharte(r.charte),
+    musique, effets: sanitizeEffets(r.effets, duration, warnings), charte: sanitizeCharte(r.charte),
     style_utilise: arr(r.style_utilise).map(x => str(x, 120)).filter(Boolean).slice(0, 10),
     exports: sanitizeExports(r.exports, duration, warnings),
     relecture: { corrections: arr(rel.corrections).map(x => str(x, 200)).filter(Boolean).slice(0, 6), plans_a_tourner: arr(rel.plans_a_tourner).map(x => str(x, 200)).filter(Boolean).slice(0, 3) },
@@ -239,7 +260,12 @@ export const AI_TIMELINE_SCHEMA = object({
     fin: field("number", "Fin dans le montage final, en secondes"),
     position: field("string", "Place à l'écran", { enum: TEXT_POSITIONS }),
     style: field("string", "Rôle du texte", { enum: TEXT_STYLES }),
+    accent: field("string", "Mot d'accent du titre en duo, 1 ou 2 mots, seulement si la consigne « TITRE EN DUO » le permet ; sinon vide"),
   })),
+  effets: list(object({
+    t: field("number", "Moment dans le montage final, en secondes"),
+    type: field("string", "Bruitage", { enum: EFFETS }),
+  }), `Bruitages sur des moments clés (révélation, avant/après, chute) : ${MAX_EFFETS} au plus, ${EFFET_ECART} s d'écart au moins, souvent aucun. Jamais sur chaque coupe`),
   sous_titres: object({ actifs: field("boolean", "Sous-titres de la voix, seulement si quelqu'un parle"), style: field("string", "Style des sous-titres", { enum: SOUS_TITRES_STYLES }) }),
   style_utilise: list({ type: "string" }, "Les éléments du style de la personne que tu as appliqués, en mots simples"),
   relecture: object({

@@ -4,7 +4,8 @@
 // reads the plan and renders each file from the same composition as the preview (CLAUDE.md, stack).
 import type { Answers, Dna, Profil } from "./brand.ts";
 import { stripEmoji } from "./natural.ts";
-import { PLATEFORMES, type Plateforme, type Texte, type TimelineV1 } from "./timeline.ts";
+import { PLATEFORMES, type Effet, type Plateforme, type Texte, type TimelineV1 } from "./timeline.ts";
+import { duoById, type Duo } from "./typo.ts";
 
 export const W = 1080, H = 1920, FPS = 30;
 export const SAFE_LEFT = 60;
@@ -21,6 +22,8 @@ export type ExportFile = {
   plateforme: Plateforme; nom: string; w: number; h: number; fps: number; duree: number; coupe: boolean;
   textes: PlacedText[]; sous_titres: Box | null; logo: Box | null; zone: Box; legende: string;
   metadonnees: Record<string, string>;
+  // The brand's typographic duo, resolved (core/typo.ts), and the sound effects inside the file.
+  duo: Duo | null; effets: Effet[];
 };
 
 // AI Act, article 50 (étude, ch. 9) : every file made with the AI says so in machine-readable metadata,
@@ -41,8 +44,9 @@ export function safeZone(p: Plateforme): Box {
 }
 export const inside = (b: Box, z: Box) => b.x >= z.x && b.y >= z.y && b.x + b.w <= z.x + z.w && b.y + b.h <= z.y + z.h;
 
-export function textBox(t: Pick<Texte, "position" | "style">, p: Plateforme): Box {
-  const z = safeZone(p), h = TEXT_H[t.style];
+// A title with a duo accent takes the accent line too.
+export function textBox(t: Pick<Texte, "position" | "style"> & { accent?: string }, p: Plateforme): Box {
+  const z = safeZone(p), h = Math.round(TEXT_H[t.style] * (t.accent ? 1.45 : 1));
   const y = t.position === "haut" ? z.y + GAP : t.position === "centre" ? Math.round(z.y + (z.h - h) / 2) : z.y + z.h - h - GAP;
   return { x: z.x, y, w: z.w, h };
 }
@@ -94,6 +98,7 @@ export function exportPlan(t: TimelineV1, ia = true): ExportFile[] {
     return {
       plateforme: p, nom: `MaDa-${slug(t.titre)}-${p}.mp4`, w: W, h: H, fps: FPS, duree: Math.round(duree * 100) / 100, coupe: t.duree > duree_max,
       textes, sous_titres: sub, logo, zone: z, legende: captionFor(t, p), metadonnees: provenance(ia),
+      duo: duoById(t.charte.duo), effets: (t.effets ?? []).filter(e => e.t < duree),
     };
   });
 }

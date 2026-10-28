@@ -3,6 +3,7 @@
 // the phone applies them instantly, without AI. Every shot and text gets a stable id, and what the
 // person changes by hand is locked, so a later AI retouch cannot overwrite it.
 import { LOGO_POSITIONS, timelineDuration, type Clips, type Plan, type Texte, type TimelineV1 } from "./timeline.ts";
+import type { DuoId } from "./typo.ts";
 
 export type EditDoc = { timeline: TimelineV1; planIds: string[]; texteIds: string[]; locked: string[] };
 export type History = { past: EditDoc[]; present: EditDoc; future: EditDoc[] };
@@ -23,7 +24,7 @@ function settle(d: EditDoc): EditDoc {
   const keep = d.timeline.textes.map(t => ({ ...t, debut: round(clamp(t.debut, 0, duree)), fin: round(clamp(t.fin, 0, duree)) }));
   const ok = keep.map(t => t.fin - t.debut >= MIN_TEXT);
   return {
-    ...d, timeline: { ...d.timeline, duree, textes: keep.filter((_, i) => ok[i]) },
+    ...d, timeline: { ...d.timeline, duree, textes: keep.filter((_, i) => ok[i]), effets: (d.timeline.effets ?? []).filter(e => e.t < duree) },
     texteIds: d.texteIds.filter((_, i) => ok[i]),
   };
 }
@@ -75,17 +76,19 @@ export function setPlan(d: EditDoc, i: number, patch: Partial<Pick<Plan, "transi
 
 // ---------- Texts ----------
 
-export function setTexte(d: EditDoc, i: number, patch: Partial<Pick<Texte, "texte" | "position" | "style" | "debut" | "fin">>): EditDoc {
+export function setTexte(d: EditDoc, i: number, patch: Partial<Pick<Texte, "texte" | "position" | "style" | "debut" | "fin" | "accent">>): EditDoc {
   const t = d.timeline.textes[i];
   if (!t) return d;
   const next = { ...t, ...patch, texte: (patch.texte ?? t.texte).slice(0, 140) };
+  // Only a title carries a duo accent (core/typo.ts).
+  next.accent = next.style === "accroche" || next.style === "titre" ? next.accent.trim().slice(0, 30) : "";
   if (!next.texte.trim()) return deleteTexte(d, i);
   return withTextes(d, d.timeline.textes.map((x, j) => (j === i ? next : x)), d.texteIds, lock(d, d.texteIds[i]));
 }
 
 export function addTexte(d: EditDoc, texte: string, at = 0): EditDoc {
   const end = Math.min(d.timeline.duree, at + 2);
-  const t: Texte = { texte: texte.slice(0, 140), debut: round(Math.max(0, end - 2)), fin: round(end), position: "bas", style: "titre", impose: false };
+  const t: Texte = { texte: texte.slice(0, 140), debut: round(Math.max(0, end - 2)), fin: round(end), position: "bas", style: "titre", impose: false, accent: "" };
   const id = newId("t");
   return withTextes(d, [...d.timeline.textes, t], [...d.texteIds, id], lock(d, id));
 }
@@ -100,6 +103,18 @@ export function deleteTexte(d: EditDoc, i: number): EditDoc {
 export function setLogo(d: EditDoc, position: (typeof LOGO_POSITIONS)[number]): EditDoc {
   const logo = d.timeline.charte.logo ?? { asset: "logo", position, taille: 0.22 };
   return { ...d, locked: lock(d, "logo"), timeline: { ...d.timeline, charte: { ...d.timeline.charte, logo: { ...logo, position } } } };
+}
+
+// The title duo of this edit; `null` writes titles in the brand fonts only.
+export function setDuo(d: EditDoc, duo: DuoId | null): EditDoc {
+  return { ...d, locked: lock(d, "duo"), timeline: { ...d.timeline, charte: { ...d.timeline.charte, duo } } };
+}
+
+// Sound effects: removed one by one by hand (the AI places them).
+export function deleteEffet(d: EditDoc, i: number): EditDoc {
+  const effets = d.timeline.effets ?? [];
+  if (!effets[i]) return d;
+  return { ...d, locked: lock(d, "effets"), timeline: { ...d.timeline, effets: effets.filter((_, j) => j !== i) } };
 }
 
 export function setSubtitles(d: EditDoc, actifs: boolean): EditDoc {
@@ -152,7 +167,8 @@ export function keepLocked(before: EditDoc, ai: TimelineV1): EditDoc {
   });
   const timeline: TimelineV1 = {
     ...ai, plans, textes,
-    charte: before.locked.includes("logo") ? before.timeline.charte : ai.charte,
+    charte: { ...(before.locked.includes("logo") ? before.timeline.charte : ai.charte), ...(before.locked.includes("duo") ? { duo: before.timeline.charte.duo } : {}) },
+    effets: before.locked.includes("effets") ? before.timeline.effets : ai.effets,
     sous_titres: before.locked.includes("sous_titres") ? before.timeline.sous_titres : ai.sous_titres,
     musique: before.timeline.musique,
   };

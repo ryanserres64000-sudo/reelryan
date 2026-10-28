@@ -20,16 +20,24 @@ struct Timeline: Decodable {
 struct Box: Decodable { let x: Double; let y: Double; let w: Double; let h: Double }
 
 struct ExportFile: Decodable {
-  struct Texte: Decodable { let texte: String; let debut: Double; let fin: Double; let style: String; let box: Box }
+  struct Texte: Decodable { let texte: String; let debut: Double; let fin: Double; let style: String; let box: Box; let accent: String? }
+  // The title duo of core/typo.ts, resolved: letter case of each line, accent size, overlap.
+  struct Duo: Decodable {
+    struct Face: Decodable { let casse: String }
+    let titre: Face; let accent: Face; let echelle: Double; let chevauchement: Double
+  }
+  struct Effet: Decodable { let t: Double; let type: String }
   let plateforme: String; let nom: String; let w: Int; let h: Int; let fps: Int; let duree: Double
   let textes: [Texte]; let logo: Box?; let metadonnees: [String: String]
+  let duo: Duo?; let effets: [Effet]?
 }
 
-// Where the files are on the phone: rushes by id, the logo, the music passage, the two brand fonts.
+// Where the files are on the phone: rushes by id, the logo, the music passage, the fonts (brand or
+// title duo), and the sound effects by type.
 struct Sources: Decodable {
   struct Music: Decodable { let uri: String; let debut: Double; let fin: Double }
-  struct Fonts: Decodable { let titre: String?; let texte: String? }
-  let rushes: [String: String]; let logo: String?; let music: Music?; let fonts: Fonts?
+  struct Fonts: Decodable { let titre: String?; let texte: String?; let accent: String? }
+  let rushes: [String: String]; let logo: String?; let music: Music?; let fonts: Fonts?; let effets: [String: String]?
 }
 
 func decode<T: Decodable>(_ type: T.Type, _ value: Any) throws -> T {

@@ -13,7 +13,7 @@ import { videoSources } from "../video/sources";
 import { loadPlans, proHeader, record, savePlans, verdict, type Plans } from "../plans/state";
 import { PaywallScreen } from "../screens/PaywallScreen";
 import { createVisual } from "../visual/api";
-import { montageStyle } from "../../../core/brand";
+import { charteOf, montageStyle } from "../../../core/brand";
 import { loadBrand, saveBrand } from "../brand/store";
 import { EditorScreen } from "../screens/EditorScreen";
 import { composeBrief } from "./brief";
@@ -117,7 +117,7 @@ export function Flow() {
         // The real montage once the iPhone has measured the rushes and the person agreed to the AI;
         // the sample answer otherwise (web preview, no server).
         const url = aiUrl();
-        if (!url || demo || !chosen.every(r => r.triage)) return fakeMontage(chosen, brief, music, onStep, signal);
+        if (!url || demo || !chosen.every(r => r.triage)) return fakeMontage(chosen, brief, music, onStep, signal, undefined, charteOf(brand?.dna ?? null, !!brand?.logoUri));
         onStep(1);
         return montageBody(chosen, brief, music, brand ?? null, brand?.memory?.rules.map(r => r.text) ?? []).then(body => streamMontage(url, body, onStep, signal));
       }}

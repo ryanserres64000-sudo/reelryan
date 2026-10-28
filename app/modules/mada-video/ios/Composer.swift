@@ -89,6 +89,21 @@ enum Composer {
       if fade > 0 { p.setVolumeRamp(fromStartVolume: v, toEndVolume: 0, timeRange: CMTimeRange(start: time(length - fade), duration: time(fade))) }
       params.append(p)
     }
+    // Sound effects on their key moments (core/timeline.ts EFFETS), one shared track, below the voice.
+    if let effets = file.effets, !effets.isEmpty, let files = sources.effets,
+       let sfx = comp.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {
+      var free = 0.0
+      for e in effets.sorted(by: { $0.t < $1.t }) where e.t >= free && e.t < duration {
+        guard let uri = files[e.type], let url = URL(string: uri),
+              let src = try await AVURLAsset(url: url).loadTracks(withMediaType: .audio).first else { continue }
+        let full = try await src.load(.timeRange).duration.seconds
+        let length = min(full, duration - e.t)
+        try sfx.insertTimeRange(CMTimeRange(start: .zero, duration: time(length)), of: src, at: time(e.t))
+        free = e.t + length
+      }
+      let p = AVMutableAudioMixInputParameters(track: sfx); p.setVolume(0.7, at: .zero)
+      params.append(p)
+    }
     // The voices kept from the rushes play as recorded.
     for track in [aa, ab].compactMap({ $0 }) where !track.segments.isEmpty { params.append(AVMutableAudioMixInputParameters(track: track)) }
     let mix = AVMutableAudioMix(); mix.inputParameters = params

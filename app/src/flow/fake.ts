@@ -31,7 +31,8 @@ function sampleAnswer(rushes: Rush[], brief: Brief) {
   return [
     { variante: "accroche-forte", titre: "Le meilleur d'abord", intention: "J'ouvre sur ton plan le plus fort pour arrêter le pouce, puis je raconte la journée dans l'ordre et je finis sur ton message.",
       plans: [cut(1, 1.5, "Le geste le plus fort, en ouverture"), cut(0, 3, "Ta voix qui présente, gardée en entier", { garder_son: true }), cut(3, 2, "Valeur large pour respirer"), cut(5, 1.5, "Le sourire, avant la fin"), cut(7, 2.5, "Le résultat, plan final")],
-      textes: [{ texte: "Ça se passe ici", debut: t(0), fin: t(1.5), position: "haut", style: "accroche" }, { texte: end, debut: t(8), fin: t(10.5), position: "bas", style: "signature" }],
+      textes: [{ texte: "Ça se passe", accent: "ici", debut: t(0), fin: t(1.5), position: "haut", style: "accroche" }, { texte: end, debut: t(8), fin: t(10.5), position: "bas", style: "signature" }],
+      effets: [{ t: t(7.5), type: "whoosh" }],
       relecture: { corrections: ["J'ai raccourci l'accroche de 2 s", "J'ai retiré un plan flou"], plans_a_tourner: ["Un gros plan de tes mains au travail"] } },
     { variante: "posee", titre: "Prendre le temps", intention: "Des plans plus longs et des fondus : on sent l'ambiance et le soin, ton message arrive calmement à la fin.",
       plans: [cut(3, 3, "Installation douce"), cut(0, 3.5, "Ta voix, sans coupe", { garder_son: true, transition: "fondu" }), cut(5, 2.5, "Détail chaleureux", { transition: "fondu" }), cut(7, 3, "Le résultat")],
@@ -39,29 +40,30 @@ function sampleAnswer(rushes: Rush[], brief: Brief) {
       relecture: { corrections: ["J'ai allongé ton texte de fin pour qu'on ait le temps de le lire"], plans_a_tourner: [] } },
     { variante: "rythmee", titre: "Sur le rythme", intention: "Des coupes courtes sur chaque temps fort : ça bouge, c'est fait pour être revu en boucle.",
       plans: [cut(1, 1, "Ouverture sèche"), cut(5, 1, "Détail"), cut(7, 1, "Résultat en avant-goût"), cut(3, 1.5, "Large"), cut(8, 1, "Mouvement"), cut(0, 2, "Ta voix, juste la phrase clé", { garder_son: true }), cut(7, 2, "Plan final")],
-      textes: [{ texte: "Regarde bien", debut: t(0), fin: t(1), position: "centre", style: "accroche" }, { texte: end, debut: t(7.5), fin: t(9.5), position: "bas", style: "signature" }],
+      textes: [{ texte: "Regarde bien", accent: "jusqu'au bout", debut: t(0), fin: t(1), position: "centre", style: "accroche" }, { texte: end, debut: t(7.5), fin: t(9.5), position: "bas", style: "signature" }],
+      effets: [{ t: t(3), type: "pop" }, { t: t(7.5), type: "ding" }],
       relecture: { corrections: [], plans_a_tourner: ["Un plan de la porte d'entrée"] } },
   ];
 }
 
-export function sampleResult(rushes: Rush[], brief: Brief, music: Music): MontageResult {
+export function sampleResult(rushes: Rush[], brief: Brief, music: Music, charte?: object): MontageResult {
   const clips = Object.fromEntries(rushes.map(r => [r.id, { duration: r.duration }]));
   const text = composeBrief(brief);
   const variantes = sampleAnswer(rushes, brief).map(v => sanitizeTimeline({
-    ...v, musique: toMusique(music, brief.duration), exports: brief.platforms.map(plateforme => ({ plateforme })), legende: { texte: "", hashtags: [] },
+    ...v, charte, musique: toMusique(music, brief.duration), exports: brief.platforms.map(plateforme => ({ plateforme })), legende: { texte: "", hashtags: [] },
   }, clips, { brief: text, maxDuration: Math.ceil(brief.duration * 1.2) }));
   return { variantes, cout_usd: 0, temps_s: 0 };
 }
 
 // Mirrors the server stream (lib/montage.js): local triage, then tagging, edit, review.
-export function fakeMontage(rushes: Rush[], brief: Brief, music: Music, onStep: (step: number) => void, signal: AbortSignal, stepMs = 1600): Promise<MontageResult> {
+export function fakeMontage(rushes: Rush[], brief: Brief, music: Music, onStep: (step: number) => void, signal: AbortSignal, stepMs = 1600, charte?: object): Promise<MontageResult> {
   return new Promise((resolve, reject) => {
     let step = 0;
     const tick = () => {
       if (signal.aborted) return reject(new Error("aborted"));
       step++;
       onStep(step);
-      if (step === 4) resolve(sampleResult(rushes, brief, music)); else timer = setTimeout(tick, stepMs);
+      if (step === 4) resolve(sampleResult(rushes, brief, music, charte)); else timer = setTimeout(tick, stepMs);
     };
     let timer = setTimeout(tick, stepMs);
     signal.addEventListener("abort", () => { clearTimeout(timer); reject(new Error("aborted")); });

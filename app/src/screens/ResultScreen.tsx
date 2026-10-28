@@ -7,6 +7,8 @@ import { exportPlan } from "../../../core/export";
 import type { MontageResult, Variant } from "../flow/types";
 import type { Sources } from "../video/sources";
 import { VideoPreview } from "../video/Preview";
+import { DuoTitle } from "../video/DuoTitle";
+import { duoById } from "../../../core/typo";
 
 type Props = { result: MontageResult; seconds: number; onBack: () => void; onRestart: () => void; onEdit?: (i: number) => void; onExport?: (i: number) => void; kept?: number | null; onKeep?: (i: number) => void; sources?: (i: number) => Promise<Sources> };
 const LABELS = { "accroche-forte": fr.result.variants.hook, posee: fr.result.variants.calm, rythmee: fr.result.variants.rhythm } as const;
@@ -64,7 +66,9 @@ function Page({ variant, width, seconds, sources }: { variant: Variant; width: n
         <VideoPreview timeline={t} file={exportPlan(t)[0]} sources={sources} style={[styles.preview, { backgroundColor: c.media }]}
           fallback={<View style={[styles.preview, { backgroundColor: c.media }]} accessibilityLabel={`${fr.resultScreen.preview}, ${t.titre}`}>
             <Text variant="headline" tone="onMedia" style={styles.previewTitle}>{t.titre}</Text>
-            {first ? <Text variant="callout" tone="onMedia" style={styles.previewText} numberOfLines={2}>{first.texte}</Text> : null}
+            {first?.accent && t.charte.duo
+              ? <View style={styles.previewText}><DuoTitle duo={duoById(t.charte.duo)} texte={first.texte} accent={first.accent} variant="title" /></View>
+              : first ? <Text variant="callout" tone="onMedia" style={styles.previewText} numberOfLines={2}>{first.texte}</Text> : null}
           </View>} />
         <View style={styles.previewSide}>
           <Text variant="mono" tone="textMuted">{fr.rush.duration(variant.duration)}</Text>

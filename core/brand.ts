@@ -3,6 +3,7 @@
 // « Kit de marque » ; Ryan, 28 octobre : questionnaire poussé, IA présente dès l'inscription).
 // The logo colours are read on the iPhone, without AI. Shared by the app and the server.
 import { POLICES, SOUS_TITRES_STYLES } from "./timeline.ts";
+import { duoFor } from "./typo.ts";
 
 export const PROFILS = ["commerce", "restaurant", "petite-entreprise", "grande-entreprise", "ecole", "createur", "debutant"] as const;
 export type Profil = (typeof PROFILS)[number];
@@ -284,4 +285,5 @@ export const charteOf = (d: Dna | null, logo: boolean) => ({
   couleurs: { principale: d?.couleurs[0] ?? null, texte: null },
   polices: { titre: d?.polices.titres ?? "Bricolage Grotesque", texte: d?.polices.texte ?? "DM Sans" },
   logo: logo ? { asset: "logo", position: "fin", taille: 0.18 } : null,
+  duo: duoFor(d),
 });

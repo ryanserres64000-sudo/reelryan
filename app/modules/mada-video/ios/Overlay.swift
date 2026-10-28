@@ -18,6 +18,7 @@ struct Overlay {
   static func make(_ t: Timeline, file: ExportFile, sources: Sources, duration: Double) throws -> [Overlay] {
     let H = Double(file.h)
     let titleFont = sources.fonts?.titre.flatMap(registerFont), textFont = sources.fonts?.texte.flatMap(registerFont)
+    let accentFont = sources.fonts?.accent.flatMap(registerFont)
     let ink = UIColor(hex: t.charte.couleurs.texte) ?? .white, brand = UIColor(hex: t.charte.couleurs.principale)
     var out: [Overlay] = []
     for x in file.textes where x.debut < duration {
@@ -25,7 +26,15 @@ struct Overlay {
       let size: CGFloat = x.style == "accroche" ? 92 : x.style == "titre" ? 76 : x.style == "signature" ? 58 : 50
       let font = UIFont(name: (title ? titleFont : textFont) ?? "", size: size) ?? .systemFont(ofSize: size, weight: title ? .heavy : .semibold)
       let cartouche = x.style == "signature" ? brand : nil
-      let picture = drawText(x.texte, font: font, color: ink, plate: cartouche, box: x.box)
+      let text = title ? casse(x.texte, file.duo?.titre.casse) : x.texte
+      let picture: CGImage
+      if title, let accent = x.accent, !accent.isEmpty {
+        let duo = file.duo
+        let small = UIFont(name: accentFont ?? textFont ?? "", size: size * CGFloat(duo?.echelle ?? 0.6)) ?? .systemFont(ofSize: size * 0.6)
+        picture = drawDuo(text, casse(accent, duo?.accent.casse), title: font, accent: small, overlap: duo?.chevauchement ?? 0.2, color: ink, box: x.box)
+      } else {
+        picture = drawText(text, font: font, color: ink, plate: cartouche, box: x.box)
+      }
       out.append(Overlay(image: place(picture, box: x.box, H: H), start: x.debut, end: min(x.fin, duration)))
     }
     if let box = file.logo, let uri = sources.logo, let url = URL(string: uri), let logo = UIImage(contentsOfFile: url.path)?.cgImage {
@@ -59,6 +68,33 @@ struct Overlay {
       }
       (text as NSString).draw(with: textRect, options: [.usesLineFragmentOrigin], attributes: attrs, context: nil)
     }.cgImage!
+  }
+
+  // A title duo (core/typo.ts): the title word on one line, the accent word under it in the fine face,
+  // climbing over the title by `overlap` of its height, both shrunk together until they fit the box.
+  static func drawDuo(_ text: String, _ accent: String, title: UIFont, accent small: UIFont, overlap: Double, color: UIColor, box: Box) -> CGImage {
+    let size = CGSize(width: box.w, height: box.h)
+    let shadow = NSShadow(); shadow.shadowColor = UIColor.black.withAlphaComponent(0.35); shadow.shadowBlurRadius = 8; shadow.shadowOffset = CGSize(width: 0, height: 2)
+    var k: CGFloat = 1, a: [NSAttributedString.Key: Any] = [:], b: [NSAttributedString.Key: Any] = [:], ra = CGSize.zero, rb = CGSize.zero
+    repeat {
+      a = [.font: title.withSize(title.pointSize * k), .foregroundColor: color, .shadow: shadow]
+      b = [.font: small.withSize(small.pointSize * k), .foregroundColor: color, .shadow: shadow]
+      ra = (text as NSString).size(withAttributes: a); rb = (accent as NSString).size(withAttributes: b)
+      let height = ra.height + rb.height * (1 - overlap)
+      if (max(ra.width, rb.width) <= size.width && height <= size.height) || title.pointSize * k < 28 { break }
+      k *= 0.92
+    } while true
+    let total = ra.height + rb.height * (1 - overlap), top = (size.height - total) / 2
+    let format = UIGraphicsImageRendererFormat(); format.scale = 1; format.opaque = false
+    return UIGraphicsImageRenderer(size: size, format: format).image { _ in
+      (text as NSString).draw(at: CGPoint(x: (size.width - ra.width) / 2, y: top), withAttributes: a)
+      (accent as NSString).draw(at: CGPoint(x: (size.width - rb.width) / 2, y: top + ra.height - rb.height * overlap), withAttributes: b)
+    }.cgImage!
+  }
+
+  static func casse(_ s: String, _ c: String?) -> String {
+    let fr = Locale(identifier: "fr_FR")
+    return c == "majuscules" ? s.uppercased(with: fr) : c == "minuscules" ? s.lowercased(with: fr) : s
   }
 
   static func fit(_ logo: CGImage, box: Box) -> CGImage {

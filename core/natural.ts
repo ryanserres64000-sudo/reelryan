@@ -64,6 +64,17 @@ export function naturalTimeline(t: TimelineV1, opts: { photos?: string[] } = {})
     textes = textes.map(x => (x.impose ? x : { ...x, texte: stripEmoji(x.texte) })).filter(x => x.texte);
     fixes.push("J'ai enlevé les emojis des textes à l'écran.");
   }
+  // A title duo is a signature, not an effect: two accents at most, never a copy of the title.
+  const accents = textes.filter(x => x.accent).length;
+  const echo = textes.some(x => x.accent && x.texte.toLowerCase().includes(x.accent.toLowerCase()));
+  if (accents > 2 || echo || textes.some(x => hasEmoji(x.accent))) {
+    let n = 0;
+    textes = textes.map(x => {
+      const accent = stripEmoji(x.accent);
+      return { ...x, accent: accent && !x.texte.toLowerCase().includes(accent.toLowerCase()) && n++ < 2 ? accent : "" };
+    });
+    fixes.push("J'ai allégé les titres en duo : deux au plus, sans répéter le titre.");
+  }
   // « Mots géants qui rebondissent » : about one text every 4 s, imposed texts always kept.
   const max = Math.max(3, Math.ceil(t.duree / 4));
   if (textes.length > max) {

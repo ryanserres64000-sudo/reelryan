@@ -359,7 +359,7 @@ export const fr = {
     },
   },
 
-  nav: { back: "Retour", next: "Continuer", retry: "Réessayer", restart: "Recommencer" },
+  nav: { back: "Retour", next: "Continuer", retry: "Réessayer", restart: "Recommencer", close: "Fermer", undo: "Annuler" },
   // The logo of the opening animation (logo 15, « Ma / DA étiquette »).
   intro: { ma: "Ma", slash: "/", da: "DA" },
 
@@ -376,6 +376,18 @@ export const fr = {
     empty: "Tes Reels et tes visuels s'afficheront ici.",
     settings: "Réglages",
     tabs: { home: "Accueil", create: "Créer", brand: "Marque" },
+    draft: "Reprendre ton Reel",
+    draftAt: (step: string, when: string) => `${step} · ${when}`,
+    ago: (minutes: number) => minutes < 1 ? "à l'instant" : minutes < 60 ? `il y a ${Math.round(minutes)} min` : minutes < 24 * 60 ? `il y a ${Math.round(minutes / 60)} h` : minutes < 48 * 60 ? "hier" : `il y a ${Math.round(minutes / 1440)} jours`,
+    draftSteps: { import: "Choix des rushes", brief: "Ta demande", music: "La musique", result: "Les versions", editor: "Retouches", export: "Export" } as Record<string, string>,
+  },
+
+  // « Annuler partout » : ce qui vient de se passer, et de quoi revenir en arrière pendant 5 secondes.
+  toast: {
+    planRemoved: "Plan retiré",
+    textRemoved: "Texte retiré",
+    effetRemoved: "Bruitage retiré",
+    textAdded: "Texte ajouté",
   },
 
   import: {

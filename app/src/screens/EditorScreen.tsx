@@ -5,13 +5,15 @@ import { addTexte, changedPlans, deleteEffet, deletePlan, deleteTexte, isLocked,
 import { ETALONNAGES, LOGO_POSITIONS, TEXT_POSITIONS, TRANSITIONS, TRANSITION_SECONDS, type Clips, type TimelineV1 } from "../../../core/timeline";
 import { DUOS, duoById } from "../../../core/typo";
 import { fr } from "../copy/fr";
-import { Button, Card, Chip, Frise, Icon, MadaSays, Screen, Text, tokens, typeStyle, useTheme, type IconName } from "../design";
+import { Button, Card, Chip, Frise, Icon, MadaSays, Screen, Text, haptic, tokens, typeStyle, useTheme, useToast, type IconName } from "../design";
 import { aiRetouche } from "../flow/retouche";
 import { DuoTitle } from "../video/DuoTitle";
 
 type Props = {
   timeline: TimelineV1; clips: Clips; bad: string[]; brief: string; style: object; memory: Memory;
   onMemory: (m: Memory) => void; onSave: (t: TimelineV1) => void; onBack: () => void;
+  // Every change, for the draft: nothing is lost if the app closes before « Enregistrer ».
+  onChange?: (t: TimelineV1) => void;
 };
 type Tool = keyof typeof fr.editor.tools;
 const TOOLS: [Tool, IconName][] = [["plan", "plan"], ["vitesse", "speed"], ["texte", "text"], ["son", "sound"], ["couleur", "color"], ["marque", "brand"]];
@@ -24,7 +26,7 @@ const LOGO_KEYS = LOGO_POSITIONS;
 // first through plain rules on the phone; only what they cannot do goes to the AI. « Atelier clair »:
 // six named tools under the frise instead of rows of tabs, one « Demander à Ma DA » field, on a dark
 // ground (Flow nests a dark theme) so the footage is judged as it will be seen.
-export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMemory, onSave, onBack }: Props) {
+export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMemory, onSave, onBack, onChange }: Props) {
   const { c } = useTheme();
   const [h, setH] = useState<History>(() => startHistory(toDoc(timeline)));
   const [sel, setSel] = useState(0);
@@ -36,6 +38,10 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
   const ctl = useRef<AbortController | null>(null);
   const d = h.present, tl = d.timeline;
   const apply = (next: EditDoc) => { setChanged(changedPlans(d, next)); setH(push(h, next)); };
+  const toast = useToast();
+  // Removals say what happened and can be undone for five seconds (« Annuler partout »).
+  const remove = (next: EditDoc, message: string) => { haptic("warning"); apply(next); toast({ message, action: fr.nav.undo, onAction: () => setH(x => undo(x)) }); };
+  useEffect(() => { onChange?.(tl); }, [tl]);
   const i = Math.min(sel, tl.plans.length - 1), p = tl.plans[i];
   const rushIds = Object.keys(clips);
   const fmt = fr.rush.duration;
@@ -68,7 +74,7 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
   return (
     <Screen title={t.title} detail={t.detail} onBack={onBack}
       footer={<Button label={t.save} disabled={busy} onPress={() => onSave(tl)} haptic />}>
-      <Frise shots={shots} texts={tl.textes.map(x => ({ start: x.debut, end: x.fin, label: x.texte }))} selected={planTools ? i : undefined} onSelect={j => { setSel(j); if (!planTools) setTool("plan"); }} />
+      <Frise shots={shots} texts={tl.textes.map(x => ({ start: x.debut, end: x.fin, label: x.texte }))} selected={planTools ? i : undefined} onSelect={j => { haptic("tick"); setSel(j); if (!planTools) setTool("plan"); }} />
       <View style={styles.between}>
         <View style={styles.row}>
           <IconButton icon="undo" label={t.undo} disabled={!h.past.length} onPress={() => setH(undo(h))} />
@@ -126,7 +132,7 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
           <Group label={t.source}>{rushIds.map((id, k) => <Chip key={id} label={t.sourceName(k + 1)} selected={p.source === id} onPress={() => apply(replaceSource(d, i, id, clips))} />)}</Group>
           {i > 0 ? <Group label={t.transition}>{TRANSITIONS.map(x => <Chip key={x} label={t.transitions[x]} selected={p.transition === x} onPress={() => apply(setPlan(d, i, { transition: x }))} />)}</Group> : null}
           {tl.plans.length > 1
-            ? <Button variant="secondary" label={t.deletePlan} onPress={() => { apply(deletePlan(d, i)); setSel(Math.max(0, i - 1)); }} />
+            ? <Button variant="secondary" label={t.deletePlan} onPress={() => { remove(deletePlan(d, i), fr.toast.planRemoved); setSel(Math.max(0, i - 1)); }} />
             : <Text variant="caption" tone="textMuted">{t.lastPlan}</Text>}
         </Card>
       ) : null}
@@ -146,7 +152,7 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
             <Chip label={t.off} selected={!p.garder_son} onPress={() => apply(setPlan(d, i, { garder_son: false }))} />
           </Group>
           <Group label={t.effets}>
-            {(tl.effets ?? []).map((e, k) => <Chip key={`${e.type}${e.t}`} label={t.effet(t.effetNames[e.type], t.seconds(e.t))} onPress={() => apply(deleteEffet(d, k))} />)}
+            {(tl.effets ?? []).map((e, k) => <Chip key={`${e.type}${e.t}`} label={t.effet(t.effetNames[e.type], t.seconds(e.t))} onPress={() => remove(deleteEffet(d, k), fr.toast.effetRemoved)} />)}
           </Group>
           <Text variant="caption" tone="textMuted">{(tl.effets ?? []).length ? t.effetsWhy : t.effetsNone}</Text>
         </Card>
@@ -174,7 +180,7 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
                 </View>
               ) : null}
               <Group label={t.position}>{TEXT_POSITIONS.map(pos => <Chip key={pos} label={t.positions[pos]} selected={x.position === pos} onPress={() => apply(setTexte(d, j, { position: pos }))} />)}</Group>
-              <Chip label={t.deleteText} onPress={() => apply(deleteTexte(d, j))} style={styles.start} />
+              <Chip label={t.deleteText} onPress={() => remove(deleteTexte(d, j), fr.toast.textRemoved)} style={styles.start} />
             </Card>
           ))}
           <Button variant="secondary" label={t.addText} onPress={() => apply(addTexte(d, t.newText, tl.duree / 2))} />

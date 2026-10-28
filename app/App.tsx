@@ -1,7 +1,7 @@
 import { StatusBar } from "expo-status-bar";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect, useState } from "react";
-import { Intro, ThemeProvider, useMadaFonts, useTheme } from "./src/design";
+import { Intro, ThemeProvider, ToastProvider, useMadaFonts, useTheme } from "./src/design";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { Flow } from "./src/flow/Flow";
 
@@ -16,7 +16,9 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider initial={WEB_DARK ? "dark" : "light"}>
-        <Root />
+        <ToastProvider>
+          <Root />
+        </ToastProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

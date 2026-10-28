@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { fr } from "../copy/fr";
-import { Button, GenerationView, Screen, Text, tokens } from "../design";
+import { Button, GenerationView, Screen, Text, tokens, haptic } from "../design";
 import type { MontageResult, Runner } from "../flow/types";
 
 type Props = {
@@ -22,8 +22,8 @@ export function GenerationScreen({ rushes, kept, variants, run, onDone, onCancel
     const ctrl = new AbortController(), started = Date.now();
     setStep(0); setFailed(false);
     run(setStep, ctrl.signal).then(
-      r => { const s = (Date.now() - started) / 1000; setTimeout(() => !ctrl.signal.aborted && done.current(r, s), tokens.motion.slow * 3); },
-      () => { if (!ctrl.signal.aborted) setFailed(true); },
+      r => { const s = (Date.now() - started) / 1000; haptic("success"); setTimeout(() => !ctrl.signal.aborted && done.current(r, s), tokens.motion.slow * 3); },
+      () => { if (!ctrl.signal.aborted) { haptic("warning"); setFailed(true); } },
     );
     return () => ctrl.abort();
   }, [attempt]);

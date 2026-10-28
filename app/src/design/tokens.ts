@@ -147,12 +147,18 @@ export const tokens = {
     "beatDot": 6,
     "frise": 64,
     "pill": 28,
-    "textBar": 8
+    "textBar": 8,
+    "handle": 5,
+    "handleWidth": 36,
+    "skeletonLine": 14,
+    "dismissDrag": 96,
+    "toastOffset": 96
   },
   "opacity": {
     "waveOutside": 0.4,
     "disabled": 0.45,
-    "pressed": 0.85
+    "pressed": 0.85,
+    "pulseLow": 0.45
   },
   "motion": {
     "fast": 200,
@@ -160,6 +166,11 @@ export const tokens = {
     "slow": 350,
     "highlight": 2000,
     "stagger": 70,
+    "pulse": 900,
+    "toast": 5000,
+    "autosave": 400,
+    "pressScale": 0.97,
+    "popScale": 1.08,
     "spring": {
       "damping": 26,
       "stiffness": 260,

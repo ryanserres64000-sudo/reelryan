@@ -38,6 +38,10 @@ import { streamMontage } from "./api";
 import { aiUrl } from "./server";
 import { canTriage, montageBody, triageRush } from "./triage";
 import { Onboarding } from "./Onboarding";
+import { clearDraft, loadDraft, saveDraft, type FlowDraft } from "./draft";
+import type { Draft } from "../../../core/draft";
+import type { TimelineV1 } from "../../../core/timeline";
+import { tokens } from "../design";
 import type { Brief, MontageResult, Music, Rush, Trade } from "./types";
 
 type Step = "home" | "brand" | "import" | "brief" | "music" | "generation" | "result" | "editor" | "catalogue" | "visual" | "visual-editor" | "export" | "paywall" | "consent" | "settings";
@@ -63,6 +67,10 @@ export function Flow() {
   useEffect(() => { if (url?.startsWith("file:")) { setIncoming({ uri: url }); setMusic(m => ({ ...m, choice: "mine" })); setStep("music"); } }, [url]);
   const [result, setResult] = useState<{ r: MontageResult; s: number } | null>(null);
   const [editing, setEditing] = useState(0);
+  // The editor's unsaved state, and the draft found at launch (étude de la refonte : « Ne jamais rien perdre »).
+  const [editorTl, setEditorTl] = useState<TimelineV1 | null>(null);
+  const [draft, setDraft] = useState<Draft<FlowDraft> | null>(null);
+  useEffect(() => { loadDraft().then(setDraft); }, []);
   // Visuals (lot 6): the ones kept on the iPhone, and the one being edited.
   const [visuals, setVisuals] = useState<SavedVisual[]>([]);
   useEffect(() => { loadVisuals().then(setVisuals); }, []);
@@ -83,6 +91,18 @@ export function Flow() {
       triageRush(r).then(t => setRushes(list => list.map(x => (x.id === t.id ? t : x)))).catch(() => {});
     }
   }, [rushes]);
+  // Saved a moment after each change while a Reel is in progress; the home offers to pick it up.
+  useEffect(() => {
+    saveDraft(step, { rushes, selected, demo, brief, music, result, editing, keptVersion, editorTimeline: editorTl }, tokens.motion.autosave);
+  }, [step, rushes, selected, demo, brief, music, result, editing, keptVersion, editorTl]);
+  const resume = (d: Draft<FlowDraft>) => {
+    const x = d.data;
+    setRushes(x.rushes); setSelected(x.selected); setDemo(x.demo); setBrief(x.brief); setMusic(x.music);
+    setResult(x.result); setEditing(x.editing); setKeptVersion(x.keptVersion); setEditorTl(x.editorTimeline);
+    setDraft(null);
+    // Without a result (an older draft), the steps after it fall back to the music.
+    setStep(!x.result && (d.step === "result" || d.step === "editor" || d.step === "export") ? "music" : d.step);
+  };
   const chosen = selected.map(id => rushes.find(r => r.id === id)).filter((r): r is Rush => !!r);
   // Shots worth keeping light up during the wait; Vision will provide them (lot 2, native part).
   const kept = chosen.map((r, i) => (r.badges.includes("blur") || r.badges.includes("dark") ? -1 : i)).filter(i => i >= 0);
@@ -99,7 +119,8 @@ export function Flow() {
     case "brand": return <Onboarding initial={brand ?? null} onDone={b => { setBrand(b); setBrief(x => ({ ...x, trade: TRADE_OF[b.profil] })); setStep("home"); }} />;
     case "home": return <HomeScreen brand={brand ?? null} visuals={visuals} freeLeft={plans && !plans.pro ? verdict(plans, "montage").restant : null}
       lastReel={result ? { title: result.r.variantes[0].timeline.titre, duration: result.r.variantes[0].duration } : null}
-      onNewReel={idea => { if (idea) setBrief(b => ({ ...b, text: idea.titre })); setStep("import"); }}
+      draft={draft} onResume={() => draft && resume(draft)}
+      onNewReel={idea => { setDraft(null); setResult(null); setEditorTl(null); setKeptVersion(null); setBrief(b => ({ ...b, text: idea ? idea.titre : "" })); setStep("import"); }}
       onVisual={() => (consent() ? setStep("visual") : askConsent("home", () => setStep("visual"), () => setStep("visual")))}
       onBrand={() => setStep("brand")} onSettings={() => setStep("settings")} onOpenReel={() => setStep("result")}
       onOpenVisual={v => { setVisual({ id: v.id, result: { design: v.design, concept: "", relecture: [], byAi: true }, brief: v.brief, photos: v.photos }); setStep("visual-editor"); }} />;
@@ -129,7 +150,7 @@ export function Flow() {
         return montageBody(chosen, brief, music, brand ?? null, brand?.memory?.rules.map(r => r.text) ?? []).then(body => streamMontage(url, body, onStep, signal));
       }}
       onDone={(r, s) => { if (plans) updatePlans(record(plans, "montage")); setKeptVersion(null); setResult({ r, s }); setStep("result"); }} onCancel={() => setStep("music")} />;
-    case "result": return result ? <ResultScreen result={result.r} seconds={result.s} onBack={() => setStep("brief")} onRestart={() => { setResult(null); setStep("home"); }}
+    case "result": return result ? <ResultScreen result={result.r} seconds={result.s} onBack={() => setStep("brief")} onRestart={() => { setResult(null); setEditorTl(null); clearDraft(); setStep("home"); }}
       sources={i => videoSources(result.r.variantes[i].timeline, chosen, brand ?? null, music)}
       onEdit={i => { setEditing(i); setStep("editor"); }} onExport={i => { setEditing(i); setStep("export"); }}
       kept={keptVersion} onKeep={i => {
@@ -157,14 +178,14 @@ export function Flow() {
       if (!result || !v) return null;
       const memory = brand?.memory ?? emptyMemory();
       // The editor stays dark in « Atelier clair »: footage is judged on a dark ground.
-      return <ThemeProvider initial="dark"><StatusBar style="light" /><EditorScreen key={editing} timeline={v.timeline} brief={composeBrief(brief)}
+      return <ThemeProvider initial="dark"><StatusBar style="light" /><EditorScreen key={editing} timeline={editorTl ?? v.timeline} onChange={setEditorTl} brief={composeBrief(brief)}
         clips={Object.fromEntries(chosen.map(r => [r.id, { duration: r.duration }]))} bad={chosen.filter(r => r.badges.includes("blur") || r.badges.includes("dark")).map(r => r.id)}
         style={montageStyle(brand?.dna ?? null, memory.rules.map(r => r.text))} memory={memory}
         onMemory={m => { if (!brand) return; const b = { ...brand, memory: m }; setBrand(b); saveBrand(b); }}
-        onBack={() => setStep("result")}
+        onBack={() => { setEditorTl(null); setStep("result"); }}
         onSave={tl => {
           const variantes = result.r.variantes.map((x, j) => (j === editing ? { ...x, timeline: tl, duration: tl.duree } : x));
-          setResult({ ...result, r: { ...result.r, variantes } }); setStep("result");
+          setResult({ ...result, r: { ...result.r, variantes } }); setEditorTl(null); setStep("result");
         }} /></ThemeProvider>;
     }
   }

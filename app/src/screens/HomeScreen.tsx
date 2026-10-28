@@ -7,11 +7,14 @@ import { Button, Card, Icon, Text, tokens, useTheme, type IconName } from "../de
 import { assetsOf } from "../visual/api";
 import { DesignView } from "../visual/DesignView";
 import type { SavedVisual } from "../visual/store";
+import type { Draft } from "../../../core/draft";
+import type { FlowDraft } from "../flow/draft";
 
 type Props = {
   brand: Brand | null; visuals: SavedVisual[]; lastReel: { title: string; duration: number } | null; freeLeft: number | null;
   onNewReel: (idea?: Idee) => void; onVisual: () => void; onBrand: () => void; onSettings: () => void;
   onOpenReel: () => void; onOpenVisual: (v: SavedVisual) => void;
+  draft: Draft<FlowDraft> | null; onResume: () => void;
 };
 const t = fr.home;
 const THUMBS = 3;
@@ -19,7 +22,7 @@ const THUMBS = 3;
 // The home screen (« Atelier clair », Ryan, 28 octobre 2026): the brand's name, the idea of the week
 // from the carnet, one blue button to start a Reel, and what to pick up again. Settings sit behind the
 // initial at the top right; three tabs at the bottom.
-export function HomeScreen({ brand, visuals, lastReel, freeLeft, onNewReel, onVisual, onBrand, onSettings, onOpenReel, onOpenVisual }: Props) {
+export function HomeScreen({ brand, visuals, lastReel, freeLeft, onNewReel, onVisual, onBrand, onSettings, onOpenReel, onOpenVisual, draft, onResume }: Props) {
   const { c, layout } = useTheme();
   const { width } = useWindowDimensions();
   const gutter = width >= layout.largePhoneWidth ? layout.gutterLarge : layout.gutter;
@@ -42,6 +45,17 @@ export function HomeScreen({ brand, visuals, lastReel, freeLeft, onNewReel, onVi
           </Pressable>
         </View>
         <Text variant="display" accessibilityRole="header">{name}</Text>
+
+        {draft ? (
+          <Pressable onPress={onResume} accessibilityRole="button" style={[styles.reel, { backgroundColor: c.surface, borderColor: c.action }]}>
+            <View style={[styles.reelThumb, { backgroundColor: c.media }]} />
+            <View style={styles.flex}>
+              <Text variant="bodyStrong">{t.draft}</Text>
+              <Text variant="caption" tone="textMuted">{t.draftAt(t.draftSteps[draft.step] ?? "", t.ago((Date.now() - Date.parse(draft.savedAt)) / 60000))}</Text>
+            </View>
+            <Text variant="headline" tone="actionStrong">›</Text>
+          </Pressable>
+        ) : null}
 
         <Card style={styles.idea}>
           {idea ? (

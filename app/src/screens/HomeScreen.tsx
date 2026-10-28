@@ -1,140 +1,141 @@
 import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
-import type { Idee } from "../../../core/brand";
+import type { Draft } from "../../../core/draft";
+import type { PlannedIdea } from "../../../core/week";
+import { weekDays } from "../../../core/week";
 import { fr } from "../copy/fr";
 import type { Brand } from "../brand/types";
-import { Button, Card, Icon, Text, tokens, useTheme, type IconName } from "../design";
-import { assetsOf } from "../visual/api";
-import { DesignView } from "../visual/DesignView";
-import type { SavedVisual } from "../visual/store";
-import type { Draft } from "../../../core/draft";
+import { CreationTile, type Creation } from "../creations/Tile";
+import { Button, Card, Icon, Text, tokens, useTheme } from "../design";
 import type { FlowDraft } from "../flow/draft";
 
 type Props = {
-  brand: Brand | null; visuals: SavedVisual[]; lastReel: { title: string; duration: number } | null; freeLeft: number | null;
-  onNewReel: (idea?: Idee) => void; onVisual: () => void; onBrand: () => void; onSettings: () => void;
-  onOpenReel: () => void; onOpenVisual: (v: SavedVisual) => void;
+  brand: Brand | null; plan: PlannedIdea[]; today: PlannedIdea | null; made: string[]; recents: Creation[]; freeLeft: number | null;
   draft: Draft<FlowDraft> | null; onResume: () => void;
+  onIdea: (p: PlannedIdea | null) => void; onMoreIdeas: () => void; onBrand: () => void; onSettings: () => void;
+  onOpen: (c: Creation) => void; onSeeAll: () => void;
 };
 const t = fr.home;
-const THUMBS = 3;
+const RECENTS = 6;
+const VIDEO = new Set(["reel", "story"]);
 
-// The home screen (« Atelier clair », Ryan, 28 octobre 2026): the brand's name, the idea of the week
-// from the carnet, one blue button to start a Reel, and what to pick up again. Settings sit behind the
-// initial at the top right; three tabs at the bottom.
-export function HomeScreen({ brand, visuals, lastReel, freeLeft, onNewReel, onVisual, onBrand, onSettings, onOpenReel, onOpenVisual, draft, onResume }: Props) {
+// The home answers « qu'est-ce que je poste aujourd'hui ? » (étude de la refonte, décision 2): the week
+// at a glance, the Reel in progress, today's idea with one blue button, then what was made lately.
+export function HomeScreen({ brand, plan, today, made, recents, freeLeft, draft, onResume, onIdea, onMoreIdeas, onBrand, onSettings, onOpen, onSeeAll }: Props) {
   const { c, layout } = useTheme();
   const { width } = useWindowDimensions();
   const gutter = width >= layout.largePhoneWidth ? layout.gutterLarge : layout.gutter;
-  const ideas = brand?.dna?.idees ?? [];
-  // One idea per week, so the home changes without asking anything.
-  const week = Math.floor(Date.now() / (7 * 24 * 3600 * 1000));
-  const idea = ideas.length ? ideas[week % ideas.length] : null;
   const name = brand?.dna?.nom || t.title;
-  const today = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
-  const thumb = (Math.min(width, tokens.layout.largePhoneWidth * 1.5) - gutter * 2 - tokens.space.xs * (THUMBS - 1)) / THUMBS;
+  const now = new Date();
+  const date = now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" });
+  const days = weekDays(now);
+  const planned = new Set(plan.map(p => p.date));
+  const tile = (Math.min(width, tokens.layout.largePhoneWidth * 1.5) - gutter * 2 - tokens.space.xs * 2) / 3;
+  const isToday = today && today.date === days.find(d => d.today)?.date;
+  const video = !today || VIDEO.has(today.idee.format);
 
   return (
-    <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={["top", "bottom"]}>
-      <ScrollView contentContainerStyle={[styles.content, { paddingHorizontal: gutter }]}>
-        <View style={styles.between}>
-          <Text variant="callout" tone="textMuted">{today}</Text>
-          <Pressable onPress={onSettings} accessibilityRole="button" accessibilityLabel={t.settings} hitSlop={tokens.space.xs}
-            style={[styles.avatar, { backgroundColor: c.surface, borderColor: c.line }]}>
-            <Text variant="bodyStrong">{name.charAt(0).toUpperCase()}</Text>
-          </Pressable>
-        </View>
-        <Text variant="display" accessibilityRole="header">{name}</Text>
+    <ScrollView contentContainerStyle={[styles.content, { paddingHorizontal: gutter }]}>
+      <View style={styles.between}>
+        <Text variant="callout" tone="textMuted">{date}</Text>
+        <Pressable onPress={onSettings} accessibilityRole="button" accessibilityLabel={t.settings} hitSlop={tokens.space.xs}
+          style={[styles.avatar, { backgroundColor: c.surface, borderColor: c.line }]}>
+          <Text variant="bodyStrong">{name.charAt(0).toUpperCase()}</Text>
+        </Pressable>
+      </View>
+      <Text variant="display" accessibilityRole="header">{name}</Text>
 
-        {draft ? (
-          <Pressable onPress={onResume} accessibilityRole="button" style={[styles.reel, { backgroundColor: c.surface, borderColor: c.action }]}>
-            <View style={[styles.reelThumb, { backgroundColor: c.media }]} />
-            <View style={styles.flex}>
-              <Text variant="bodyStrong">{t.draft}</Text>
-              <Text variant="caption" tone="textMuted">{t.draftAt(t.draftSteps[draft.step] ?? "", t.ago((Date.now() - Date.parse(draft.savedAt)) / 60000))}</Text>
-            </View>
-            <Text variant="headline" tone="actionStrong">›</Text>
-          </Pressable>
-        ) : null}
-
-        <Card style={styles.idea}>
-          {idea ? (
-            <View style={styles.ideaText}>
-              <Text variant="caption" tone="textMuted">{t.idea}</Text>
-              <Text variant="headline">{idea.titre}</Text>
-              {idea.pourquoi ? <Text variant="callout" tone="textMuted">{idea.pourquoi}</Text> : null}
-            </View>
-          ) : null}
-          <Button label={t.newReel} haptic onPress={() => onNewReel(idea && idea.format === "reel" ? idea : undefined)} />
-          {freeLeft !== null ? <Text variant="caption" tone="textMuted" style={styles.center}>{fr.status.free(freeLeft)}</Text> : null}
-        </Card>
-
-        <View style={styles.pair}>
-          <Button variant="secondary" label={t.visual} onPress={onVisual} style={styles.flex} />
-          <Button variant="secondary" label={t.brand} onPress={onBrand} style={styles.flex} />
-        </View>
-
-        <View style={styles.section}>
-          <Text variant="headline">{t.resume}</Text>
-          {lastReel ? (
-            <Pressable onPress={onOpenReel} accessibilityRole="button" style={[styles.reel, { backgroundColor: c.surface, borderColor: c.line }]}>
-              <View style={[styles.reelThumb, { backgroundColor: c.media }]} />
-              <View style={styles.flex}>
-                <Text variant="bodyStrong" numberOfLines={1}>{lastReel.title}</Text>
-                <Text variant="caption" tone="textMuted">{`${t.lastReel} · ${fr.rush.duration(lastReel.duration)}`}</Text>
+      <View accessibilityLabel={t.week} style={styles.week}>
+        {days.map(d => {
+          const did = made.includes(d.date), idea = planned.has(d.date);
+          const state = [d.today && t.dayStates.today, did && t.dayStates.made, idea && !did && t.dayStates.planned].filter(Boolean).join(", ");
+          return (
+            <View key={d.date} accessible accessibilityLabel={t.weekDay(t.days[d.index], state)} style={styles.day}>
+              <Text variant="caption" tone={d.today ? "text" : "textMuted"}>{t.dayLetters[d.index]}</Text>
+              <View style={[styles.dayDot, {
+                backgroundColor: did ? c.action : d.today ? c.text : "transparent",
+                borderColor: did ? c.action : d.today ? c.text : idea ? c.actionStrong : c.line,
+              }]}>
+                {did ? <Icon name="check" tone="onAction" size={tokens.size.icon * 0.7} /> : null}
               </View>
+            </View>
+          );
+        })}
+      </View>
+
+      {draft ? (
+        <Pressable onPress={onResume} accessibilityRole="button" style={[styles.row, styles.draft, { backgroundColor: c.surface, borderColor: c.action }]}>
+          <View style={[styles.draftThumb, { backgroundColor: c.media }]} />
+          <View style={styles.flex}>
+            <Text variant="bodyStrong">{t.draft}</Text>
+            <Text variant="caption" tone="textMuted">{t.draftAt(t.draftSteps[draft.step] ?? "", t.ago((Date.now() - Date.parse(draft.savedAt)) / 60000))}</Text>
+          </View>
+          <Text variant="headline" tone="actionStrong">›</Text>
+        </Pressable>
+      ) : null}
+
+      <Card style={styles.idea}>
+        {today ? (
+          <View style={styles.ideaText}>
+            <Text variant="caption" tone="actionStrong">{isToday ? t.today : t.next(t.days[today.day].toLowerCase())} · {fr.ideas.formats[today.idee.format]}</Text>
+            <Text variant="headline">{today.idee.titre}</Text>
+            {today.idee.pourquoi ? <Text variant="callout" tone="textMuted">{today.idee.pourquoi}</Text> : null}
+          </View>
+        ) : null}
+        <Button label={today ? (video ? t.makeReel : t.makeVisual) : t.newReel} onPress={() => onIdea(today)} />
+        <View style={styles.between}>
+          {today ? (
+            <Pressable onPress={onMoreIdeas} accessibilityRole="button" hitSlop={tokens.space.xs} style={styles.link}>
+              <Text variant="callout" tone="actionStrong">{t.otherIdea}</Text>
+            </Pressable>
+          ) : <View />}
+          {freeLeft !== null ? <Text variant="caption" tone="textMuted">{fr.status.free(freeLeft)}</Text> : null}
+        </View>
+      </Card>
+
+      {!brand?.dna ? (
+        <Pressable onPress={onBrand} accessibilityRole="button" style={[styles.row, styles.brand, { borderColor: c.line }]}>
+          <Icon name="brand" tone="actionStrong" />
+          <View style={styles.flex}>
+            <Text variant="bodyStrong">{t.brandCard}</Text>
+            <Text variant="caption" tone="textMuted">{t.brandCardWhy}</Text>
+          </View>
+        </Pressable>
+      ) : null}
+
+      <View style={styles.section}>
+        <View style={styles.between}>
+          <Text variant="headline">{t.recent}</Text>
+          {recents.length ? (
+            <Pressable onPress={onSeeAll} accessibilityRole="button" hitSlop={tokens.space.xs} style={styles.link}>
+              <Text variant="callout" tone="actionStrong">{t.seeAll}</Text>
             </Pressable>
           ) : null}
-          {visuals.length ? (
-            <View style={styles.thumbs}>
-              {visuals.slice(0, THUMBS).map(v => (
-                <Pressable key={v.id} accessibilityRole="button" accessibilityLabel={fr.visual.reopen(fr.visual.kinds[v.brief.kind])} onPress={() => onOpenVisual(v)}
-                  style={[styles.thumb, { borderColor: c.line }]}>
-                  <DesignView design={v.design} width={thumb} assets={assetsOf(v.photos, brand)} id={`h${v.id}`} />
-                </Pressable>
-              ))}
-            </View>
-          ) : null}
-          {!lastReel && !visuals.length ? <Text variant="callout" tone="textMuted">{t.empty}</Text> : null}
         </View>
-      </ScrollView>
-
-      <View accessibilityRole="tablist" style={[styles.tabs, { borderTopColor: c.line, backgroundColor: c.bg }]}>
-        <Tab icon="home" label={t.tabs.home} active />
-        <Pressable onPress={() => onNewReel()} accessibilityRole="button" accessibilityLabel={t.newReel} style={[styles.plus, { backgroundColor: c.action }]}>
-          <Icon name="plus" tone="onAction" />
-        </Pressable>
-        <Tab icon="brand" label={t.tabs.brand} onPress={onBrand} />
+        {recents.length ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.recents}>
+            {recents.slice(0, RECENTS).map(x => <CreationTile key={x.id} item={x} width={tile} brand={brand} onPress={() => onOpen(x)} />)}
+          </ScrollView>
+        ) : <Text variant="callout" tone="textMuted">{t.empty}</Text>}
       </View>
-    </SafeAreaView>
-  );
-}
-
-function Tab({ icon, label, active = false, onPress }: { icon: IconName; label: string; active?: boolean; onPress?: () => void }) {
-  return (
-    <Pressable onPress={onPress} accessibilityRole="tab" accessibilityState={{ selected: active }} accessibilityLabel={label} style={styles.tab}>
-      <Icon name={icon} tone={active ? "text" : "textMuted"} />
-      <Text variant="caption" tone={active ? "text" : "textMuted"}>{label}</Text>
-    </Pressable>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
   content: { gap: tokens.space.lg, paddingVertical: tokens.space.md, maxWidth: tokens.layout.largePhoneWidth * 1.5, width: "100%", alignSelf: "center" },
   between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  row: { flexDirection: "row", alignItems: "center", gap: tokens.space.sm },
+  flex: { flex: 1 },
   avatar: { width: tokens.size.touch, height: tokens.size.touch, borderRadius: tokens.radius.full, borderWidth: tokens.size.border, alignItems: "center", justifyContent: "center" },
+  week: { flexDirection: "row", justifyContent: "space-between" },
+  day: { alignItems: "center", gap: tokens.space.xxs, minWidth: tokens.size.touch * 0.75 },
+  dayDot: { width: tokens.size.pill, height: tokens.size.pill, borderRadius: tokens.radius.full, borderWidth: tokens.size.selection, alignItems: "center", justifyContent: "center" },
+  draft: { padding: tokens.space.xs, borderRadius: tokens.radius.card, borderWidth: tokens.size.border },
+  draftThumb: { width: tokens.size.touch, height: tokens.size.touch * 16 / 9, borderRadius: tokens.radius.chip },
   idea: { gap: tokens.space.md },
   ideaText: { gap: tokens.space.xxs },
-  center: { textAlign: "center" },
-  pair: { flexDirection: "row", gap: tokens.space.xs },
-  flex: { flex: 1 },
+  link: { minHeight: tokens.size.touch, justifyContent: "center" },
+  brand: { padding: tokens.space.md, borderRadius: tokens.radius.card, borderWidth: tokens.size.border },
   section: { gap: tokens.space.sm },
-  reel: { flexDirection: "row", alignItems: "center", gap: tokens.space.sm, padding: tokens.space.xs, borderRadius: tokens.radius.card, borderWidth: tokens.size.border },
-  reelThumb: { width: tokens.size.touch, height: tokens.size.touch * 16 / 9, borderRadius: tokens.radius.chip },
-  thumbs: { flexDirection: "row", gap: tokens.space.xs },
-  thumb: { borderWidth: tokens.size.border, borderRadius: tokens.radius.chip, overflow: "hidden" },
-  tabs: { flexDirection: "row", justifyContent: "space-around", alignItems: "center", paddingTop: tokens.space.xs, borderTopWidth: tokens.size.border },
-  tab: { alignItems: "center", gap: tokens.space.xxs, minWidth: tokens.size.touch * 2, minHeight: tokens.size.touch },
-  plus: { width: tokens.size.button, height: tokens.size.button, borderRadius: tokens.radius.full, alignItems: "center", justifyContent: "center" },
+  recents: { gap: tokens.space.xs },
 });

@@ -1,7 +1,8 @@
 import * as Linking from "expo-linking";
 import { StatusBar } from "expo-status-bar";
 import { ThemeProvider } from "../design";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
+import { fr } from "../copy/fr";
 import type { Profil } from "../../../core/brand";
 import { emptyMemory } from "../../../core/corrections";
 import { manualTimeline } from "../../../core/edit";
@@ -25,6 +26,13 @@ import { BriefScreen } from "../screens/BriefScreen";
 import { GenerationScreen } from "../screens/GenerationScreen";
 import { ImportScreen } from "../screens/ImportScreen";
 import { HomeScreen } from "../screens/HomeScreen";
+import { CreationsScreen } from "../screens/CreationsScreen";
+import { IdeasScreen } from "../screens/IdeasScreen";
+import { Tabs, type CreateChoice, type Tab } from "./Tabs";
+import { creationsOf, type Creation } from "../creations/Tile";
+import { deleteReel, loadReels, loadRefusals, saveReel, saveRefusals, type SavedReel } from "../creations/store";
+import { dayOf, ideaOfTheDay, refuse, weekPlan, type Refusals } from "../../../core/week";
+import type { Idee } from "../../../core/brand";
 import { MusicScreen } from "../screens/MusicScreen";
 import { ResultScreen } from "../screens/ResultScreen";
 import { ExportScreen } from "../screens/ExportScreen";
@@ -32,7 +40,7 @@ import { VisualBriefScreen } from "../screens/VisualBriefScreen";
 import { VisualEditorScreen } from "../screens/VisualEditorScreen";
 import type { VisualBrief } from "../../../core/design";
 import type { Photo, VisualResult } from "../visual/api";
-import { loadVisuals, saveVisual, type SavedVisual } from "../visual/store";
+import { deleteVisual, loadVisuals, saveVisual, type SavedVisual } from "../visual/store";
 import { SAMPLE_RUSHES, fakeMontage } from "./fake";
 import { streamMontage } from "./api";
 import { aiUrl } from "./server";
@@ -41,10 +49,10 @@ import { Onboarding } from "./Onboarding";
 import { clearDraft, loadDraft, saveDraft, type FlowDraft } from "./draft";
 import type { Draft } from "../../../core/draft";
 import type { TimelineV1 } from "../../../core/timeline";
-import { tokens } from "../design";
+import { tokens, useToast } from "../design";
 import type { Brief, MontageResult, Music, Rush, Trade } from "./types";
 
-type Step = "home" | "brand" | "import" | "brief" | "music" | "generation" | "result" | "editor" | "catalogue" | "visual" | "visual-editor" | "export" | "paywall" | "consent" | "settings";
+type Step = "home" | "creations" | "ideas" | "brand" | "import" | "brief" | "music" | "generation" | "result" | "editor" | "catalogue" | "visual" | "visual-editor" | "export" | "paywall" | "consent" | "settings";
 // The brief's trade chips (lot 2) start from the sign-up profile.
 const TRADE_OF: Record<Profil, Trade> = { commerce: "commerce", restaurant: "restaurant", "petite-entreprise": "artisan", "grande-entreprise": "freelance", ecole: "freelance", createur: "freelance", debutant: "freelance" };
 const START_BRIEF: Brief = { text: "", trade: "restaurant", goal: null, tone: null, duration: 30, platforms: ["reels", "tiktok", "shorts"], cta: null };
@@ -71,6 +79,15 @@ export function Flow() {
   const [editorTl, setEditorTl] = useState<TimelineV1 | null>(null);
   const [draft, setDraft] = useState<Draft<FlowDraft> | null>(null);
   useEffect(() => { loadDraft().then(setDraft); }, []);
+  // Créations and Idées (étape 2 de la refonte): the saved Reels, the ideas refused for a month, the
+  // id of the Reel on screen so each save updates the same creation, and a visual started from an idea.
+  const [reels, setReels] = useState<SavedReel[]>([]);
+  const [refusals, setRefusals] = useState<Refusals>({});
+  useEffect(() => { loadReels().then(setReels); loadRefusals().then(setRefusals); }, []);
+  const [reelId, setReelId] = useState(() => Date.now().toString(36));
+  const [manualMode, setManualMode] = useState(false);
+  const [seed, setSeed] = useState<{ brief: VisualBrief; photos: Photo[] } | null>(null);
+  const toast = useToast();
   // Visuals (lot 6): the ones kept on the iPhone, and the one being edited.
   const [visuals, setVisuals] = useState<SavedVisual[]>([]);
   useEffect(() => { loadVisuals().then(setVisuals); }, []);
@@ -103,6 +120,42 @@ export function Flow() {
     // Without a result (an older draft), the steps after it fall back to the music.
     setStep(!x.result && (d.step === "result" || d.step === "editor" || d.step === "export") ? "music" : d.step);
   };
+  const keepReel = (timeline: TimelineV1) => saveReel({ id: reelId, at: new Date().toISOString(), timeline, byAi: !result?.r.manuel, rushes: chosen, selected }).then(setReels);
+  const newReel = (text = "") => {
+    setDraft(null); setResult(null); setEditorTl(null); setKeptVersion(null); setManualMode(false); setReelId(Date.now().toString(36));
+    setBrief(b => ({ ...b, text })); setStep("import");
+  };
+  const startIdea = (i: Idee) => {
+    if (i.format === "reel" || i.format === "story") return newReel(i.titre);
+    setVisual(null); setSeed({ brief: { kind: i.format === "affiche" ? "affiche" : "post", idee: i.titre, infos: {} }, photos: [] });
+    consent() ? setStep("visual") : askConsent("home", () => setStep("visual"), () => setStep("visual"));
+  };
+  const openCreation = (x: Creation) => {
+    if (x.kind === "visual") { const v = x.visual; setVisual({ id: v.id, result: { design: v.design, concept: "", relecture: [], byAi: true }, brief: v.brief, photos: v.photos }); setStep("visual-editor"); return; }
+    const r = x.reel;
+    setRushes(r.rushes); setSelected(r.selected); setDemo(false); setReelId(r.id); setEditorTl(null); setKeptVersion(0);
+    setResult({ r: { variantes: [{ timeline: r.timeline, duration: r.timeline.duree, warnings: [] }], cout_usd: 0, temps_s: 0, manuel: !r.byAi }, s: 0 });
+    setEditing(0); setStep("result");
+  };
+  const duplicate = (x: Creation) => {
+    const id = Date.now().toString(36), at = new Date().toISOString();
+    if (x.kind === "reel") saveReel({ ...x.reel, id, at, timeline: { ...x.reel.timeline, titre: fr.creations.copyOf(x.reel.timeline.titre) } }).then(setReels);
+    else saveVisual({ ...x.visual, id, at }).then(setVisuals);
+    toast({ message: fr.creations.duplicated });
+  };
+  const remove = (x: Creation) => {
+    if (x.kind === "reel") deleteReel(x.id).then(setReels); else deleteVisual(x.id).then(setVisuals);
+    toast({ message: fr.creations.deleted, action: fr.nav.undo, onAction: () => (x.kind === "reel" ? saveReel(x.reel).then(setReels) : saveVisual(x.visual).then(setVisuals)) });
+  };
+  const create = (k: CreateChoice) => {
+    if (k === "reel") newReel();
+    else if (k === "manual") { newReel(); setManualMode(true); }
+    else if (k === "visual") { setSeed(null); setVisual(null); consent() ? setStep("visual") : askConsent("home", () => setStep("visual"), () => setStep("visual")); }
+    else setStep("ideas");
+  };
+  const plan = weekPlan(brand?.dna?.idees ?? [], refusals, new Date());
+  const creations = creationsOf(reels, visuals);
+  const tabs = (tab: Tab, child: ReactNode) => <Tabs tab={tab} onTab={x => setStep(x)} onCreate={create}>{child}</Tabs>;
   const chosen = selected.map(id => rushes.find(r => r.id === id)).filter((r): r is Rush => !!r);
   // Shots worth keeping light up during the wait; Vision will provide them (lot 2, native part).
   const kept = chosen.map((r, i) => (r.badges.includes("blur") || r.badges.includes("dark") ? -1 : i)).filter(i => i >= 0);
@@ -116,15 +169,17 @@ export function Flow() {
   if (brand === undefined && step !== "catalogue") return null;
   switch (step) {
     case "catalogue": return <DesignCatalogue />;
-    case "brand": return <Onboarding initial={brand ?? null} onDone={b => { setBrand(b); setBrief(x => ({ ...x, trade: TRADE_OF[b.profil] })); setStep("home"); }} />;
-    case "home": return <HomeScreen brand={brand ?? null} visuals={visuals} freeLeft={plans && !plans.pro ? verdict(plans, "montage").restant : null}
-      lastReel={result ? { title: result.r.variantes[0].timeline.titre, duration: result.r.variantes[0].duration } : null}
+    case "brand": return <Onboarding initial={brand ?? null} onLater={() => setStep("home")} onDone={b => { setBrand(b); setBrief(x => ({ ...x, trade: TRADE_OF[b.profil] })); setStep("home"); }} />;
+    case "home": return tabs("home", <HomeScreen brand={brand ?? null} plan={plan} today={ideaOfTheDay(plan, new Date())} recents={creations}
+      made={[...new Set(creations.map(x => dayOf(x.at)))]} freeLeft={plans && !plans.pro ? verdict(plans, "montage").restant : null}
       draft={draft} onResume={() => draft && resume(draft)}
-      onNewReel={idea => { setDraft(null); setResult(null); setEditorTl(null); setKeptVersion(null); setBrief(b => ({ ...b, text: idea ? idea.titre : "" })); setStep("import"); }}
-      onVisual={() => (consent() ? setStep("visual") : askConsent("home", () => setStep("visual"), () => setStep("visual")))}
-      onBrand={() => setStep("brand")} onSettings={() => setStep("settings")} onOpenReel={() => setStep("result")}
-      onOpenVisual={v => { setVisual({ id: v.id, result: { design: v.design, concept: "", relecture: [], byAi: true }, brief: v.brief, photos: v.photos }); setStep("visual-editor"); }} />;
-    case "visual": return <VisualBriefScreen brand={brand ?? null} saved={visuals} initial={visual} onBack={() => setStep("home")}
+      onIdea={p => (p ? startIdea(p.idee) : newReel())} onMoreIdeas={() => setStep("ideas")} onBrand={() => setStep("brand")}
+      onSettings={() => setStep("settings")} onOpen={openCreation} onSeeAll={() => setStep("creations")} />);
+    case "creations": return tabs("creations", <CreationsScreen items={creations} brand={brand ?? null} onOpen={openCreation} onDuplicate={duplicate} onDelete={remove} onNew={() => newReel()} />);
+    case "ideas": return tabs("ideas", <IdeasScreen plan={plan} ideas={brand?.dna?.idees ?? []} pillars={brand?.dna?.piliers ?? []} hasBrand={!!brand?.dna}
+      onMake={startIdea} onBrand={() => setStep("brand")}
+      onRefuse={i => { const r = refuse(refusals, i, new Date()); setRefusals(r); saveRefusals(r); toast({ message: fr.ideas.refused, action: fr.nav.undo, onAction: () => { setRefusals(refusals); saveRefusals(refusals); } }); }} />);
+    case "visual": return <VisualBriefScreen brand={brand ?? null} saved={visuals} initial={visual ?? seed} onBack={() => setStep("home")}
       canAi={!plans || verdict(plans, "visuel").ok} onBlocked={(b, photos) => { setVisual(v => (v ? { ...v, brief: b, photos } : v)); setPaywall({ mode: "bloquant", back: "visual", offline: { brief: b, photos } }); setStep("paywall"); }}
       onCreated={(r, b, photos) => { if (plans && r.byAi) updatePlans(record(plans, "visuel")); setVisual({ id: Date.now().toString(36), result: r, brief: b, photos }); setStep("visual-editor"); }}
       onOpen={v => { setVisual({ id: v.id, result: { design: v.design, concept: "", relecture: [], byAi: true }, brief: v.brief, photos: v.photos }); setStep("visual-editor"); }} />;
@@ -132,7 +187,7 @@ export function Flow() {
       onBack={() => setStep("visual")}
       onSave={d => { saveVisual({ id: visual.id, brief: visual.brief, design: d, photos: visual.photos, at: new Date().toISOString() }).then(setVisuals); setStep("visual"); }} /> : null;
     case "import": return <ImportScreen onBack={() => setStep("home")} rushes={rushes} selected={selected} pro={!!plans?.pro} demo={demo}
-      onRushes={r => { setRushes(r); setDemo(false); }} onSelect={setSelected} onNext={() => setStep("brief")} />;
+      onRushes={r => { setRushes(r); setDemo(false); }} onSelect={setSelected} onNext={() => (manualMode ? manual() : setStep("brief"))} />;
     case "brief": return <BriefScreen brief={brief} onChange={b => { setBrief(b); if (b.duration !== brief.duration) setMusic(m => ({ ...m, length: b.duration })); }} onBack={() => setStep("import")} onNext={() => setStep("music")} />;
     case "music": return <MusicScreen music={music} onChange={setMusic} briefDuration={brief.duration} incoming={incoming} onBack={() => setStep("brief")} onNext={() => {
       const v = plans && verdict(plans, "montage");
@@ -149,12 +204,12 @@ export function Flow() {
         onStep(1);
         return montageBody(chosen, brief, music, brand ?? null, brand?.memory?.rules.map(r => r.text) ?? []).then(body => streamMontage(url, body, onStep, signal));
       }}
-      onDone={(r, s) => { if (plans) updatePlans(record(plans, "montage")); setKeptVersion(null); setResult({ r, s }); setStep("result"); }} onCancel={() => setStep("music")} />;
+      onDone={(r, s) => { if (plans) updatePlans(record(plans, "montage")); setKeptVersion(null); setReelId(Date.now().toString(36)); setResult({ r, s }); setStep("result"); }} onCancel={() => setStep("music")} />;
     case "result": return result ? <ResultScreen result={result.r} seconds={result.s} onBack={() => setStep("brief")} onRestart={() => { setResult(null); setEditorTl(null); clearDraft(); setStep("home"); }}
       sources={i => videoSources(result.r.variantes[i].timeline, chosen, brand ?? null, music)}
-      onEdit={i => { setEditing(i); setStep("editor"); }} onExport={i => { setEditing(i); setStep("export"); }}
+      onEdit={i => { setEditing(i); setStep("editor"); }} onExport={i => { setEditing(i); keepReel(result.r.variantes[i].timeline); setStep("export"); }}
       kept={keptVersion} onKeep={i => {
-        setKeptVersion(i);
+        setKeptVersion(i); keepReel(result.r.variantes[i].timeline);
         // Right after the first result the person keeps: the soft paywall, once (ch. 8 §1).
         if (plans && paywallFor("version_gardee", { pro: plans.pro, seen: plans.paywallSeen }) === "doux") { updatePlans({ ...plans, paywallSeen: true }); setPaywall({ mode: "doux", back: "result" }); setStep("paywall"); }
       }} /> : null;
@@ -185,7 +240,7 @@ export function Flow() {
         onBack={() => { setEditorTl(null); setStep("result"); }}
         onSave={tl => {
           const variantes = result.r.variantes.map((x, j) => (j === editing ? { ...x, timeline: tl, duration: tl.duree } : x));
-          setResult({ ...result, r: { ...result.r, variantes } }); setEditorTl(null); setStep("result");
+          setResult({ ...result, r: { ...result.r, variantes } }); setEditorTl(null); keepReel(tl); setStep("result");
         }} /></ThemeProvider>;
     }
   }

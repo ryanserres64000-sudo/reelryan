@@ -16,6 +16,13 @@ const PATHS = {
   undo: <Path d="M9 7L4 12l5 5M4 12h11a5 5 0 0 1 0 10" />,
   redo: <Path d="M15 7l5 5-5 5M20 12H9a5 5 0 0 0 0 10" />,
   spark: <Path d="M12 3v5M12 16v5M3 12h5M16 12h5M6 6l3 3M15 15l3 3M6 18l3-3M15 9l3-3" />,
+  grid: <><Rect x={4} y={4} width={7} height={7} rx={1.5} /><Rect x={13} y={4} width={7} height={7} rx={1.5} /><Rect x={4} y={13} width={7} height={7} rx={1.5} /><Rect x={13} y={13} width={7} height={7} rx={1.5} /></>,
+  idea: <Path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z" />,
+  hand: <Path d="M8 13V6a1.5 1.5 0 0 1 3 0v5M11 11V4.5a1.5 1.5 0 0 1 3 0V11M14 11V6a1.5 1.5 0 0 1 3 0v8a6 6 0 0 1-6 6h-.5a5 5 0 0 1-4-2l-2.8-3.7a1.5 1.5 0 0 1 2.3-1.9L8 14" />,
+  image: <><Rect x={4} y={4} width={16} height={16} rx={2} /><Circle cx={9} cy={9} r={1.5} /><Path d="M20 15l-5-5-9 10" /></>,
+  play: <Path d="M8 5v14l11-7z" />,
+  close: <Path d="M6 6l12 12M18 6L6 18" />,
+  check: <Path d="M5 12l5 5 9-10" />,
 } as const;
 export type IconName = keyof typeof PATHS;
 

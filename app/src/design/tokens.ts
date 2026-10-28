@@ -171,7 +171,8 @@ export const tokens = {
     "ruler": 18,
     "laneIcon": 28,
     "playhead": 2,
-    "snapPx": 10
+    "snapPx": 10,
+    "butterfly": 30
   },
   "opacity": {
     "waveOutside": 0.4,
@@ -190,6 +191,8 @@ export const tokens = {
     "autosave": 400,
     "pressScale": 0.97,
     "popScale": 1.08,
+    "flight": 1300,
+    "flap": 110,
     "spring": {
       "damping": 26,
       "stiffness": 260,

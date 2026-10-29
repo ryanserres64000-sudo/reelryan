@@ -7,7 +7,8 @@ import { useTheme } from "../theme";
 export type TriageBadge = keyof typeof fr.rush.badge;
 type Props = { duration: number; thumbnail?: ImageSourcePropType; badges?: TriageBadge[]; order?: number; width: number; onPress?: () => void };
 
-// 9:16 thumbnail, duration in DM Mono, triage badges in lavender, selected = 2 pt gold border + order number (étude, ch. 6 §4).
+// 9:16 thumbnail (its height set from its width: in a wrapping row, iOS stretches the card to the row's
+// height and ignores aspectRatio, which left only the borders on Ryan's iPhone, 29 octobre), duration in DM Mono, triage badges in lavender, selected = 2 pt gold border + order number (étude, ch. 6 §4).
 export function RushCard({ duration, thumbnail, badges = [], order, width, onPress }: Props) {
   const { c } = useTheme();
   const selected = order !== undefined;
@@ -17,7 +18,7 @@ export function RushCard({ duration, thumbnail, badges = [], order, width, onPre
       accessibilityRole="button"
       accessibilityState={{ selected }}
       accessibilityLabel={`${selected ? fr.rush.selected(order) : fr.rush.notSelected}, ${fr.rush.duration(duration)}${badges.length ? ", " + badges.map(b => fr.rush.badge[b]).join(", ") : ""}`}
-      style={[styles.card, { width, backgroundColor: c.surfaceRaised, borderColor: selected ? c.actionStrong : c.line, borderWidth: selected ? tokens.size.selection : tokens.size.border }]}
+      style={[styles.card, { width, height: (width * 16) / 9, backgroundColor: c.surfaceRaised, borderColor: selected ? c.actionStrong : c.line, borderWidth: selected ? tokens.size.selection : tokens.size.border }]}
     >
       {thumbnail ? <Image source={thumbnail} style={StyleSheet.absoluteFill} resizeMode="cover" /> : null}
       <View style={styles.badges}>
@@ -34,7 +35,7 @@ export function RushCard({ duration, thumbnail, badges = [], order, width, onPre
 }
 
 const styles = StyleSheet.create({
-  card: { aspectRatio: 9 / 16, borderRadius: tokens.radius.button, overflow: "hidden" },
+  card: { borderRadius: tokens.radius.button, overflow: "hidden" },
   badges: { position: "absolute", top: tokens.space.xs, left: tokens.space.xs, gap: tokens.space.xxs, alignItems: "flex-start" },
   badge: { borderRadius: tokens.radius.chip, paddingHorizontal: tokens.space.xs },
   order: { position: "absolute", top: tokens.space.xs, right: tokens.space.xs, minWidth: tokens.size.pill, height: tokens.size.pill, borderRadius: tokens.radius.full, alignItems: "center", justifyContent: "center" },

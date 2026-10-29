@@ -136,7 +136,8 @@ export function trendTip(t: TimelineV1): { bpm: number } | null {
 // Without the AI (offline, or an empty answer): a short caption from the brief, the brand's address
 // and a few honest hashtags. The person edits it before copying.
 const PROFIL_TAGS: Record<Profil, string[]> = {
-  commerce: ["#commercelocal", "#boutique"], restaurant: ["#restaurant", "#faitmaison"], "petite-entreprise": ["#artisan", "#savoirfaire"],
+  commerce: ["#commercelocal", "#boutique"], restaurant: ["#restaurant", "#faitmaison"], beaute: ["#beaute", "#avantapres"],
+  coach: ["#coaching", "#conseil"], artisan: ["#artisan", "#savoirfaire"], freelance: ["#independant", "#freelance"], "petite-entreprise": ["#entreprise", "#equipe"],
   "grande-entreprise": ["#entreprise", "#coulisses"], ecole: ["#ecole", "#formation"], createur: ["#createur", "#contenu"], debutant: ["#nouveau", "#lancement"],
 };
 export function offlineCaption(brief: string, dna: Pick<Dna, "nom" | "profil"> | null, answers: Answers = {}): TimelineV1["legende"] {

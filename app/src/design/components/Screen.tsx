@@ -6,21 +6,21 @@ import { tokens } from "../tokens";
 import { Text } from "../Text";
 import { useTheme } from "../theme";
 
-type Props = { title: string; detail?: string; onBack?: () => void; footer?: ReactNode; children: ReactNode; scroll?: boolean; scrollEnabled?: boolean };
+type Props = { title?: string; detail?: string; onBack?: () => void; footer?: ReactNode; children: ReactNode; scroll?: boolean; scrollEnabled?: boolean };
 
 // Frame of every step: back link, title, scrolling content, and the one gold button at the bottom (étude, ch. 6 §4).
 export function Screen({ title, detail, onBack, footer, children, scroll = true, scrollEnabled = true }: Props) {
   const { c, layout, opacity } = useTheme();
   const { width } = useWindowDimensions();
   const gutter = width >= layout.largePhoneWidth ? layout.gutterLarge : layout.gutter;
-  const head = (
+  const head = !onBack && !title && !detail ? null : (
     <View style={styles.head}>
       {onBack ? (
         <Pressable onPress={onBack} accessibilityRole="button" hitSlop={tokens.space.xs} style={({ pressed }) => [styles.back, { opacity: pressed ? opacity.pressed : 1 }]}>
           <Text variant="callout" tone="textMuted">{`‹ ${fr.nav.back}`}</Text>
         </Pressable>
       ) : null}
-      <Text variant="title" accessibilityRole="header">{title}</Text>
+      {title ? <Text variant="title" accessibilityRole="header">{title}</Text> : null}
       {detail ? <Text tone="textMuted">{detail}</Text> : null}
     </View>
   );

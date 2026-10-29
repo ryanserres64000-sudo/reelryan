@@ -52,6 +52,22 @@ export function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
     .finally(() => clearTimeout(timer));
 }
 
+// Vision's time on one rush grows with its length: a 3 s clip gets 10 s, a long one 45 s at most.
+// Build 10 waited 60 s on each short rush (Ryan, 29 octobre : « très compliqué de monter la vidéo »).
+export const visionLimitMs = (duration: number) => Math.round(Math.min(45_000, Math.max(10_000, 6_000 + duration * 1_000)));
+
+// A waiting line shared by every caller: at most `limit` jobs run at once, the others wait their turn.
+// The import screen and the edit use the same lines, so the iPhone never reads 21 rushes at once.
+export function queue(limit: number) {
+  let running = 0;
+  const waiting: (() => void)[] = [];
+  const next = () => { if (running < limit && waiting.length) { running++; waiting.shift()!(); } };
+  return <T>(job: () => Promise<T>): Promise<T> => new Promise<T>((resolve, reject) => {
+    waiting.push(() => job().then(resolve, reject).finally(() => { running--; next(); }));
+    next();
+  });
+}
+
 // Runs `fn` on every item with at most `limit` at once, keeping the order of the results.
 export async function mapLimit<T, R>(items: T[], limit: number, fn: (item: T, index: number) => Promise<R>): Promise<R[]> {
   const out: R[] = new Array(items.length);

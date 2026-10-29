@@ -4,7 +4,7 @@ import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import * as VideoThumbnails from "expo-video-thumbnails";
 import { Platform } from "react-native";
 import { charteOf, montageStyle } from "../../../core/brand";
-import { candidateEvery, LIMITS, sceneStep, withTimeout } from "../../../core/progress";
+import { candidateEvery, LIMITS, queue, sceneStep, visionLimitMs, withTimeout } from "../../../core/progress";
 import { badgesOf, candidateTimes, judge, MAX_FRAMES, pickFrames, rushForAi, type Measure, type Probed } from "../../../core/triage";
 import type { Brand } from "../brand/types";
 import { noteError } from "../diag";
@@ -41,18 +41,22 @@ export async function triageRush(r: Rush): Promise<Rush> {
 // A small frame of the rush for its card and for the player when the native preview is missing. Always
 // re-saved as a small JPEG in the app's own cache: a picture straight from the picker (HEIC, a file the
 // system may move) stayed grey on Ryan's iPhone (build 9, 29 octobre). A failure is noted for Réglages.
+// Build 10 still showed grey cards: 21 rushes were read at once and the pictures waited behind them.
+// They now have their own short line, ahead of the reading, and a resize that fails keeps the frame.
 const THUMB_PX = 360;
-export async function thumbnailOf(r: Rush): Promise<string | null> {
+const thumbs = queue(3);
+export const thumbnailOf = (r: Rush): Promise<string | null> => thumbs(async () => {
   if (!r.uri) return null;
+  let src: string | null = null;
   try {
-    const src = r.photo ? r.uri : (await VideoThumbnails.getThumbnailAsync(r.uri, { time: Math.min(300, r.duration * 500), quality: 0.7 })).uri;
+    src = r.photo ? r.uri : (await VideoThumbnails.getThumbnailAsync(r.uri, { time: Math.min(300, r.duration * 500), quality: 0.7 })).uri;
     const out = await (await ImageManipulator.manipulate(src).resize({ width: THUMB_PX }).renderAsync()).saveAsync({ format: SaveFormat.JPEG, compress: 0.7 });
     return out.uri;
   } catch (e) {
     noteError("miniature", e instanceof Error ? e.message : String(e));
-    return null;
+    return src;
   }
-}
+});
 
 // Without Vision (module missing or failing): the same candidate frames, read with expo-video-thumbnails
 // and shrunk to 512 px, without sharpness or faces. The AI still sees the real footage, never a sample.
@@ -78,8 +82,25 @@ export async function triageLite(r: Rush): Promise<Rush> {
 export const canRead = () => Platform.OS !== "web";
 // Each reading has a time limit (core/progress.ts): a rush Vision cannot read in time falls back to the
 // light reading, never to an endless wait.
+// A Vision reading that runs out of time keeps going in the background, so after one failure the
+// other rushes take the light reading straight away instead of piling up behind it.
 const lite = (r: Rush) => withTimeout(triageLite(r), LIMITS.liteMs);
-export const triageAny = (r: Rush) => (canTriage() ? withTimeout(triageRush(r), LIMITS.visionMs).catch(() => lite(r)) : lite(r));
+let visionOk = true;
+const read = (r: Rush) => (canTriage() && visionOk
+  ? withTimeout(triageRush(r), visionLimitMs(r.duration)).catch(e => { visionOk = false; noteError("vision", e instanceof Error ? e.message : String(e)); return lite(r); })
+  : lite(r));
+// One line for the whole app (LIMITS.readers at once), and one reading per rush: the edit waits for
+// the reading the import screen already started instead of starting another.
+const reads = queue(LIMITS.readers);
+const inflight = new Map<string, Promise<Rush>>();
+export function triageAny(r: Rush): Promise<Rush> {
+  const known = inflight.get(r.id);
+  if (known) return known;
+  const p = reads(() => read(r));
+  inflight.set(r.id, p);
+  p.catch(() => inflight.delete(r.id));
+  return p;
+}
 
 // What the server needs: the rushes, the 15 to 30 frames kept, read only now (after consent).
 export async function montageBody(rushes: Rush[], brief: Brief, music: Music, brand: Brand | null, rules: string[]) {

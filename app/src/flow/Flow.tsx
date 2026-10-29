@@ -142,8 +142,9 @@ export function Flow() {
     for (const r of rushes.filter(x => x.uri && !x.triage && !reading.has(x.id))) {
       reading.add(r.id);
       const put = (p: Partial<Rush>) => setRushes(list => list.map(x => (x.id === r.id ? { ...x, ...p } : x)));
-      thumbnailOf(r).then(thumb => put({ thumb }));
-      triageAny(r).then(t => put({ triage: t.triage, badges: t.badges, duration: t.duration })).catch(() => {});
+      // The reading writes small frames too: the first one stands in when the card picture failed.
+      thumbnailOf(r).then(thumb => { if (thumb) put({ thumb }); });
+      triageAny(r).then(t => setRushes(list => list.map(x => (x.id === r.id ? { ...x, triage: t.triage, badges: t.badges, duration: t.duration, thumb: x.thumb ?? t.triage?.frames[0]?.jpeg } : x)))).catch(() => {});
     }
   }, [rushes]);
   // Saved a moment after each change while a Reel is in progress; the home offers to pick it up.
@@ -253,7 +254,7 @@ export function Flow() {
           let read = 0;
           onRead(0, chosen.length);
           const ready = await mapLimit(chosen, LIMITS.readers, async r => {
-            const t = r.triage ? r : await triageAny(r).then(x => { setRushes(list => list.map(y => (y.id === x.id ? x : y))); return x; })
+            const t = r.triage ? r : await triageAny(r).then(x => { setRushes(list => list.map(y => (y.id === x.id ? { ...y, triage: x.triage, badges: x.badges, duration: x.duration, thumb: y.thumb ?? x.triage?.frames[0]?.jpeg } : y))); return { ...r, ...x, thumb: r.thumb }; })
               .catch(e => { noteError("lecture", `${r.id} : ${e instanceof Error ? e.message : String(e)}`); return r; });
             if (!signal.aborted) onRead(++read, chosen.length);
             return t;

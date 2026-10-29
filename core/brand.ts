@@ -5,8 +5,17 @@
 import { POLICES, SOUS_TITRES_STYLES } from "./timeline.ts";
 import { duoFor } from "./typo.ts";
 
-export const PROFILS = ["commerce", "restaurant", "petite-entreprise", "grande-entreprise", "ecole", "createur", "debutant"] as const;
+// Who the person creates for (Ryan, 29 octobre : « bien balayer nos segments de clients »). The ids of
+// the first version are kept, so a carnet saved before still opens.
+export const PROFILS = ["restaurant", "commerce", "beaute", "coach", "artisan", "freelance", "petite-entreprise", "grande-entreprise", "ecole", "createur", "debutant"] as const;
 export type Profil = (typeof PROFILS)[number];
+// The profile screen shows them in four families, so the list reads as a choice, not a form.
+export const PROFIL_GROUPES = [
+  { id: "accueil", profils: ["restaurant", "commerce", "beaute"] },
+  { id: "savoir", profils: ["coach", "artisan", "freelance"] },
+  { id: "structure", profils: ["petite-entreprise", "grande-entreprise", "ecole"] },
+  { id: "moi", profils: ["createur", "debutant"] },
+] as const satisfies readonly { id: string; profils: readonly Profil[] }[];
 
 // The house styles of the study (ch. 6 §5), one per row of its table.
 export const STYLES_MAISON = ["comptoir", "atelier", "coach", "conseil", "vitrine", "avant-apres", "coulisses", "evenement", "chic", "temoignage"] as const;
@@ -15,32 +24,41 @@ export const FORMATS = ["reel", "story", "post", "carrousel", "affiche"] as cons
 
 // Default style when the AI is unavailable, and the one the questionnaire starts from.
 export const STYLE_PAR_PROFIL: Record<Profil, StyleMaison> = {
-  commerce: "vitrine", restaurant: "comptoir", "petite-entreprise": "coulisses", "grande-entreprise": "temoignage",
-  ecole: "evenement", createur: "coulisses", debutant: "coulisses",
+  restaurant: "comptoir", commerce: "vitrine", beaute: "avant-apres", coach: "coach", artisan: "atelier", freelance: "conseil",
+  "petite-entreprise": "coulisses", "grande-entreprise": "temoignage", ecole: "evenement", createur: "coulisses", debutant: "coulisses",
 };
 
 // One question per card; every card but the profile can be skipped. `options` are ids, the app
 // holds their labels (app/src/copy/fr.ts) and sends the labels, so the server reads plain French.
-export type Question = { id: string; kind: "texte" | "choix" | "multi" | "mots"; options?: readonly string[]; max?: number; profils?: readonly Profil[] };
+// `si`: a follow-up, asked when an earlier answer holds one of these options (core/interview.ts), even
+// outside `profils` (Ryan, 29 octobre : des questions qui s'adaptent à la réponse précédente).
+export type Question = { id: string; kind: "texte" | "choix" | "multi" | "mots"; options?: readonly string[]; max?: number; profils?: readonly Profil[]; si?: { q: string; any: readonly string[] } };
+const VITRINE: Profil[] = ["restaurant", "commerce", "beaute", "artisan", "petite-entreprise"];
 export const QUESTIONS: readonly Question[] = [
   { id: "nom", kind: "texte", max: 60 },
   { id: "activite", kind: "texte", max: 200 },
-  { id: "specialite", kind: "texte", max: 200, profils: ["restaurant", "commerce", "petite-entreprise", "createur"] },
-  { id: "evenements", kind: "texte", max: 200, profils: ["ecole"] },
+  { id: "specialite", kind: "texte", max: 200, profils: ["restaurant", "commerce", "beaute", "coach", "artisan", "freelance", "petite-entreprise", "createur"] },
   { id: "envie", kind: "texte", max: 200, profils: ["debutant"] },
-  { id: "frein", kind: "multi", options: ["sujet", "camera", "temps", "montage", "idees"], profils: ["debutant"] },
+  { id: "frein", kind: "multi", options: ["sujet", "camera", "temps", "montage", "idees"], profils: ["debutant", "artisan", "freelance"] },
   { id: "regles", kind: "texte", max: 300, profils: ["grande-entreprise"] },
   { id: "public", kind: "texte", max: 200 },
   { id: "objectifs", kind: "multi", options: ["clients", "reservations", "ventes", "notoriete", "recrutement", "communaute", "evenements", "inscriptions"] },
+  { id: "creneaux", kind: "texte", max: 160, si: { q: "objectifs", any: ["reservations"] } },
+  { id: "offre", kind: "texte", max: 200, si: { q: "objectifs", any: ["ventes", "inscriptions"] } },
+  { id: "postes", kind: "texte", max: 160, si: { q: "objectifs", any: ["recrutement"] } },
+  { id: "evenements", kind: "texte", max: 200, profils: ["ecole"], si: { q: "objectifs", any: ["evenements"] } },
+  { id: "visage", kind: "multi", options: ["moi", "mains", "equipe", "clients", "produits"] },
   { id: "valeurs", kind: "mots", max: 3 },
   { id: "ton", kind: "choix", options: ["chaleureux", "expert", "drole", "chic", "energique", "direct"] },
   { id: "eviter", kind: "texte", max: 200 },
   { id: "references", kind: "texte", max: 200 },
   { id: "plateformes", kind: "multi", options: ["instagram", "tiktok", "youtube", "linkedin", "facebook"] },
   { id: "frequence", kind: "choix", options: ["semaine", "plusieurs", "jour", "inconnu"] },
-  { id: "adresse", kind: "texte", max: 120, profils: ["restaurant", "commerce", "petite-entreprise"] },
+  { id: "adresse", kind: "texte", max: 120, profils: VITRINE },
 ];
-export const questionsFor = (p: Profil) => QUESTIONS.filter(q => !q.profils || q.profils.includes(p));
+// Every question this profile may be asked (follow-ups included); core/interview.ts picks the ones
+// the answers call for.
+export const questionsFor = (p: Profil) => QUESTIONS.filter(q => !q.profils || q.profils.includes(p) || q.si);
 
 export type Answers = Record<string, string | string[]>;
 export type Kit = { couleurs: string[]; polices: { titres: string; texte: string }; logo: boolean };
@@ -248,10 +266,30 @@ const BASES: Record<Profil, Base> = {
     idees: [idee("Le plat du jour en 15 secondes", "reel", "Le format qui fait réserver"), idee("Le marché du matin", "story", "Les produits frais, sans parler"), idee("Le coup de feu du midi", "reel", "Le rythme du service sur la musique"), idee("Le menu de la semaine", "affiche", "À poster et à imprimer"), idee("Un habitué raconte", "reel", "Un avis vaut mieux qu'une pub"), idee("La recette de la maison", "carrousel", "On la garde, on la partage")],
     regles: REGLES, a_eviter: ["Les plats froids ou mal éclairés", "Les textes sur l'assiette"],
   },
-  "petite-entreprise": {
+  artisan: {
     piliers: [{ titre: "Le savoir-faire", idee: "Les mains au travail, le geste précis" }, { titre: "Les réalisations", idee: "Le résultat, avant et après" }, { titre: "L'équipe", idee: "Qui fait quoi, et pourquoi on aime ça" }],
     idees: [idee("Un chantier en avant / après", "reel", "La preuve de ton travail"), idee("Le geste du jour", "story", "Gros plan des mains, sans parler"), idee("Présente l'équipe", "carrousel", "On fait confiance à des visages"), idee("La question qu'on te pose toujours", "reel", "Tu y réponds en 20 secondes"), idee("L'avis d'un client", "post", "La citation en grand"), idee("Ton offre du mois", "affiche", "Claire et à ta couleur")],
     regles: REGLES, a_eviter: ["Les photos de banque d'images", "Le jargon technique"],
+  },
+  beaute: {
+    piliers: [{ titre: "La transformation", idee: "Avant, pendant, après, sous la même lumière" }, { titre: "Le geste", idee: "La technique de près : la coupe, la pose, le soin" }, { titre: "Le salon", idee: "L'accueil, l'ambiance, les clientes qui reviennent" }],
+    idees: [idee("La transformation de la semaine", "reel", "L'avant / après, révélé sur le temps fort"), idee("Le geste en gros plan", "reel", "Hypnotique, sans parler"), idee("Les créneaux libres demain", "story", "Remplit les trous du planning"), idee("La question qu'on te pose au fauteuil", "reel", "Ton conseil en 20 secondes"), idee("La carte des prestations", "affiche", "Claire, à ta couleur, prix visibles"), idee("Une cliente fidèle raconte", "post", "La confiance avant la réservation")],
+    regles: [...REGLES.slice(0, 3), "Avant et après sous la même lumière, même cadrage"], a_eviter: ["Les filtres qui lissent la peau", "Les avant / après truqués"],
+  },
+  coach: {
+    piliers: [{ titre: "La méthode", idee: "Un conseil concret, applicable tout de suite" }, { titre: "Les résultats", idee: "Les progrès de tes élèves, avec leur accord" }, { titre: "Toi", idee: "Ton entraînement, ta journée, pourquoi tu fais ce métier" }],
+    idees: [idee("L'erreur que tout le monde fait", "reel", "Accroche forte, solution en 3 temps"), idee("Un exercice en 15 secondes", "reel", "Utile, donc sauvegardé"), idee("Le progrès d'un élève", "carrousel", "La preuve que ta méthode marche"), idee("Ta séance du matin", "story", "Caméra à la main, sans mise en scène"), idee("Réponds à une question d'abonné", "reel", "Ils t'écrivent le sujet"), idee("Ton offre du moment", "post", "Ce que tu proposes, pour qui, comment réserver")],
+    regles: [...REGLES.slice(0, 3), "Un seul conseil par vidéo, dit en une phrase"], a_eviter: ["Les promesses de résultat chiffrées", "Le ton donneur de leçons"],
+  },
+  freelance: {
+    piliers: [{ titre: "Ton expertise", idee: "Ce que tu sais et que tes clients ignorent" }, { titre: "Tes projets", idee: "Le problème, ta façon de faire, le résultat" }, { titre: "Ta façon de travailler", idee: "Ton bureau, tes outils, ton regard" }],
+    idees: [idee("Le conseil que tes clients paient", "reel", "Face caméra, posé, 30 secondes"), idee("Un projet de A à Z", "carrousel", "Le problème, puis ta réponse"), idee("Ton bureau un mardi matin", "story", "On fait confiance à quelqu'un qu'on voit"), idee("Ce que je refuse de faire", "reel", "Montre tes exigences"), idee("L'avis d'un client", "post", "La citation en grand"), idee("Tes disponibilités du mois", "story", "Simple et direct")],
+    regles: [...REGLES.slice(0, 3), "La phrase entière en bas quand tu parles"], a_eviter: ["Le jargon de ton métier", "Les visuels de banque d'images"],
+  },
+  "petite-entreprise": {
+    piliers: [{ titre: "L'équipe", idee: "Les personnes derrière l'entreprise, chacune son métier" }, { titre: "Les clients", idee: "Ce que vous changez pour eux, avec leurs mots" }, { titre: "Les coulisses", idee: "Un projet, une livraison, une journée chez vous" }],
+    idees: [idee("Présente un collègue en 20 secondes", "reel", "On achète à des visages"), idee("Une journée dans l'entreprise", "reel", "Un plan par heure"), idee("Le projet dont vous êtes fiers", "carrousel", "Le avant, le comment, le après"), idee("Un client témoigne", "reel", "Plus crédible qu'une pub"), idee("On recrute", "post", "Le poste, l'équipe, l'ambiance"), idee("L'annonce du mois", "affiche", "Une nouveauté, une date, une adresse")],
+    regles: REGLES, a_eviter: ["Le ton corporate froid", "Les photos de banque d'images"],
   },
   "grande-entreprise": {
     piliers: [{ titre: "Les gens", idee: "Les collaborateurs et leur métier, à visage humain" }, { titre: "Les preuves", idee: "Les clients, les résultats, les coulisses" }, { titre: "Les annonces", idee: "Nouveautés, événements, recrutements" }],
@@ -287,3 +325,6 @@ export const charteOf = (d: Dna | null, logo: boolean) => ({
   logo: logo ? { asset: "logo", position: "fin", taille: 0.18 } : null,
   duo: duoFor(d),
 });
+
+// For the tests: every profile has its own hand-written carnet.
+export const BASES_FOR_TEST = Object.keys(BASES);

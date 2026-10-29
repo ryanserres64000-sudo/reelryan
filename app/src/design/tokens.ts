@@ -195,6 +195,15 @@ export const tokens = {
       "stiffness": 260,
       "mass": 1
     }
+  },
+  "marques": {
+    "$doc": "Couleurs imposées par la charte d'une autre marque (le logo Google du bouton de connexion), jamais ailleurs.",
+    "google": [
+      "#4285F4",
+      "#34A853",
+      "#FBBC05",
+      "#EA4335"
+    ]
   }
 } as const;
 

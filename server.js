@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { handleGenerate, readJson } from "./lib/claude.js";
 import { handleMontage } from "./lib/montage.js";
 import { handleAdn } from "./lib/adn.js";
+import { handleEntretien } from "./lib/entretien.js";
 import { handleRetouche } from "./lib/retouche.js";
 import { handleLegende } from "./lib/legende.js";
 import { handleVisuel } from "./lib/visuel.js";
@@ -15,6 +16,7 @@ import { handleReseau, handleReseauCallback } from "./lib/reseaux.js";
 import { handleCompte, handleOffres, handleQuota } from "./lib/quota.js";
 import { checkAccess } from "./lib/claude.js";
 import { handleAchat, handleNotification } from "./lib/apple.js";
+import { handleAuth, handleAuthCallback } from "./lib/auth.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(here, "public");
@@ -41,6 +43,12 @@ http.createServer(async (req, res) => {
     try { body = await readJson(req, 100_000); } catch { res.statusCode = 413; return res.end(); }
     return url.pathname === "/api/achat" ? handleAchat(req, res, body) : handleNotification(req, res, body);
   }
+  if (url.pathname === "/api/auth/callback") return handleAuthCallback(req, res);
+  if (url.pathname === "/api/auth") {
+    let body = null;
+    if (req.method === "POST") { try { body = await readJson(req, 20_000); } catch { res.statusCode = 413; return res.end(); } }
+    return handleAuth(req, res, body);
+  }
   if (url.pathname === "/api/instagram/callback") return handleCallback(req, res);
   const reseau = /^\/api\/reseau\/(tiktok|youtube)(\/callback)?$/.exec(url.pathname);
   if (reseau) {
@@ -54,7 +62,7 @@ http.createServer(async (req, res) => {
     if (req.method === "POST") { try { body = await readJson(req, 6_000_000); } catch { res.statusCode = 413; return res.end(); } }
     return handleInstagram(req, res, body);
   }
-  if (url.pathname === "/api/generate" || url.pathname === "/api/montage" || url.pathname === "/api/adn" || url.pathname === "/api/retouche" || url.pathname === "/api/legende" || url.pathname === "/api/visuel" || url.pathname === "/api/voix") {
+  if (url.pathname === "/api/generate" || url.pathname === "/api/montage" || url.pathname === "/api/adn" || url.pathname === "/api/entretien" || url.pathname === "/api/retouche" || url.pathname === "/api/legende" || url.pathname === "/api/visuel" || url.pathname === "/api/voix") {
     if (req.method !== "POST") { res.statusCode = 405; return res.end(); }
     let body;
     try { body = await readJson(req, url.pathname === "/api/montage" ? 4_500_000 : url.pathname === "/api/adn" || url.pathname === "/api/retouche" || url.pathname === "/api/legende" ? 200_000 : url.pathname === "/api/visuel" ? 1_000_000 : undefined); } catch {
@@ -62,6 +70,7 @@ http.createServer(async (req, res) => {
       return res.end(JSON.stringify({ error: "prompt_too_large", message: "Images trop lourdes." }));
     }
     if (url.pathname === "/api/adn") return handleAdn(req, res, body);
+    if (url.pathname === "/api/entretien") return handleEntretien(req, res, body);
     if (url.pathname === "/api/retouche") return handleRetouche(req, res, body);
     if (url.pathname === "/api/legende") return handleLegende(req, res, body);
     if (url.pathname === "/api/visuel") return handleVisuel(req, res, body);

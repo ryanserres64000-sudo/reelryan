@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { fetch } from "expo/fetch";
 import { emptyUsage, monthOf } from "../../core/plans";
+import { deleteSession } from "./auth/session";
 import { clearConsent } from "./consent";
 import { SERVER, serverHeaders } from "./flow/server";
 import type { Plans } from "./plans/state";
@@ -15,6 +16,8 @@ export async function deleteAccount(p: Plans): Promise<{ server: boolean; plans:
   if (SERVER.url) {
     try { server = (await fetch(`${SERVER.url}/api/compte`, { method: "DELETE", headers: serverHeaders.get() })).ok; } catch { server = false; }
   }
+  // The account itself (lib/auth.js): the record, its e-mail, the link to this iPhone, and the session.
+  server = (await deleteSession()) && server;
   try { await AsyncStorage.multiRemove(WIPED); } catch { /* nothing left to read them */ }
   await clearConsent();
   return { server, plans: { ...p, usage: { ...emptyUsage(monthOf(new Date())), gratuit: p.usage.gratuit } } };

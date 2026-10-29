@@ -51,6 +51,7 @@ import { LIMITS, mapLimit } from "../../../core/progress";
 import { aiUrl } from "./server";
 import { canRead, montageBody, thumbnailOf, triageAny } from "./triage";
 import { Onboarding } from "./Onboarding";
+import { loadSession } from "../auth/session";
 import { clearDraft, loadDraft, saveDraft, type FlowDraft } from "./draft";
 import type { Draft } from "../../../core/draft";
 import type { TimelineV1 } from "../../../core/timeline";
@@ -59,7 +60,10 @@ import type { Brief, MontageResult, Music, Rush, Trade } from "./types";
 
 type Step = "home" | "creations" | "ideas" | "player" | "brand" | "import" | "brief" | "music" | "generation" | "result" | "editor" | "catalogue" | "visual" | "visual-editor" | "export" | "paywall" | "consent" | "settings" | "stats";
 // The brief's trade chips (lot 2) start from the sign-up profile.
-const TRADE_OF: Record<Profil, Trade> = { commerce: "commerce", restaurant: "restaurant", "petite-entreprise": "artisan", "grande-entreprise": "freelance", ecole: "freelance", createur: "freelance", debutant: "freelance" };
+const TRADE_OF: Record<Profil, Trade> = {
+  restaurant: "restaurant", commerce: "commerce", beaute: "commerce", coach: "coach", artisan: "artisan", freelance: "freelance",
+  "petite-entreprise": "artisan", "grande-entreprise": "freelance", ecole: "freelance", createur: "freelance", debutant: "freelance",
+};
 const START_BRIEF: Brief = { text: "", trade: "restaurant", goal: null, tone: null, duration: 30, platforms: ["reels", "tiktok", "shorts"], cta: null };
 
 // Sign-up first (lot 4: brand DNA), then the core path of lot 2: import → brief → music → generation →
@@ -68,7 +72,8 @@ const START_BRIEF: Brief = { text: "", trade: "restaurant", goal: null, tone: nu
 export function Flow() {
   const [step, setStep] = useState<Step>(() => typeof location !== "undefined" && location.hash === "#catalogue" ? "catalogue" : "home");
   const [brand, setBrand] = useState<BrandDna | null | undefined>(undefined);
-  useEffect(() => { Promise.all([loadBrand(), loadConsent()]).then(([b]) => { setBrand(b); if (!b) setStep(s => (s === "catalogue" ? s : "brand")); else setBrief(x => ({ ...x, trade: TRADE_OF[b.profil] })); }); }, []);
+  const [signedIn, setSignedIn] = useState(false);
+  useEffect(() => { Promise.all([loadBrand(), loadConsent(), loadSession()]).then(([b, , s]) => { setSignedIn(!!s); setBrand(b); if (!b) setStep(s => (s === "catalogue" ? s : "brand")); else setBrief(x => ({ ...x, trade: TRADE_OF[b.profil] })); }); }, []);
   // Sample rushes only on the web preview: on the iPhone, the person's own footage or nothing.
   const [rushes, setRushes] = useState<Rush[]>(canRead() ? [] : SAMPLE_RUSHES);
   const [demo, setDemo] = useState(!canRead());
@@ -197,7 +202,7 @@ export function Flow() {
   if (brand === undefined && step !== "catalogue") return null;
   switch (step) {
     case "catalogue": return <DesignCatalogue />;
-    case "brand": return <Onboarding initial={brand ?? null} onLater={() => setStep("home")} onDone={b => { setBrand(b); setBrief(x => ({ ...x, trade: TRADE_OF[b.profil] })); setStep("home"); }} />;
+    case "brand": return <Onboarding initial={brand ?? null} signedIn={signedIn} onSignedIn={() => setSignedIn(true)} onLater={() => setStep("home")} onDone={b => { setBrand(b); setBrief(x => ({ ...x, trade: TRADE_OF[b.profil] })); setStep("home"); }} />;
     case "home": return tabs("home", <HomeScreen brand={brand ?? null} plan={plan} today={ideaOfTheDay(plan, new Date())} recents={creations}
       made={[...new Set(creations.map(x => dayOf(x.at)))]} freeLeft={plans && !plans.pro ? verdict(plans, "montage").restant : null}
       draft={draft} onResume={() => draft && resume(draft)}
@@ -265,7 +270,7 @@ export function Flow() {
     case "stats": return <StatsScreen memory={brand?.memory ?? null} reels={reels.map(r => ({ id: r.id, at: r.at, duree: r.timeline.duree }))} onBack={() => { loadCaptures().then(c => setLastViews(c.find(p => p.type === "reel")?.vues ?? lastViews)); setStep("home"); }}
       onMemory={m => { if (!brand) return; const b = { ...brand, memory: m }; setBrand(b); saveBrand(b); }} />;
     case "settings": return <SettingsScreen plans={plans} onPlans={updatePlans} onBack={() => setStep("home")}
-      onDeleted={() => { setBrand(null); setVisuals([]); setVisual(null); setResult(null); setStep("brand"); }} />;
+      onDeleted={() => { setBrand(null); setSignedIn(false); setVisuals([]); setVisual(null); setResult(null); setStep("brand"); }} />;
     case "export": {
       const v = result?.r.variantes[editing];
       return v ? <ExportScreen timeline={v.timeline} byAi={!result?.r.manuel} brief={composeBrief(brief)} brand={brand ?? null} style={montageStyle(brand?.dna ?? null, brand?.memory?.rules.map(r => r.text) ?? [])} onBack={() => setStep("result")}

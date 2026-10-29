@@ -49,10 +49,11 @@ jobs:
       - name: Checks (types, hard-coded values, tests)
         run: npx tsc --noEmit -p . && node ../design/check-hardcoded.mjs && (cd .. && npm test)
       # The build runs on Expo's servers, which do not see this job's variables: the server address,
-      # and the App Store Connect key used to send to TestFlight, go into eas.json for this run only.
+      # « Se connecter avec Apple » once the capability is on (variable MADA_APPLE_SIGNIN=1), and the App
+      # Store Connect key used to send to TestFlight, go into eas.json for this run only.
       - name: Server address for the app
-        run: node -e 'const f="eas.json",j=JSON.parse(require("fs").readFileSync(f));const e=Object.fromEntries([["EXPO_PUBLIC_MADA_API",process.env.API],["EXPO_PUBLIC_MADA_ACCESS",process.env.ACCESS]].filter(x=>x[1]));const b=j.build[process.env.PROFIL=="envoi-seul"?"production":process.env.PROFIL];if(b&&Object.keys(e).length)b.env={...b.env,...e};if(process.env.KEY_ID){j.submit.production.ios={...j.submit.production.ios,ascApiKeyPath:process.env.RUNNER_TEMP+"/asc.p8",ascApiKeyId:process.env.KEY_ID,ascApiKeyIssuerId:process.env.ISSUER_ID}};require("fs").writeFileSync(f,JSON.stringify(j,null,2))'
-        env: { PROFIL: "${{ inputs.profil }}", API: "${{ secrets.MADA_API_URL }}", ACCESS: "${{ secrets.MADA_ACCESS }}", KEY_ID: "${{ secrets.ASC_API_KEY_ID }}", ISSUER_ID: "${{ secrets.ASC_API_ISSUER_ID }}" }
+        run: node -e 'const f="eas.json",j=JSON.parse(require("fs").readFileSync(f));const e=Object.fromEntries([["EXPO_PUBLIC_MADA_API",process.env.API],["EXPO_PUBLIC_MADA_ACCESS",process.env.ACCESS],["EXPO_PUBLIC_APPLE_SIGNIN",process.env.APPLE]].filter(x=>x[1]));const b=j.build[process.env.PROFIL=="envoi-seul"?"production":process.env.PROFIL];if(b&&Object.keys(e).length)b.env={...b.env,...e};if(process.env.KEY_ID){j.submit.production.ios={...j.submit.production.ios,ascApiKeyPath:process.env.RUNNER_TEMP+"/asc.p8",ascApiKeyId:process.env.KEY_ID,ascApiKeyIssuerId:process.env.ISSUER_ID}};require("fs").writeFileSync(f,JSON.stringify(j,null,2))'
+        env: { PROFIL: "${{ inputs.profil }}", API: "${{ secrets.MADA_API_URL }}", ACCESS: "${{ secrets.MADA_ACCESS }}", APPLE: "${{ vars.MADA_APPLE_SIGNIN }}", KEY_ID: "${{ secrets.ASC_API_KEY_ID }}", ISSUER_ID: "${{ secrets.ASC_API_ISSUER_ID }}" }
       - name: App Store Connect key
         if: inputs.profil != 'simulateur'
         run: printf '%s' "$ASC_API_KEY_P8" > "$RUNNER_TEMP/asc.p8"

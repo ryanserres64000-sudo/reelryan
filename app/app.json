@@ -11,6 +11,7 @@
     "ios": {
       "bundleIdentifier": "com.madastudio.app",
       "supportsTablet": false,
+      "usesAppleSignIn": true,
       "infoPlist": {
         "LSSupportsOpeningDocumentsInPlace": false,
         "CFBundleDocumentTypes": [

@@ -4,13 +4,15 @@ import { fr } from "../../copy/fr";
 import { tokens } from "../tokens";
 import { Text } from "../Text";
 import { useTheme } from "../theme";
+import { Gradient } from "./Gradient";
 
-type Props = { rushes: number; kept: number[]; variants?: number; step: number; beat?: number; thumbnails?: ImageSourcePropType[] };
+type Props = { rushes: number; kept: number[]; variants?: number; step: number; beat?: number; thumbnails?: ImageSourcePropType[]; percent?: number; detail?: string };
 
 // The wait shows the work (étude, ch. 6 §3 « Motion design » ; ch. 5 §4): the rushes drop onto a strip,
 // a lavender line sweeps each one (the triage), the kept shots light up in gold on the music's beat.
 // With « Réduire les animations », only fades.
-export function GenerationView({ rushes, kept, variants = 3, step, beat = 0.5, thumbnails = [] }: Props) {
+// `percent` (core/progress.ts) fills a bar under the strip, with `detail` beside it (« Rush 3 sur 12 »).
+export function GenerationView({ rushes, kept, variants = 3, step, beat = 0.5, thumbnails = [], percent, detail }: Props) {
   const { c, motion, reduceMotion } = useTheme();
   const steps = fr.generation.steps(rushes, kept.length, variants);
   const anim = useMemo(() => Array.from({ length: rushes }, () => ({ drop: new Animated.Value(0), sweep: new Animated.Value(0), keep: new Animated.Value(0), pulse: new Animated.Value(0) })), [rushes]);
@@ -62,6 +64,17 @@ export function GenerationView({ rushes, kept, variants = 3, step, beat = 0.5, t
           </Animated.View>
         ))}
       </View>
+      {percent !== undefined ? (
+        <View style={styles.progress} accessible accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: percent }}>
+          <View style={styles.progressHead}>
+            <Text variant="headline" tone="ai">{fr.generation.percent(percent)}</Text>
+            {detail ? <Text variant="caption" tone="textMuted">{detail}</Text> : null}
+          </View>
+          <View style={[styles.track, { backgroundColor: c.surfaceRaised }]}>
+            <View style={[styles.fill, { width: `${Math.max(2, Math.min(100, percent))}%` }]}><Gradient /></View>
+          </View>
+        </View>
+      ) : null}
       <View style={styles.steps} accessibilityLiveRegion="polite">
         {steps.map((s, i) => i > step ? null : (
           <View key={i} style={styles.step}>
@@ -80,6 +93,10 @@ const styles = StyleSheet.create({
   strip: { flexDirection: "row", gap: tokens.space.xxs, height: tokens.size.frise },
   thumb: { flex: 1, borderRadius: tokens.radius.chip, overflow: "hidden" },
   sweep: { position: "absolute", top: 0, bottom: 0, width: tokens.size.selection },
+  progress: { gap: tokens.space.xs },
+  progressHead: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between", gap: tokens.space.xs },
+  track: { height: tokens.size.textBar, borderRadius: tokens.radius.full, overflow: "hidden" },
+  fill: { height: tokens.size.textBar, borderRadius: tokens.radius.full, overflow: "hidden" },
   steps: { gap: tokens.space.xs },
   step: { flexDirection: "row", alignItems: "center", gap: tokens.space.xs, minHeight: tokens.size.touch / 2 },
   orb: { width: tokens.space.sm, height: tokens.space.sm, borderRadius: tokens.radius.full },

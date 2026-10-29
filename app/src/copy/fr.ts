@@ -32,6 +32,10 @@ export const fr = {
     ],
     madeIn: (s: number) => `Monté en ${secondes(s)}`,
     cancel: "Arrêter",
+    percent: (p: number) => `${p} %`,
+    reading: (read: number, total: number) => `Rush ${Math.min(read + 1, total)} sur ${total}`,
+    sending: "J'envoie les images clés",
+    elapsed: (s: number) => (s < 60 ? `${Math.floor(s)} s` : `${Math.floor(s / 60)} min ${String(Math.floor(s % 60)).padStart(2, "0")}`),
   },
 
   result: {
@@ -852,6 +856,10 @@ export const fr = {
       server_config: "Le serveur de Ma DA n'est pas encore prêt pour l'IA. Réessaie un peu plus tard, ou monte à la main.",
       unauthorized: "Le serveur a refusé l'accès (code d'accès manquant). Ton brief et tes rushes sont gardés.",
       network: "Pas de connexion au serveur. Vérifie ton réseau, puis réessaie.",
+      timeout: "Le montage a pris trop de temps, je l'ai arrêté. Ton brief et tes rushes sont gardés : réessaie, ou garde moins de rushes.",
+      credits: "L'IA de Ma DA est en pause côté serveur (crédits épuisés). Ton brief et tes rushes sont gardés : réessaie plus tard, ou monte à la main.",
+      rate_limited: "L'IA est très demandée en ce moment. Réessaie dans une minute.",
+      server_error: "Le serveur de l'IA a eu un problème. Ton brief et tes rushes sont gardés : réessaie.",
     },
   },
 

@@ -4,6 +4,7 @@ import { ImageManipulator, SaveFormat } from "expo-image-manipulator";
 import * as VideoThumbnails from "expo-video-thumbnails";
 import { Platform } from "react-native";
 import { charteOf, montageStyle } from "../../../core/brand";
+import { candidateEvery, LIMITS, sceneStep, withTimeout } from "../../../core/progress";
 import { badgesOf, candidateTimes, judge, MAX_FRAMES, pickFrames, rushForAi, type Measure, type Probed } from "../../../core/triage";
 import type { Brand } from "../brand/types";
 import { toMusique } from "../music/musique";
@@ -28,10 +29,10 @@ export async function triageRush(r: Rush): Promise<Rush> {
   const m = native();
   if (!m || !r.uri) return r;
   const info = await m.probe(r.uri);
-  const scenes = info.photo ? [] : await m.scenes(r.uri, 0.5, SCENE_THRESHOLD).catch(() => []);
+  const scenes = info.photo ? [] : await m.scenes(r.uri, sceneStep(info.duration), SCENE_THRESHOLD).catch(() => []);
   const voix = info.hasAudio ? await m.voice(r.uri).catch(() => [] as [number, number][]) : [];
   const probed: Probed = { ...info, id: r.id, scenes, voix };
-  const frames = judge(r.id, await m.measure(r.uri, info.photo ? [0] : candidateTimes(info.duration, scenes), info.photo), scenes);
+  const frames = judge(r.id, await m.measure(r.uri, info.photo ? [0] : candidateTimes(info.duration, scenes, candidateEvery(info.duration)), info.photo), scenes);
   const triage: Triaged = { probed, frames };
   return { ...r, duration: info.duration, photo: info.photo, sound: info.hasAudio, badges: badgesOf(frames, voix), triage };
 }
@@ -65,7 +66,10 @@ export async function triageLite(r: Rush): Promise<Rush> {
 
 // Vision when compiled, the light reading otherwise; nothing on the web preview, which keeps its samples.
 export const canRead = () => Platform.OS !== "web";
-export const triageAny = (r: Rush) => (canTriage() ? triageRush(r).catch(() => triageLite(r)) : triageLite(r));
+// Each reading has a time limit (core/progress.ts): a rush Vision cannot read in time falls back to the
+// light reading, never to an endless wait.
+const lite = (r: Rush) => withTimeout(triageLite(r), LIMITS.liteMs);
+export const triageAny = (r: Rush) => (canTriage() ? withTimeout(triageRush(r), LIMITS.visionMs).catch(() => lite(r)) : lite(r));
 
 // What the server needs: the rushes, the 15 to 30 frames kept, read only now (after consent).
 export async function montageBody(rushes: Rush[], brief: Brief, music: Music, brand: Brand | null, rules: string[]) {

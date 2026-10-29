@@ -23,4 +23,5 @@ export type MontageResult = { variantes: Variant[]; cout_usd: number; temps_s: n
 export const LIMITS = { minRushes: 3, maxRushes: 30, freeVideo: 60 } as const;
 
 // Runs one AI edit: the sample one for now, POST /api/montage later (flow/api.ts).
-export type Runner = (onStep: (step: number) => void, signal: AbortSignal) => Promise<MontageResult>;
+// `onRead(read, total)` counts the rushes read on the iPhone during step 0.
+export type Runner = (onStep: (step: number) => void, signal: AbortSignal, onRead: (read: number, total: number) => void) => Promise<MontageResult>;

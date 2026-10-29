@@ -3,7 +3,10 @@
 // only two drawn test frames. Run by .github/workflows/diag-serveur.yml with MADA_API_URL and MADA_ACCESS.
 import { readFileSync } from "node:fs";
 
-const url = (process.env.MADA_API_URL || "https://reelryan.vercel.app").replace(/\/$/, "");
+const raw = process.env.MADA_API_URL ?? "";
+// The secret's shape without printing it (GitHub hides it): the app is built with this exact value.
+console.log("MADA_API_URL :", JSON.stringify({ longueur: raw.length, debut_https: raw.startsWith("https://"), debut_http: raw.startsWith("http"), espaces: /\s/.test(raw), fin_barre: raw.trim().endsWith("/"), contient_api: raw.includes("/api"), contient_vercel: raw.includes("vercel.app") }));
+const url = "https://reelryan.vercel.app";
 const headers = { "content-type": "application/json", "x-mada-device": `diag-${Date.now().toString(36)}`, ...(process.env.MADA_ACCESS ? { "x-rr-access": process.env.MADA_ACCESS } : {}) };
 const frames = JSON.parse(readFileSync(new URL("./frames.json", import.meta.url), "utf8"));
 

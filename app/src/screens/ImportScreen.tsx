@@ -1,6 +1,7 @@
 import * as ImagePicker from "expo-image-picker";
 import { useState } from "react";
 import { StyleSheet, View, useWindowDimensions } from "react-native";
+import { keepMedia } from "../media/keep";
 import { fr } from "../copy/fr";
 import { Button, RushCard, Screen, Text, tokens, useTheme } from "../design";
 import { LIMITS, type Rush } from "../flow/types";
@@ -32,8 +33,9 @@ export function ImportScreen({ rushes, selected, pro, onRushes, onSelect, onNext
     try {
       const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["videos", "images"], allowsMultipleSelection: true, selectionLimit: LIMITS.maxRushes - selected.length, orderedSelection: true });
       if (res.canceled) return;
+      const stamp = Date.now().toString(36);
       const added: Rush[] = res.assets.map((a, i) => ({
-        id: `p${Date.now().toString(36)}${i}`, uri: a.uri, photo: a.type !== "video", sound: a.type === "video", badges: [], width: a.width, height: a.height,
+        id: `p${stamp}${i}`, uri: keepMedia(a.uri, `p${stamp}${i}`), photo: a.type !== "video", sound: a.type === "video", badges: [], width: a.width, height: a.height,
         duration: a.type === "video" && a.duration ? a.duration / 1000 : 4,
       }));
       onRushes(demo ? added : [...rushes, ...added]);

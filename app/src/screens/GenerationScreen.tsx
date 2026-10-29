@@ -9,12 +9,14 @@ type Props = {
   rushes: number; kept: number[]; variants: number;
   run: Runner;
   onDone: (r: MontageResult, seconds: number) => void; onCancel: () => void;
+  // When the AI edit fails: the rushes in order, then everything by hand (no AI, nothing lost).
+  onManual?: () => void;
 };
 
 // Step 4 (étude, ch. 5 §4): the steps are said in the present tense while they happen; « Arrêter » stays
 // available, and a failure keeps the brief and the rushes. A percentage and the time spent show that
 // it moves (Ryan, 29 octobre 2026), and the whole edit has a time limit (core/progress.ts).
-export function GenerationScreen({ rushes, kept, variants, run, onDone, onCancel }: Props) {
+export function GenerationScreen({ rushes, kept, variants, run, onDone, onCancel, onManual }: Props) {
   const [step, setStep] = useState(0);
   const [read, setRead] = useState({ read: 0, total: rushes });
   const [failed, setFailed] = useState<string | null>(null);
@@ -49,7 +51,7 @@ export function GenerationScreen({ rushes, kept, variants, run, onDone, onCancel
 
   return (
     <Screen title={fr.generationScreen.title} footer={failed
-      ? <><Button label={fr.nav.retry} onPress={() => setAttempt(a => a + 1)} /><Button variant="secondary" label={fr.nav.back} onPress={onCancel} /></>
+      ? <><Button label={fr.nav.retry} onPress={() => setAttempt(a => a + 1)} />{onManual ? <Button variant="secondary" label={fr.generationScreen.manual} onPress={onManual} /> : null}<Button variant="secondary" label={fr.nav.back} onPress={onCancel} /></>
       : <Button variant="secondary" label={fr.generation.cancel} onPress={onCancel} disabled={step >= 4} />}>
       <View style={styles.body}>
         {failed ? null : <LogoWorking step={step} />}

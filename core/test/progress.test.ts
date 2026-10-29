@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { candidateEvery, mapLimit, percent, sceneStep, Timeout, withTimeout } from "../progress.ts";
+import { candidateEvery, mapLimit, percent, queue, sceneStep, Timeout, visionLimitMs, withTimeout } from "../progress.ts";
 
 test("le pourcentage suit les rushes lus, puis avance avec le temps sans dépasser son étape", () => {
   assert.equal(percent(0, { read: 0, total: 10 }), 0);
@@ -27,4 +27,21 @@ test("délai dépassé et lecture deux par deux", async () => {
   const out = await mapLimit([1, 2, 3, 4, 5], 2, async x => { running++; max = Math.max(max, running); await new Promise(r => setTimeout(r, 5)); running--; return x * 2; });
   assert.deepEqual(out, [2, 4, 6, 8, 10]);
   assert.equal(max, 2);
+});
+
+test("une file partagée ne lance jamais plus de travaux que sa limite, et les finit tous", async () => {
+  const run = queue(2);
+  let now = 0, most = 0;
+  const job = (v: number) => run(async () => { now++; most = Math.max(most, now); await new Promise(r => setTimeout(r, 5)); now--; return v; });
+  const out = await Promise.all([1, 2, 3, 4, 5].map(job));
+  assert.deepEqual(out, [1, 2, 3, 4, 5]);
+  assert.equal(most, 2);
+  await assert.rejects(run(async () => { throw new Error("x"); }), /x/);
+  assert.equal(await run(async () => 7), 7, "une erreur ne bloque pas la file");
+});
+
+test("Vision a peu de temps pour un rush court, jamais plus de 45 s", () => {
+  assert.equal(visionLimitMs(3), 10_000);
+  assert.equal(visionLimitMs(20), 26_000);
+  assert.equal(visionLimitMs(600), 45_000);
 });

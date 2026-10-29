@@ -892,6 +892,7 @@ export const fr = {
   },
 
   creations: {
+    missing: (n: number) => (n > 1 ? `${n} vidéos de ce Reel ne sont plus sur ton iPhone : remplace-les avant d'exporter.` : "Une vidéo de ce Reel n'est plus sur ton iPhone : remplace-la avant d'exporter."),
     title: "Créations",
     filters: { all: "Tout", reels: "Reels", visuals: "Visuels" },
     empty: "Rien ici pour l'instant",
@@ -1009,6 +1010,7 @@ export const fr = {
   },
 
   generationScreen: {
+    manual: "Monter moi-même avec ces vidéos",
     title: "Je monte ton Reel",
     error: "Le montage n'a pas abouti. Ton brief et tes rushes sont gardés.",
     errors: {
@@ -1036,6 +1038,7 @@ export const fr = {
 
   // Full control over an edit (lot 5): everything by hand, or in a sentence.
   editor: {
+    keptOnBack: "Tes retouches sont gardées.",
     title: "À toi la main",
     detail: "Touche un plan sur la frise pour le régler. Ce que tu changes à la main, je n'y touche plus.",
     open: "Modifier moi-même",

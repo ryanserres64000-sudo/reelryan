@@ -1,4 +1,5 @@
 import { requireOptionalNativeModule } from "expo";
+import { File } from "expo-file-system";
 import type { ExportFile } from "../../../core/export";
 import type { TimelineV1 } from "../../../core/timeline";
 import type { Sources } from "../video/sources";
@@ -12,12 +13,21 @@ export type Exported = { uri: string; asset: string | null; photos: boolean };
 type Native = { exportVideo(timeline: TimelineV1, file: ExportFile, sources: Sources): Promise<Partial<Exported> & { uri: string }> };
 const native = () => requireOptionalNativeModule<Native>("MadaVideo");
 export const canExportVideo = () => !!native();
+// A real second of 1080p H.264 weighs far more; under this the encoder wrote nothing usable.
+const MIN_BYTES = 10_000;
 
 export async function exportVideos(t: TimelineV1, files: ExportFile[], sources: Sources, onFile: (i: number) => void): Promise<Exported[]> {
   const m = native();
   if (!m) return [];
   const out: Exported[] = [];
-  for (const [i, f] of files.entries()) { onFile(i); const r = await m.exportVideo(t, f, sources); out.push({ uri: r.uri, asset: r.asset ?? null, photos: r.photos !== false }); }
+  for (const [i, f] of files.entries()) {
+    onFile(i);
+    const r = await m.exportVideo(t, f, sources);
+    // Done only when the file is really there and not empty (audit, phase 8): never a success on a call alone.
+    const made = new File(r.uri);
+    if (!made.exists || made.size < MIN_BYTES) throw new Error(`fichier vide (${made.exists ? made.size : 0} octets)`);
+    out.push({ uri: r.uri, asset: r.asset ?? null, photos: r.photos !== false });
+  }
   return out;
 }
 

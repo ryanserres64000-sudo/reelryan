@@ -49,6 +49,8 @@ import { SAMPLE_RUSHES, fakeMontage } from "./fake";
 import { streamMontage } from "./api";
 import { LIMITS, mapLimit } from "../../../core/progress";
 import { aiUrl } from "./server";
+import { mediaExists, sweepMedia } from "../media/keep";
+import { noteError } from "../diag";
 import { canRead, montageBody, thumbnailOf, triageAny } from "./triage";
 import { Onboarding } from "./Onboarding";
 import { loadSession } from "../auth/session";
@@ -90,6 +92,12 @@ export function Flow() {
   const [editorTl, setEditorTl] = useState<TimelineV1 | null>(null);
   const [draft, setDraft] = useState<Draft<FlowDraft> | null>(null);
   useEffect(() => { loadDraft().then(setDraft); }, []);
+  // Once the saved Reels and the draft are known, the rush files none of them uses are cleared.
+  useEffect(() => {
+    Promise.all([loadReels(), loadDraft()]).then(([rs, d]) => {
+      sweepMedia([...rs.flatMap(r => r.rushes.map(x => x.uri)), ...(d?.data.rushes ?? []).map(x => x.uri)].filter((u): u is string => !!u));
+    });
+  }, []);
   // Créations and Idées (étape 2 de la refonte): the saved Reels, the ideas refused for a month, the
   // id of the Reel on screen so each save updates the same creation, and a visual started from an idea.
   const [reels, setReels] = useState<SavedReel[]>([]);
@@ -107,6 +115,8 @@ export function Flow() {
   const [manualMode, setManualMode] = useState(false);
   const [seed, setSeed] = useState<{ brief: VisualBrief; photos: Photo[] } | null>(null);
   const toast = useToast();
+  // A Reel whose videos are no longer on the iPhone says so when it opens, instead of failing later.
+  const warnMissing = (rs: Rush[]) => { const n = rs.filter(r => !mediaExists(r.uri)).length; if (n) toast({ message: fr.creations.missing(n) }); };
   // The full-screen player (étape 3): where it was opened from, and the shot to retouch.
   const [playFrom, setPlayFrom] = useState<Step>("result");
   const [focusShot, setFocusShot] = useState(0);
@@ -145,6 +155,7 @@ export function Flow() {
     setRushes(x.rushes); setSelected(x.selected); setDemo(x.demo); setBrief(x.brief); setMusic(x.music);
     setResult(x.result); setEditing(x.editing); setKeptVersion(x.keptVersion); setEditorTl(x.editorTimeline);
     setDraft(null);
+    warnMissing(x.rushes.filter(r => x.selected.includes(r.id)));
     // Without a result (an older draft), the steps after it fall back to the music.
     setStep(!x.result && (d.step === "result" || d.step === "editor" || d.step === "export") ? "music" : d.step);
   };
@@ -161,6 +172,7 @@ export function Flow() {
   const openCreation = (x: Creation) => {
     if (x.kind === "visual") { const v = x.visual; setVisual({ id: v.id, result: { design: v.design, concept: "", relecture: [], byAi: true }, brief: v.brief, photos: v.photos }); setStep("visual-editor"); return; }
     const r = x.reel;
+    warnMissing(r.rushes.filter(x => r.selected.includes(x.id)));
     setRushes(r.rushes); setSelected(r.selected); setDemo(false); setReelId(r.id); setEditorTl(null); setKeptVersion(0);
     setResult({ r: { variantes: [{ timeline: r.timeline, duration: r.timeline.duree, warnings: [] }], cout_usd: 0, temps_s: 0, manuel: !r.byAi }, s: 0 });
     setEditing(0); setStep("result");
@@ -241,16 +253,18 @@ export function Flow() {
           let read = 0;
           onRead(0, chosen.length);
           const ready = await mapLimit(chosen, LIMITS.readers, async r => {
-            const t = r.triage ? r : await triageAny(r).then(x => { setRushes(list => list.map(y => (y.id === x.id ? x : y))); return x; }).catch(() => r);
+            const t = r.triage ? r : await triageAny(r).then(x => { setRushes(list => list.map(y => (y.id === x.id ? x : y))); return x; })
+              .catch(e => { noteError("lecture", `${r.id} : ${e instanceof Error ? e.message : String(e)}`); return r; });
             if (!signal.aborted) onRead(++read, chosen.length);
             return t;
           });
-          if (!ready.every(r => r.triage)) throw Object.assign(new Error("rushes"), { code: "unreadable" });
+          // A rush that cannot be read is left out (and said in Réglages); the edit stops only when none can be.
+          if (!ready.some(r => r.triage)) throw Object.assign(new Error("rushes"), { code: "unreadable" });
           onStep(1);
           return streamMontage(url, await montageBody(ready, brief, music, brand ?? null, brand?.memory?.rules.map(r => r.text) ?? []), onStep, signal);
         })();
       }}
-      onDone={(r, s) => { if (plans) updatePlans(record(plans, "montage")); setKeptVersion(null); setReelId(Date.now().toString(36)); setResult({ r, s }); setStep("result"); }} onCancel={() => setStep("music")} />;
+      onDone={(r, s) => { if (plans) updatePlans(record(plans, "montage")); setKeptVersion(null); setReelId(Date.now().toString(36)); setResult({ r, s }); setStep("result"); }} onCancel={() => setStep("music")} onManual={manual} />;
     case "result": return result ? <ResultScreen result={result.r} seconds={result.s} onBack={() => setStep("brief")} onRestart={() => { setResult(null); setEditorTl(null); clearDraft(); setStep("home"); }}
       sources={i => videoSources(result.r.variantes[i].timeline, chosen, brand ?? null, music)}
       onEdit={i => { setEditing(i); setFocusShot(0); setStep("editor"); }} onPlay={i => { setEditing(i); play("result"); }} onExport={i => { setEditing(i); keepReel(result.r.variantes[i].timeline); setStep("export"); }}
@@ -294,16 +308,18 @@ export function Flow() {
       const v = result?.r.variantes[editing];
       if (!result || !v) return null;
       const memory = brand?.memory ?? emptyMemory();
+      const saveEdit = (tl: TimelineV1) => {
+        const variantes = result.r.variantes.map((x, j) => (j === editing ? { ...x, timeline: tl, duration: tl.duree } : x));
+        setResult({ ...result, r: { ...result.r, variantes } }); setEditorTl(null); keepReel(tl); setStep("result");
+      };
       // The editor stays dark in « Atelier clair »: footage is judged on a dark ground.
       return <ThemeProvider initial="dark"><StatusBar style="light" /><EditorScreen key={editing} timeline={editorTl ?? v.timeline} onChange={setEditorTl} sources={() => videoSources(editorTl ?? v.timeline, chosen, brand ?? null, music)} initialShot={focusShot} onPlay={() => play("editor")} brief={composeBrief(brief)}
         clips={Object.fromEntries(chosen.map(r => [r.id, { duration: r.duration }]))} bad={chosen.filter(r => r.badges.includes("blur") || r.badges.includes("dark")).map(r => r.id)}
         style={montageStyle(brand?.dna ?? null, memory.rules.map(r => r.text))} memory={memory}
         onMemory={m => { if (!brand) return; const b = { ...brand, memory: m }; setBrand(b); saveBrand(b); }}
-        onBack={() => { setEditorTl(null); setStep("result"); }}
-        onSave={tl => {
-          const variantes = result.r.variantes.map((x, j) => (j === editing ? { ...x, timeline: tl, duration: tl.duree } : x));
-          setResult({ ...result, r: { ...result.r, variantes } }); setEditorTl(null); keepReel(tl); setStep("result");
-        }} /></ThemeProvider>;
+        // Back keeps the retouches (audit, phase 10 : « ne jamais rien perdre ») ; « Annuler » in the editor undoes them.
+        onBack={() => { if (editorTl && editorTl !== v.timeline) { saveEdit(editorTl); toast({ message: fr.editor.keptOnBack }); } else { setEditorTl(null); setStep("result"); } }}
+        onSave={saveEdit} /></ThemeProvider>;
     }
   }
 }

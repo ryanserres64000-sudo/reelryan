@@ -17,4 +17,5 @@ jobs:
         env:
           MADA_API_URL: "${{ secrets.MADA_API_URL }}"
           MADA_ACCESS: "${{ secrets.MADA_ACCESS }}"
-          DIAG_REEL: "1"
+          # The real montage (a few cents of AI) only when run by hand.
+          DIAG_REEL: "${{ github.event_name == 'workflow_dispatch' && '1' || '0' }}"

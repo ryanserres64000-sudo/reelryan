@@ -1,7 +1,7 @@
 import * as Clipboard from "expo-clipboard";
 import { useEffect, useMemo, useState } from "react";
 import { StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
-import { HASHTAGS_MAX, captionFor, exportPlan, trendTip, type ExportFile } from "../../../core/export";
+import { HASHTAGS_MAX, QUALITES, captionFor, exportPlan, trendTip, withQuality, type ExportFile, type Qualite } from "../../../core/export";
 import type { TimelineV1 } from "../../../core/timeline";
 import type { Brand } from "../brand/types";
 import { fr } from "../copy/fr";
@@ -10,7 +10,8 @@ import { aiCaption } from "../flow/legende";
 import { aiUrl } from "../flow/server";
 import { VideoPreview } from "../video/Preview";
 import { ShotStill } from "../video/Still";
-import { canExportVideo, exportVideos, type Exported } from "../export/video";
+import { noteError } from "../diag";
+import { canExportVideo, exportVideos, failureOf, type Exported } from "../export/video";
 import { exportDone } from "../publish/notify";
 import { afterExport } from "../publish/review";
 import { shareTo } from "../publish/share";
@@ -42,6 +43,7 @@ export function ExportScreen({ timeline, brief, brand, style, sources, onBack, b
   const [say, setSay] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [files, setFiles] = useState<Exported[]>([]);
+  const [qualite, setQualite] = useState<Qualite>("hd");
   // One file: the Reels one, whose texts sit in the zone no app's buttons cover.
   const plan = useMemo(() => exportPlan(timeline, byAi).slice(0, 1), [timeline, byAi]);
   const all = useMemo(() => exportPlan(timeline, byAi), [timeline, byAi]);
@@ -59,10 +61,15 @@ export function ExportScreen({ timeline, brief, brand, style, sources, onBack, b
     await Clipboard.setStringAsync(captionFor(timeline, plan[0].plateforme, legende));
     if (!canExportVideo()) { setSay(t.native); setBusy(false); return; }
     try {
-      const uris = await exportVideos(timeline, plan, await src, i => setSay(t.saving(i + 1, plan.length)));
-      setFiles(uris); setSay(null);
+      const uris = await exportVideos(timeline, plan.map(f => withQuality(f, qualite)), await src, i => setSay(t.saving(i + 1, plan.length)));
+      setFiles(uris); setSay(uris[0] && !uris[0].photos ? t.noPhotos : null);
+      // No Photos access: the share sheet, where « Enregistrer la vidéo » is.
+      if (uris[0] && !uris[0].photos) await shareTo("tiktok", uris[0]);
       exportDone(); afterExport(true);
-    } catch { setSay(t.error); afterExport(false); }
+    } catch (e) {
+      noteError("export", e instanceof Error ? e.message : String(e));
+      setSay(t.errors[failureOf(e)]); afterExport(false);
+    }
     finally { setBusy(false); }
   };
 
@@ -120,6 +127,14 @@ export function ExportScreen({ timeline, brief, brand, style, sources, onBack, b
           <Text variant="callout">{t.trendTip(tip.bpm)}</Text>
         </Card>
       ) : null}
+
+      <View style={styles.field} accessibilityRole="radiogroup" accessibilityLabel={t.quality}>
+        <Text variant="headline">{t.quality}</Text>
+        <View style={styles.row}>
+          {(Object.keys(QUALITES) as Qualite[]).map(q => <Chip key={q} label={t.qualities[q]} selected={qualite === q} onPress={() => setQualite(q)} />)}
+        </View>
+        <Text variant="caption" tone="textMuted">{t.qualityWhy[qualite]}</Text>
+      </View>
 
       <View style={styles.field}>
         <Text variant="headline" nativeID="caption-label">{t.caption}</Text>

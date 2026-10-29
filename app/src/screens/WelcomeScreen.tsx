@@ -1,7 +1,7 @@
 import * as AppleAuthentication from "expo-apple-authentication";
 import * as WebBrowser from "expo-web-browser";
-import { useEffect, useState } from "react";
-import { Platform, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Animated, PanResponder, Platform, Pressable, StyleSheet, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { Hero } from "../brand/Hero";
 import { checkEmailCode, methods, sendEmailCode, signInApple, signInGoogle, type Methode, type Methodes, type Result, type Session } from "../auth/session";
@@ -21,6 +21,8 @@ export function WelcomeScreen({ onSignedIn, onWithout }: { onSignedIn: (s: Sessi
   const [note, setNote] = useState<string | null>(null);
   const [busy, setBusy] = useState<Methode | null>(null);
   const [emailOpen, setEmailOpen] = useState(false);
+  const [waysOpen, setWaysOpen] = useState(false);
+  const { motion } = useTheme();
   useEffect(() => { methods().then(setOffered); }, []);
   const none = offered && !offered.apple && !offered.google && !offered.email;
 
@@ -42,31 +44,67 @@ export function WelcomeScreen({ onSignedIn, onWithout }: { onSignedIn: (s: Sessi
     } catch (e: any) { done({ ok: false, error: e?.code === "ERR_REQUEST_CANCELED" ? "refus" : "autre" }); }
   };
 
+  const pick = (m: Methode) => {
+    // The e-mail has its own sheet: this one closes first, then it rises.
+    if (m === "email" && offered?.email) { setWaysOpen(false); setTimeout(() => setEmailOpen(true), motion.base); return; }
+    start(m);
+  };
   return (
     <Screen
-      footer={<>
-        {note ? <MadaSays text={note} /> : null}
-        {APPLE_NATIVE && offered?.apple ? (
-          <AppleAuthentication.AppleAuthenticationButton buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
-            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK} cornerRadius={tokens.radius.full} style={styles.apple} onPress={() => start("apple")} />
-        ) : <Way label={busy === "apple" ? t.waiting : t.apple} filled onPress={() => start("apple")} mark={<Icon name="apple" tone="bg" />} />}
-        <Way label={busy === "google" ? t.waiting : t.google} onPress={() => start("google")} mark={<GoogleMark />} />
-        <Way label={t.email} onPress={() => start("email")} mark={<Icon name="mail" />} />
-        {none ? <Button variant="secondary" label={t.without} onPress={onWithout} /> : null}
-        <Text variant="caption" tone="textMuted" style={styles.center}>{t.legal}</Text>
-        <View style={styles.links}>
-          {LEGAL.terms ? <Pressable accessibilityRole="link" onPress={() => WebBrowser.openBrowserAsync(LEGAL.terms!)} hitSlop={tokens.space.xs}><Text variant="caption" tone="actionStrong">{t.terms}</Text></Pressable> : null}
-          {LEGAL.privacy ? <Pressable accessibilityRole="link" onPress={() => WebBrowser.openBrowserAsync(LEGAL.privacy!)} hitSlop={tokens.space.xs}><Text variant="caption" tone="actionStrong">{t.privacyLink}</Text></Pressable> : null}
-        </View>
-      </>}>
+      footer={<Pull onOpen={() => setWaysOpen(true)} />}>
       <Text variant="mono" tone="actionStrong">{t.kicker}</Text>
       <Hero />
       <View style={styles.copy}>
         <Text variant="display" accessibilityRole="header">{t.title}</Text>
         <Text tone="textMuted">{t.detail}</Text>
       </View>
+      <Sheet visible={waysOpen} onClose={() => setWaysOpen(false)} title={t.waysTitle}>
+        {note ? <MadaSays text={note} /> : null}
+        {APPLE_NATIVE && offered?.apple ? (
+          <AppleAuthentication.AppleAuthenticationButton buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK} cornerRadius={tokens.radius.full} style={styles.apple} onPress={() => pick("apple")} />
+        ) : <Way label={busy === "apple" ? t.waiting : t.apple} filled onPress={() => pick("apple")} mark={<Icon name="apple" tone="bg" />} />}
+        <Way label={busy === "google" ? t.waiting : t.google} onPress={() => pick("google")} mark={<GoogleMark />} />
+        <Way label={t.email} onPress={() => pick("email")} mark={<Icon name="mail" />} />
+        {none ? <Button variant="secondary" label={t.without} onPress={() => { setWaysOpen(false); onWithout(); }} /> : null}
+        <Text variant="caption" tone="textMuted" style={styles.center}>{t.legal}</Text>
+        <View style={styles.links}>
+          {LEGAL.terms ? <Pressable accessibilityRole="link" onPress={() => WebBrowser.openBrowserAsync(LEGAL.terms!)} hitSlop={tokens.space.xs}><Text variant="caption" tone="actionStrong">{t.terms}</Text></Pressable> : null}
+          {LEGAL.privacy ? <Pressable accessibilityRole="link" onPress={() => WebBrowser.openBrowserAsync(LEGAL.privacy!)} hitSlop={tokens.space.xs}><Text variant="caption" tone="actionStrong">{t.privacyLink}</Text></Pressable> : null}
+        </View>
+      </Sheet>
       <EmailSheet visible={emailOpen} onClose={() => setEmailOpen(false)} onSignedIn={s => { setEmailOpen(false); onSignedIn(s); }} />
     </Screen>
+  );
+}
+
+// The way in, kept small at the bottom (Ryan, 29 octobre : « se connecter ou créer un compte en petit,
+// glisser vers le haut ») so the first page stays clean. A swipe up or a tap opens the choices.
+function Pull({ onOpen }: { onOpen: () => void }) {
+  const { c, motion, reduceMotion } = useTheme();
+  const bob = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    if (reduceMotion) return;
+    const loop = Animated.loop(Animated.sequence([
+      Animated.timing(bob, { toValue: -tokens.space.xxs, duration: motion.slow, useNativeDriver: true }),
+      Animated.timing(bob, { toValue: 0, duration: motion.slow, useNativeDriver: true }),
+    ]));
+    loop.start();
+    return () => loop.stop();
+  }, [reduceMotion]);
+  const open = useRef(onOpen); open.current = onOpen;
+  const pan = useMemo(() => PanResponder.create({
+    onMoveShouldSetPanResponder: (_, d) => d.dy < -tokens.space.xs,
+    onPanResponderMove: (_, d) => { if (d.dy < -tokens.space.lg) { haptic("tick"); open.current(); } },
+  }), []);
+  return (
+    <Pressable {...pan.panHandlers} accessibilityRole="button" accessibilityLabel={t.pull} accessibilityHint={t.pullHint} onPress={onOpen} style={styles.pull}>
+      <Animated.View style={[styles.pullInner, { transform: [{ translateY: bob }] }]}>
+        <View style={[styles.grip, { backgroundColor: c.line }]} />
+        <Text variant="bodyStrong">{t.pull}</Text>
+        <Text variant="caption" tone="textMuted">{t.pullHint}</Text>
+      </Animated.View>
+    </Pressable>
   );
 }
 
@@ -146,6 +184,9 @@ function EmailSheet({ visible, onClose, onSignedIn }: { visible: boolean; onClos
 
 const styles = StyleSheet.create({
   copy: { gap: tokens.space.xs },
+  pull: { alignItems: "center", minHeight: tokens.size.button },
+  pullInner: { alignItems: "center", gap: tokens.space.xxs },
+  grip: { width: tokens.size.button, height: tokens.size.textBar, borderRadius: tokens.radius.full, marginBottom: tokens.space.xxs },
   way: { minHeight: tokens.size.button, borderRadius: tokens.radius.full, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: tokens.space.xs, paddingHorizontal: tokens.space.lg },
   apple: { height: tokens.size.button, alignSelf: "stretch" },
   center: { textAlign: "center" },

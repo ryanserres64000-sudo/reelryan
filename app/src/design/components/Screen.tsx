@@ -27,7 +27,7 @@ export function Screen({ title, detail, onBack, footer, children, scroll = true,
   return (
     <SafeAreaView style={[styles.root, { backgroundColor: c.bg }]} edges={["top", "bottom"]}>
       {scroll ? (
-        <ScrollView scrollEnabled={scrollEnabled} contentContainerStyle={[styles.content, { paddingHorizontal: gutter }]} keyboardShouldPersistTaps="handled">{head}{children}</ScrollView>
+        <ScrollView scrollEnabled={scrollEnabled} keyboardDismissMode="interactive" contentContainerStyle={[styles.content, { paddingHorizontal: gutter }]} keyboardShouldPersistTaps="handled">{head}{children}</ScrollView>
       ) : (
         <View style={[styles.root, styles.content, { paddingHorizontal: gutter }]}>{head}{children}</View>
       )}

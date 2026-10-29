@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { addText, color, deleteLayer, fittedSize, fromAi, keepLockedLayers, moveLayer, naturalDesign, offlineDesign, pushDesign, redoDesign, sanitizeDesign, setLayer, startDesignHistory, textLines, undoDesign, type TextLayer } from "../design.ts";
+import { addPhoto, addText, nextPhotoId, color, deleteLayer, fittedSize, fromAi, keepLockedLayers, moveLayer, naturalDesign, offlineDesign, pushDesign, redoDesign, sanitizeDesign, setLayer, startDesignHistory, textLines, undoDesign, type TextLayer } from "../design.ts";
 import { isNeon, naturalTimeline } from "../natural.ts";
 import { sanitizeTimeline } from "../timeline.ts";
 import { contrast } from "../brand.ts";
@@ -114,4 +114,17 @@ test("naturel on a Reel: one zoom, few moves, one grade, no emojis, texts that b
   assert.ok(t.duree > timeline.duree, "une coupe ne chevauche plus : le montage s'allonge un peu");
   assert.equal(t.relecture.corrections[0], fixes[0]);
   assert.deepEqual(naturalTimeline(t).fixes, [], "une deuxième passe ne trouve plus rien");
+});
+
+test("a photo added by hand: under the texts, inside the frame, locked, and kept by sanitizeDesign", () => {
+  const d = offlineDesign({ kind: "affiche", idee: "Soirée jazz", infos: { titre: "Jazz au comptoir" } }, { couleurs: ["#1F3BD6"], polices: null });
+  const id = nextPhotoId(["img1"])!;
+  assert.equal(id, "img2");
+  const next = addPhoto(d, id, 1.5);
+  const at = next.layers.findIndex(l => l.type === "image" && l.asset === id), photo = next.layers[at];
+  assert.ok(at >= 0 && photo.locked);
+  assert.ok(next.layers.slice(at + 1).some(l => l.type === "text") || !d.layers.some(l => l.type === "text"), "les textes restent devant");
+  assert.ok(photo.x >= 0 && photo.y >= 0 && photo.x + photo.w <= d.w && photo.y + photo.h <= d.h);
+  assert.ok(sanitizeDesign(next, d.w, d.h, [id]).layers.some(l => l.type === "image" && l.asset === id));
+  assert.equal(nextPhotoId(["img1", "img2", "img3", "img4", "img5", "img6", "img7", "img8", "img9"]), null);
 });

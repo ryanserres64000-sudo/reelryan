@@ -7,6 +7,7 @@ import { charteOf, montageStyle } from "../../../core/brand";
 import { candidateEvery, LIMITS, sceneStep, withTimeout } from "../../../core/progress";
 import { badgesOf, candidateTimes, judge, MAX_FRAMES, pickFrames, rushForAi, type Measure, type Probed } from "../../../core/triage";
 import type { Brand } from "../brand/types";
+import { noteError } from "../diag";
 import { toMusique } from "../music/musique";
 import { composeBrief } from "./brief";
 import type { Brief, Music, Rush, Triaged } from "./types";
@@ -37,11 +38,20 @@ export async function triageRush(r: Rush): Promise<Rush> {
   return { ...r, duration: info.duration, photo: info.photo, sound: info.hasAudio, badges: badgesOf(frames, voix), triage };
 }
 
-// A small frame of the rush for its card and for the player when the native preview is missing.
+// A small frame of the rush for its card and for the player when the native preview is missing. Always
+// re-saved as a small JPEG in the app's own cache: a picture straight from the picker (HEIC, a file the
+// system may move) stayed grey on Ryan's iPhone (build 9, 29 octobre). A failure is noted for Réglages.
+const THUMB_PX = 360;
 export async function thumbnailOf(r: Rush): Promise<string | null> {
   if (!r.uri) return null;
-  if (r.photo) return r.uri;
-  try { return (await VideoThumbnails.getThumbnailAsync(r.uri, { time: Math.min(300, r.duration * 500), quality: 0.6 })).uri; } catch { return null; }
+  try {
+    const src = r.photo ? r.uri : (await VideoThumbnails.getThumbnailAsync(r.uri, { time: Math.min(300, r.duration * 500), quality: 0.7 })).uri;
+    const out = await (await ImageManipulator.manipulate(src).resize({ width: THUMB_PX }).renderAsync()).saveAsync({ format: SaveFormat.JPEG, compress: 0.7 });
+    return out.uri;
+  } catch (e) {
+    noteError("miniature", e instanceof Error ? e.message : String(e));
+    return null;
+  }
 }
 
 // Without Vision (module missing or failing): the same candidate frames, read with expo-video-thumbnails
@@ -78,7 +88,7 @@ export async function montageBody(rushes: Rush[], brief: Brief, music: Music, br
   const images = await Promise.all(kept.map(async (f, i) => ({ id: `f${i + 1}`, rush: f.rush, temps: f.t, data: await new File(f.jpeg).base64() })));
   const dna = brand?.dna ?? null;
   return {
-    brief: composeBrief(brief), duree: brief.duration, variantes: 3, plateformes: brief.platforms,
+    brief: composeBrief(brief), duree: brief.duration, variantes: 2, plateformes: brief.platforms,
     rushes: ready.map(r => rushForAi(r.triage.probed)), images,
     style: montageStyle(dna, rules), musique: toMusique(music, brief.duration),
     charte: charteOf(dna, !!brand?.logoUri),

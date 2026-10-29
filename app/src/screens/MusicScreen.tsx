@@ -1,7 +1,7 @@
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import { analyzeTempo, beatGrid, bestPassage, loudness, MIN_CONFIDENCE, snapPassage, tapTempo, TRENDING_TEMPOS, waveformPeaks, type MusicError } from "../../../core/music";
+import { analyzeTempo, beatGrid, bestPassage, loudness, MIN_CONFIDENCE, snapPassage, tapTempo, waveformPeaks, type MusicError } from "../../../core/music";
 import { fr } from "../copy/fr";
 import { Button, Chip, MusicPicker, Screen, Text, Waveform, tokens, useTheme } from "../design";
 import type { Analysis, Music } from "../flow/types";
@@ -139,8 +139,7 @@ export function MusicScreen({ music, onChange, briefDuration, incoming, onBack, 
 
       {music.choice === "trending" ? (
         <View style={styles.block}>
-          <Text variant="callout" tone="textMuted">{fr.musicScreen.trendingTempo}</Text>
-          <View style={styles.row}>{TRENDING_TEMPOS.map(t => <Chip key={t} label={fr.musicScreen.tempo(t)} selected={music.trendingTempo === t} onPress={() => set({ trendingTempo: t })} />)}</View>
+          {/* No tempo to choose (Ryan, 29 octobre : « enlève le choix de tempo ») : the cuts follow the usual pace of trending sounds. */}
           <Text variant="caption" tone="textMuted">{fr.musicScreen.trendingDetail}</Text>
         </View>
       ) : null}

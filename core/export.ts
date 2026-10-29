@@ -6,6 +6,7 @@ import type { Answers, Dna, Profil } from "./brand.ts";
 import { stripEmoji } from "./natural.ts";
 import { PLATEFORMES, type Effet, type Plateforme, type Texte, type TimelineV1 } from "./timeline.ts";
 import { duoById, type Duo } from "./typo.ts";
+import { defaultLook, sizeOf, type TextLook } from "./textlook.ts";
 
 export const W = 1080, H = 1920, FPS = 30;
 export const SAFE_LEFT = 60;
@@ -17,7 +18,9 @@ export const HASHTAGS_MAX: Record<Plateforme, number> = { reels: 5, tiktok: 5, s
 export const CAPTION_MAX: Record<Plateforme, number> = { reels: 2200, tiktok: 4000, shorts: 100 };
 
 export type Box = { x: number; y: number; w: number; h: number };
-export type PlacedText = Texte & { box: Box };
+// What the native render needs for each text: its box (top-left origin, px), font size in px, angle,
+// and look (core/textlook.ts). A text moved by hand is centred on its box's centre.
+export type PlacedText = Texte & { box: Box; taille: number; rotation: number; rendu: TextLook; libre: boolean; n: number };
 export type ExportFile = {
   plateforme: Plateforme; nom: string; w: number; h: number; fps: number; duree: number; coupe: boolean;
   textes: PlacedText[]; sous_titres: Box | null; logo: Box | null; zone: Box; legende: string;
@@ -52,6 +55,25 @@ export function textBox(t: Pick<Texte, "position" | "style"> & { accent?: string
   const y = t.position === "haut" ? z.y + GAP : t.position === "centre" ? Math.round(z.y + (z.h - h) / 2) : z.y + z.h - h - GAP;
   return { x: z.x, y, w: z.w, h };
 }
+// A text moved by hand: its box around its centre, the height estimated from its lines (the native
+// render measures the real text and centres it on the same point).
+export function placedBox(t: Pick<Texte, "texte" | "style" | "accent" | "place">): Box {
+  const p = t.place!, size = sizeOf(t.style, p), w = Math.round(p.w * W);
+  const lines = Math.max(1, Math.ceil((t.texte.length * size * 0.55) / Math.max(1, w - 32)));
+  const h = Math.round(lines * size * 1.2 + (t.accent ? size * 0.8 : 0) + 32);
+  return { x: Math.round(p.x * W - w / 2), y: Math.round(p.y * H - h / 2), w, h };
+}
+// Where a text sits on the Reels file, as fractions: the starting point of a drag in the editor.
+export function placeOf(t: Texte): NonNullable<Texte["place"]> {
+  if (t.place) return t.place;
+  const b = textBox(t, "reels");
+  return { x: (b.x + b.w / 2) / W, y: (b.y + b.h / 2) / H, w: b.w / W, s: 1, r: 0 };
+}
+// A text at a new place (the editor, while a finger moves it): its box, size and angle follow.
+export const withPlace = (x: PlacedText, place: NonNullable<Texte["place"]>): PlacedText => ({ ...x, place, box: placedBox({ ...x, place }), taille: sizeOf(x.style, place), rotation: place.r, libre: true });
+// `n`: the text's index in the timeline, so the editor finds it again.
+const finish = (x: Texte, box: Box, n: number): PlacedText => ({ ...x, box, taille: sizeOf(x.style, x.place), rotation: x.place?.r ?? 0, rendu: x.look ?? defaultLook(x.style), libre: !!x.place, n });
+
 export function logoBox(t: TimelineV1, p: Plateforme): Box | null {
   const l = t.charte.logo;
   if (!l || l.position === "aucun") return null;
@@ -80,15 +102,16 @@ export function exportPlan(t: TimelineV1, ia = true): ExportFile[] {
     const sub = t.sous_titres.actifs
       ? t.sous_titres.position === "centre" ? { x: z.x, y: Math.round(z.y + (z.h - SUBTITLE_H) / 2), w: z.w, h: SUBTITLE_H } : { x: z.x, y: z.y + z.h - SUBTITLE_H - GAP, w: z.w, h: SUBTITLE_H }
       : null;
-    const textes = t.textes.filter(x => x.debut < duree).map(x => {
+    const textes = t.textes.map((x, n) => ({ x, n })).filter(({ x }) => x.debut < duree).map(({ x, n }) => {
+      if (x.place) return finish({ ...x, fin: Math.min(x.fin, duree) }, placedBox(x), n);
       let box = textBox(x, p);
       // A text at the bottom while subtitles run goes just above them.
       if (sub && x.position === "bas" && box.y + box.h > sub.y) box = { ...box, y: Math.max(z.y, sub.y - box.h - GAP) };
-      return { ...x, fin: Math.min(x.fin, duree), box };
+      return finish({ ...x, fin: Math.min(x.fin, duree) }, box, n);
     });
     // Two texts on screen at once in the same place: the later one moves to the other half.
     for (let i = 0; i < textes.length; i++) for (let j = 0; j < i; j++) {
-      if (textes[i].position === textes[j].position && overlaps(textes[i], textes[j])) {
+      if (!textes[i].libre && !textes[j].libre && textes[i].position === textes[j].position && overlaps(textes[i], textes[j])) {
         const other = textes[j].box.y > z.y + z.h / 2 ? "haut" : "bas";
         textes[i] = { ...textes[i], box: textBox({ ...textes[i], position: other }, p) };
       }
@@ -96,7 +119,7 @@ export function exportPlan(t: TimelineV1, ia = true): ExportFile[] {
     // A text at the top clears a logo shown all along.
     const logo = logoBox(t, p);
     const under = (b: Box) => (logo && t.charte.logo?.position === "partout" && b.y < logo.y + logo.h ? { ...b, y: logo.y + logo.h + GAP } : b);
-    for (let i = 0; i < textes.length; i++) textes[i] = { ...textes[i], box: under(textes[i].box) };
+    for (let i = 0; i < textes.length; i++) if (!textes[i].libre) textes[i] = { ...textes[i], box: under(textes[i].box) };
     return {
       plateforme: p, nom: `MaDa-${slug(t.titre)}-${p}.mp4`, w: W, h: H, fps: FPS, duree: Math.round(duree * 100) / 100, coupe: t.duree > duree_max,
       textes, sous_titres: sub, logo, zone: z, legende: captionFor(t, p), metadonnees: provenance(ia, (t.audios ?? []).some(a => a.ia)),

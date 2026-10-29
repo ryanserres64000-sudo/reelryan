@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { addTexte, changedPlans, deletePlan, deleteTexte, keepLocked, movePlan, push, redo, replaceSource, setLogo, setPlan, setTexte, startHistory, toDoc, trimPlan, undo } from "../edit.ts";
+import { addPassage, addTexte, changedPlans, duplicateTexte, passagesOf, deletePlan, deleteTexte, keepLocked, movePlan, push, redo, replaceSource, setLogo, setPlan, setTexte, startHistory, toDoc, trimPlan, undo } from "../edit.ts";
 import { applyCorrection, emptyMemory, forget, learn } from "../corrections.ts";
 import { sanitizeTimeline, timelineDuration } from "../timeline.ts";
 
@@ -130,4 +130,46 @@ test("a manual montage puts the rushes in order, plainly cut, without AI", async
   assert.ok(t.plans.every(p => p.transition === "coupe"));
   assert.equal(t.plans[1].mouvement, "zoom-avant");
   assert.ok(t.plans[2].fin <= 1);
+});
+
+test("a text moved by hand: place and look kept, back to its slot, duplicated just below", async () => {
+  const { exportPlan, withPlace } = await import("../export.ts");
+  let d = doc();
+  d = setTexte(d, 1, { place: { x: 0.3, y: 0.4, w: 0.6, s: 1.5, r: 10 }, look: { role: "accent", couleur: "#FFFFFF", fond: "contour", align: "gauche", anim: "mots" } });
+  let r = sanitizeTimeline(d.timeline, clips).timeline;
+  assert.equal(r.textes[1].place?.r, 10);
+  assert.equal(r.textes[1].look?.fond, "contour");
+  const placed = exportPlan(d.timeline)[0].textes.find(x => x.n === 1)!;
+  assert.equal(placed.libre, true);
+  assert.equal(placed.taille, 138);
+  assert.equal(Math.round(placed.box.x + placed.box.w / 2), 324);
+  assert.equal(withPlace(placed, { x: 0.5, y: 0.5, w: 0.8, s: 1, r: 0 }).taille, 92);
+  d = duplicateTexte(d, 1);
+  assert.equal(d.timeline.textes.length, 3);
+  assert.equal(d.timeline.textes[2].place?.y, 0.48);
+  assert.equal(d.texteIds.length, 3);
+  d = setTexte(d, 1, { place: undefined, position: "centre" });
+  assert.equal("place" in d.timeline.textes[1], false);
+  assert.equal(exportPlan(d.timeline)[0].textes.find(x => x.n === 1)!.libre, false);
+});
+
+test("several passages of one rush by hand, reframing and fine colour", () => {
+  let d = doc();
+  d = addPassage(d, "a", 8, 3, 0, clips);
+  assert.equal(d.timeline.plans.length, 4);
+  assert.deepEqual([d.timeline.plans[1].source, d.timeline.plans[1].debut, d.timeline.plans[1].fin], ["a", 7, 10], "le passage reste dans la vidéo");
+  assert.deepEqual(passagesOf(d.timeline, "a").map(p => [p.debut, p.fin]), [[0, 3], [7, 10]]);
+  assert.ok(d.locked.includes(d.planIds[1]));
+  d = addPassage(d, "b", 0, 1, -1, clips);
+  assert.equal(d.timeline.plans[0].source, "b");
+  assert.equal(d.timeline.plans[1].transition, "coupe");
+  d = setPlan(d, 0, { cadre: { x: 0.3, y: 0.6, z: 1.8 }, reglages: { lumiere: 0.25, contraste: 0, saturation: -2, chaleur: 0 } });
+  assert.deepEqual(d.timeline.plans[0].cadre, { x: 0.3, y: 0.6, z: 1.8 });
+  assert.equal(d.timeline.plans[0].reglages?.saturation, -1);
+  const kept = sanitizeTimeline(d.timeline, clips).timeline.plans[0];
+  assert.deepEqual(kept.cadre, { x: 0.3, y: 0.6, z: 1.8 });
+  assert.equal(kept.reglages?.lumiere, 0.25);
+  d = setPlan(d, 0, { cadre: { x: 0.5, y: 0.5, z: 1 }, reglages: { lumiere: 0, contraste: 0, saturation: 0, chaleur: 0 } });
+  assert.equal("cadre" in d.timeline.plans[0], false);
+  assert.equal("reglages" in d.timeline.plans[0], false);
 });

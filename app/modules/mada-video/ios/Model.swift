@@ -9,6 +9,12 @@ struct Timeline: Decodable {
     let vitesse: Double; let etalonnage: String; let mouvement: String
     // The level of the rush's own sound, 0 to 2 (étape 4); absent means as recorded.
     let volume: Double?
+    // Reframed by hand: the rush's point kept at the centre (0 to 1, y from the top) and a zoom.
+    struct Cadre: Decodable { let x: Double; let y: Double; let z: Double }
+    let cadre: Cadre?
+    // Fine colour on top of `etalonnage`, each -1 to 1.
+    struct Reglages: Decodable { let lumiere: Double; let contraste: Double; let saturation: Double; let chaleur: Double }
+    let reglages: Reglages?
   }
   // A voice-over, a recording or a sound on its own track (étape 5): placed at `t`, the part from
   // `debut` to `fin` of its file, with fades.
@@ -54,7 +60,14 @@ func poseAt(_ c: Timeline.Calque, _ time: Double) -> Pose {
 struct Box: Decodable { let x: Double; let y: Double; let w: Double; let h: Double }
 
 struct ExportFile: Decodable {
-  struct Texte: Decodable { let texte: String; let debut: Double; let fin: Double; let style: String; let box: Box; let accent: String? }
+  // A text's look (core/textlook.ts): font role, colour, background, alignment, entrance.
+  struct Rendu: Decodable { let role: String; let couleur: String?; let fond: String; let align: String; let anim: String }
+  // `taille` in px on the 1080 frame, `rotation` in degrees (clockwise), `libre`: moved by hand, so
+  // centred on its box's centre at the size chosen, never shrunk.
+  struct Texte: Decodable {
+    let texte: String; let debut: Double; let fin: Double; let style: String; let box: Box; let accent: String?
+    let taille: Double?; let rotation: Double?; let rendu: Rendu?; let libre: Bool?
+  }
   // The title duo of core/typo.ts, resolved: letter case of each line, accent size, overlap.
   struct Duo: Decodable {
     struct Face: Decodable { let casse: String }

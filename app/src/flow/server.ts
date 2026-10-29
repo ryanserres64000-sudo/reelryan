@@ -1,9 +1,10 @@
 import { aiAllowed } from "../consent";
+import { serverUrl } from "../../../core/server";
 import { deviceId } from "../plans/device";
 
 // The MaDa server (Vercel or server.js). Unset, the app runs offline with sample answers:
 // EXPO_PUBLIC_MADA_API=https://… and EXPO_PUBLIC_MADA_ACCESS=<APP_PASSWORD> in app/.env turn it on.
-export const SERVER = { url: process.env.EXPO_PUBLIC_MADA_API || null, access: process.env.EXPO_PUBLIC_MADA_ACCESS || undefined };
+export const SERVER = { url: serverUrl(process.env.EXPO_PUBLIC_MADA_API), access: process.env.EXPO_PUBLIC_MADA_ACCESS || undefined };
 
 // The server, for calls that send the person's content to the AI: only with their permission (lot 9).
 export const aiUrl = () => (aiAllowed() ? SERVER.url : null);

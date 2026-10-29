@@ -1,3 +1,4 @@
+import { useKeepAwake } from "expo-keep-awake";
 import { useEffect, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { LIMITS, percent, Timeout, withTimeout } from "../../../core/progress";
@@ -24,6 +25,9 @@ export function GenerationScreen({ rushes, kept, variants, run, onDone, onCancel
   const [now, setNow] = useState(Date.now());
   const since = useRef({ start: Date.now(), step: Date.now() });
   const done = useRef(onDone); done.current = onDone;
+  // iOS pauses the app when the screen locks or another app opens: the edit then waits where it was
+  // (build 11, Ryan, 29 octobre : 2 % after 40 minutes). The screen stays on while it works.
+  useKeepAwake();
 
   useEffect(() => {
     const ctrl = new AbortController(), started = Date.now();
@@ -57,6 +61,7 @@ export function GenerationScreen({ rushes, kept, variants, run, onDone, onCancel
         {failed ? null : <LogoWorking step={step} />}
         <GenerationView rushes={rushes} kept={kept} variants={variants} step={step} percent={failed ? undefined : pct} detail={detail} />
         {failed ? <Text tone="danger" accessibilityLiveRegion="assertive">{failed}</Text> : null}
+        {failed ? null : <Text variant="bodyStrong">{fr.generation.keepOpen}</Text>}
         <Text variant="caption" tone="textMuted">{fr.consent.lead}</Text>
       </View>
     </Screen>

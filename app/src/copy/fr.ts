@@ -41,6 +41,7 @@ export const fr = {
     percent: (p: number) => `${p} %`,
     reading: (read: number, total: number) => `Rush ${Math.min(read + 1, total)} sur ${total}`,
     sending: "J'envoie les images clés",
+    keepOpen: "Garde Ma DA ouverte : si tu changes d'appli ou verrouilles l'écran, le montage se met en pause.",
     elapsed: (s: number) => (s < 60 ? `${Math.floor(s)} s` : `${Math.floor(s / 60)} min ${String(Math.floor(s % 60)).padStart(2, "0")}`),
   },
 

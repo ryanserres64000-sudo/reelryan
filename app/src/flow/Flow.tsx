@@ -242,7 +242,7 @@ export function Flow() {
       else if (!aiAllowed()) askConsent("music", () => setStep("generation"), manual);
       else setStep("generation");
     }} />;
-    case "generation": return <GenerationScreen rushes={chosen.length} kept={kept} variants={2}
+    case "generation": return <GenerationScreen rushes={chosen.length} kept={kept} variants={2} thumbnails={chosen.map(r => (r.thumb ? { uri: r.thumb } : undefined))}
       run={(onStep, signal, onRead) => {
         // The web preview keeps its sample answer. On the iPhone, only the real AI edit: a missing server
         // or unreadable rushes are said plainly (Ryan's first test, 28 octobre 2026), never faked.

@@ -20,7 +20,8 @@ export async function streamMontage(url: string, body: unknown, onStep: (s: numb
     });
     if (!res.ok || !res.body) {
       const err = await res.json().catch(() => ({}));
-      throw Object.assign(new Error(err.message || `HTTP ${res.status}`), { code: err.error || "network" });
+      // The server answered: an HTTP error is not a missing connection (build 12 said « Pas de connexion »).
+      throw Object.assign(new Error(err.message || `HTTP ${res.status}`), { code: err.error || "server_error" });
     }
     const reader = res.body.getReader(), decoder = new TextDecoder();
     let buffer = "", result: MontageResult | null = null;

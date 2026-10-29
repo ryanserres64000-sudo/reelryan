@@ -174,6 +174,7 @@ export const tokens = {
     "snapPx": 10
   },
   "opacity": {
+    "coverShade": 0.35,
     "waveOutside": 0.4,
     "disabled": 0.45,
     "pressed": 0.85,

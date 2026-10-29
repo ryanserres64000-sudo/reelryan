@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { addTexte, changedPlans, duplicateTexte, deletePlan, deleteTexte, keepLocked, movePlan, push, redo, replaceSource, setLogo, setPlan, setTexte, startHistory, toDoc, trimPlan, undo } from "../edit.ts";
+import { addPassage, addTexte, changedPlans, duplicateTexte, passagesOf, deletePlan, deleteTexte, keepLocked, movePlan, push, redo, replaceSource, setLogo, setPlan, setTexte, startHistory, toDoc, trimPlan, undo } from "../edit.ts";
 import { applyCorrection, emptyMemory, forget, learn } from "../corrections.ts";
 import { sanitizeTimeline, timelineDuration } from "../timeline.ts";
 
@@ -151,4 +151,25 @@ test("a text moved by hand: place and look kept, back to its slot, duplicated ju
   d = setTexte(d, 1, { place: undefined, position: "centre" });
   assert.equal("place" in d.timeline.textes[1], false);
   assert.equal(exportPlan(d.timeline)[0].textes.find(x => x.n === 1)!.libre, false);
+});
+
+test("several passages of one rush by hand, reframing and fine colour", () => {
+  let d = doc();
+  d = addPassage(d, "a", 8, 3, 0, clips);
+  assert.equal(d.timeline.plans.length, 4);
+  assert.deepEqual([d.timeline.plans[1].source, d.timeline.plans[1].debut, d.timeline.plans[1].fin], ["a", 7, 10], "le passage reste dans la vidéo");
+  assert.deepEqual(passagesOf(d.timeline, "a").map(p => [p.debut, p.fin]), [[0, 3], [7, 10]]);
+  assert.ok(d.locked.includes(d.planIds[1]));
+  d = addPassage(d, "b", 0, 1, -1, clips);
+  assert.equal(d.timeline.plans[0].source, "b");
+  assert.equal(d.timeline.plans[1].transition, "coupe");
+  d = setPlan(d, 0, { cadre: { x: 0.3, y: 0.6, z: 1.8 }, reglages: { lumiere: 0.25, contraste: 0, saturation: -2, chaleur: 0 } });
+  assert.deepEqual(d.timeline.plans[0].cadre, { x: 0.3, y: 0.6, z: 1.8 });
+  assert.equal(d.timeline.plans[0].reglages?.saturation, -1);
+  const kept = sanitizeTimeline(d.timeline, clips).timeline.plans[0];
+  assert.deepEqual(kept.cadre, { x: 0.3, y: 0.6, z: 1.8 });
+  assert.equal(kept.reglages?.lumiere, 0.25);
+  d = setPlan(d, 0, { cadre: { x: 0.5, y: 0.5, z: 1 }, reglages: { lumiere: 0, contraste: 0, saturation: 0, chaleur: 0 } });
+  assert.equal("cadre" in d.timeline.plans[0], false);
+  assert.equal("reglages" in d.timeline.plans[0], false);
 });

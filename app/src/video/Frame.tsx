@@ -4,10 +4,11 @@ import { W, placeOf, withPlace, type ExportFile, type PlacedText } from "../../.
 import { boxAt, isOn } from "../../../core/layers";
 import { shotAt, segments } from "../../../core/playback";
 import { RENDER, type TextPlace } from "../../../core/textlook";
-import type { TimelineV1 } from "../../../core/timeline";
+import type { Cadre, TimelineV1 } from "../../../core/timeline";
 import { fr } from "../copy/fr";
 import { Icon, Text, haptic, tokens, useTheme } from "../design";
 import { LayerGrip, type LayerMove } from "../editor/LayerGrip";
+import { CropGrip } from "../editor/CropGrip";
 import { TextGrip } from "../editor/TextGrip";
 import { Player, type PlayerHandle } from "./Player";
 import { ShotStill } from "./Still";
@@ -22,6 +23,8 @@ type Props = {
   // touch it twice to write in it. `n` is the text's index in the timeline.
   selectedText?: number | null; onTextSelect?: (n: number) => void; onTextPlace?: (n: number, p: TextPlace) => void;
   onTextWrite?: (n: number, texte: string) => void;
+  // Reframing a shot by hand (étape 4): the shot shown under the play head, and the new frame.
+  crop?: { index: number; onCadre: (c: Cadre) => void } | null;
   // A tap on the picture itself (not on a text or a layer): play or pause.
   onTapPicture?: () => void;
 };
@@ -29,7 +32,7 @@ type Props = {
 // The picture at `time`, shared by the full-screen player and the editor: the native player when it
 // is compiled, otherwise a plain frame with the shot number; texts and layers drawn on top where the
 // native render puts them (Overlay.swift), so the drawing never lies about the export.
-export const Frame = forwardRef<PlayerHandle, Props>(function Frame({ timeline, file, sources, time, playing, onTime, width, selectedLayer, onLayerMove, onDragging, selectedText, onTextSelect, onTextPlace, onTextWrite, onTapPicture }, ref) {
+export const Frame = forwardRef<PlayerHandle, Props>(function Frame({ timeline, file, sources, time, playing, onTime, width, selectedLayer, onLayerMove, onDragging, selectedText, onTextSelect, onTextPlace, onTextWrite, onTapPicture, crop }, ref) {
   const { c } = useTheme();
   const segs = segments(timeline), { index } = shotAt(segs, time), k = width / W;
   const height = width * 16 / 9;
@@ -45,6 +48,7 @@ export const Frame = forwardRef<PlayerHandle, Props>(function Frame({ timeline, 
   const [live, setLive] = useState<TextPlace | null>(null);
   const [writing, setWriting] = useState<number | null>(null);
   useEffect(() => { setLive(null); if (writing !== selectedText) setWriting(null); }, [selectedText]);
+  // Paused in the editor: every text fully shown, without its entrance, so it can be read and touched.
   const editable = !!onTextSelect && !playing;
   const shown = file.textes.filter(x => (time >= x.debut && time < x.fin) || (editable && x.n === selectedText && time >= x.debut - 0.05 && time < x.fin + 0.05));
   const draw = (x: PlacedText) => (live && x.n === selectedText ? withPlace(x, live) : x);
@@ -70,7 +74,7 @@ export const Frame = forwardRef<PlayerHandle, Props>(function Frame({ timeline, 
       {/* Under the texts and grips, so a gesture on them never reaches it. */}
       {onTapPicture ? <Pressable onPress={onTapPicture} accessibilityRole="button" accessibilityLabel={fr.tracks.playPause} style={StyleSheet.absoluteFill} /> : null}
       <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-        {shown.map(x => (writing === x.n ? null : <TextOverlay key={x.n} x={draw(x)} timeline={timeline} time={time} k={k} editing={editable && x.n === selectedText} />))}
+        {shown.map(x => (writing === x.n ? null : <TextOverlay key={x.n} x={draw(x)} timeline={timeline} time={time} k={k} editing={editable} />))}
       </View>
       {/* Touch a text to choose it. */}
       {editable ? shown.filter(x => x.n !== selectedText).map(x => (
@@ -82,6 +86,7 @@ export const Frame = forwardRef<PlayerHandle, Props>(function Frame({ timeline, 
           onPlace={p => onTextPlace(chosen.n, p)} onTap={() => setWriting(chosen.n)} />
       ) : null}
       {chosen && writing === chosen.n && onTextWrite ? <InlineWrite x={chosen} timeline={timeline} k={k} onDone={v => { setWriting(null); if (v.trim() && v !== chosen.texte) onTextWrite(chosen.n, v); }} /> : null}
+      {crop && timeline.plans[crop.index] ? <CropGrip plan={timeline.plans[crop.index]} sources={sources} width={width} height={height} onCadre={crop.onCadre} onDragging={onDragging} /> : null}
       {grip ? <LayerGrip layer={grip} time={time} width={width} height={height} onMove={m => onLayerMove!(grip.id, m)} onDragging={onDragging} /> : null}
     </View>
   );

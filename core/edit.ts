@@ -2,7 +2,7 @@
 // limite » ; Ryan, 28 octobre : « donner la main à l'utilisateur »). Pure functions on a timeline v1:
 // the phone applies them instantly, without AI. Every shot and text gets a stable id, and what the
 // person changes by hand is locked, so a later AI retouch cannot overwrite it.
-import { LOGO_POSITIONS, MAX_CALQUES_SIMULTANES, TRANSITION_SECONDS, sanitizeAudios, sanitizeCalques, timelineDuration, type AudioClip, type Calque, type Cle, type Clips, type Plan, type Texte, type TimelineV1 } from "./timeline.ts";
+import { LOGO_POSITIONS, sanitizeCadre, sanitizeReglages, MAX_CALQUES_SIMULTANES, TRANSITION_SECONDS, sanitizeAudios, sanitizeCalques, timelineDuration, type AudioClip, type Calque, type Cle, type Clips, type Plan, type Texte, type TimelineV1 } from "./timeline.ts";
 import type { DuoId } from "./typo.ts";
 
 export type EditDoc = { timeline: TimelineV1; planIds: string[]; texteIds: string[]; locked: string[] };
@@ -71,11 +71,14 @@ export function deletePlan(d: EditDoc, i: number): EditDoc {
   return withPlans(d, plans, d.planIds.filter((_, j) => j !== i), d.locked.filter(x => x !== d.planIds[i]));
 }
 
-export function setPlan(d: EditDoc, i: number, patch: Partial<Pick<Plan, "transition" | "etalonnage" | "vitesse" | "cadrage" | "garder_son" | "mouvement" | "volume">>): EditDoc {
+export function setPlan(d: EditDoc, i: number, patch: Partial<Pick<Plan, "transition" | "etalonnage" | "vitesse" | "cadrage" | "garder_son" | "mouvement" | "volume" | "cadre" | "reglages">>): EditDoc {
   if (!d.timeline.plans[i]) return d;
   const p = { ...d.timeline.plans[i], ...patch };
   if (patch.vitesse !== undefined) p.vitesse = round(clamp(patch.vitesse, 0.5, 2));
   if (patch.volume !== undefined) p.volume = round(clamp(patch.volume, 0, 2));
+  // A reframe back to the centre, or settings back to 0, leave no trace.
+  if ("cadre" in patch) { const c = sanitizeCadre(patch.cadre); if (c) p.cadre = c; else delete p.cadre; }
+  if ("reglages" in patch) { const r = sanitizeReglages(patch.reglages); if (r) p.reglages = r; else delete p.reglages; }
   if (i === 0) p.transition = "coupe";
   return withPlans(d, d.timeline.plans.map((x, j) => (j === i ? p : x)), d.planIds, lock(d, d.planIds[i]));
 }
@@ -108,6 +111,29 @@ export function duplicatePlan(d: EditDoc, i: number): EditDoc {
   if (!p) return d;
   const id = newId("p");
   return withPlans(d, [...d.timeline.plans.slice(0, i + 1), { ...p, transition: "coupe" }, ...d.timeline.plans.slice(i + 1)], [...d.planIds.slice(0, i + 1), id, ...d.planIds.slice(i + 1)], lock(d, id));
+}
+
+// Another passage of a rush, chosen by hand (Ryan, 28 octobre : « faire un montage à différents
+// moments d'une même vidéo »): `debut` to `debut + length` of `source`, put after shot `after` (-1:
+// first), with a plain cut. It keeps the look of the shot it follows.
+export function addPassage(d: EditDoc, source: string, debut: number, length: number, after: number, clips: Clips): EditDoc {
+  const len = clips[source]?.duration;
+  if (!len || len < MIN_SHOT) return d;
+  const l = clamp(length, MIN_SHOT, len), a = round(clamp(debut, 0, len - l));
+  const near = d.timeline.plans[Math.max(0, after)];
+  const p: Plan = {
+    source, debut: a, fin: round(a + l), cadrage: "centre", transition: "coupe", garder_son: near?.garder_son ?? false, vitesse: 1,
+    etalonnage: near?.etalonnage ?? "naturel", mouvement: "aucun", raison: "",
+  };
+  const at = clamp(after + 1, 0, d.timeline.plans.length), id = newId("p");
+  const plans = [...d.timeline.plans.slice(0, at), p, ...d.timeline.plans.slice(at)];
+  plans[0] = { ...plans[0], transition: "coupe" };
+  return withPlans(d, plans, [...d.planIds.slice(0, at), id, ...d.planIds.slice(at)], lock(d, id));
+}
+
+// The passages of a rush already in the edit, in rush time: to show what is taken and what is not.
+export function passagesOf(t: Pick<TimelineV1, "plans">, source: string): { debut: number; fin: number; index: number }[] {
+  return t.plans.map((p, index) => ({ debut: p.debut, fin: p.fin, index, source: p.source })).filter(p => p.source === source).map(({ debut, fin, index }) => ({ debut, fin, index }));
 }
 
 // ---------- Sounds on their own tracks (voice-over, recording, imported sound) ----------

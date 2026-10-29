@@ -9,6 +9,12 @@ struct Timeline: Decodable {
     let vitesse: Double; let etalonnage: String; let mouvement: String
     // The level of the rush's own sound, 0 to 2 (étape 4); absent means as recorded.
     let volume: Double?
+    // Reframed by hand: the rush's point kept at the centre (0 to 1, y from the top) and a zoom.
+    struct Cadre: Decodable { let x: Double; let y: Double; let z: Double }
+    let cadre: Cadre?
+    // Fine colour on top of `etalonnage`, each -1 to 1.
+    struct Reglages: Decodable { let lumiere: Double; let contraste: Double; let saturation: Double; let chaleur: Double }
+    let reglages: Reglages?
   }
   // A voice-over, a recording or a sound on its own track (étape 5): placed at `t`, the part from
   // `debut` to `fin` of its file, with fades.

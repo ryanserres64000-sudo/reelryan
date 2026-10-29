@@ -54,7 +54,27 @@ export type Plan = {
   garder_son: boolean; vitesse: number; etalonnage: OneOf<typeof ETALONNAGES>; mouvement: OneOf<typeof MOUVEMENTS>; raison: string;
   // Volume of the shot's own sound (1 when absent).
   volume?: number;
+  // Reframed by hand (étape 4 du parcours) : the point of the rush kept at the centre (0 to 1 of its
+  // width and height) and a zoom (1 to 3). Replaces `cadrage` when present.
+  cadre?: Cadre;
+  // Fine colour, on top of `etalonnage`: each from -1 to 1, 0 untouched.
+  reglages?: Reglages;
 };
+export type Cadre = { x: number; y: number; z: number };
+export const REGLAGES = ["lumiere", "contraste", "saturation", "chaleur"] as const;
+export type Reglages = Record<OneOf<typeof REGLAGES>, number>;
+export const CADRE_ZOOM = [1, 3] as const;
+export function sanitizeCadre(raw: unknown): Cadre | undefined {
+  const c = obj(raw);
+  if (typeof c.x !== "number" || typeof c.y !== "number") return undefined;
+  const z = clamp(num(c.z, 1), ...CADRE_ZOOM), x = clamp(num(c.x, 0.5), 0, 1), y = clamp(num(c.y, 0.5), 0, 1);
+  // Centred and not zoomed: nothing to keep.
+  return z === 1 && Math.abs(x - 0.5) < 0.005 && Math.abs(y - 0.5) < 0.005 ? undefined : { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000, z: round(z) };
+}
+export function sanitizeReglages(raw: unknown): Reglages | undefined {
+  const r = obj(raw), out = Object.fromEntries(REGLAGES.map(k => [k, round(clamp(num(r[k]), -1, 1))])) as Reglages;
+  return REGLAGES.some(k => out[k] !== 0) ? out : undefined;
+}
 export type AudioClip = {
   id: string; type: OneOf<typeof AUDIO_TYPES>; source: string; nom: string; t: number; debut: number; fin: number;
   volume: number; fondu_entree: number; fondu_sortie: number;
@@ -165,6 +185,8 @@ function sanitizePlans(raw: unknown, clips: Clips, beat: number, maxDuration: nu
       garder_son: !!p.garder_son, vitesse: round(vitesse), etalonnage: pick(p.etalonnage, ETALONNAGES, "naturel"),
       mouvement: pick(p.mouvement, MOUVEMENTS, "aucun"), raison: str(p.raison, 200),
       ...(p.volume !== undefined && num(p.volume, 1) !== 1 ? { volume: round(clamp(num(p.volume, 1), 0, 2)) } : {}),
+      ...(sanitizeCadre(p.cadre) ? { cadre: sanitizeCadre(p.cadre) } : {}),
+      ...(sanitizeReglages(p.reglages) ? { reglages: sanitizeReglages(p.reglages) } : {}),
     });
   }
   return plans;

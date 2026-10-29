@@ -6,8 +6,9 @@ import type { Sources } from "./sources";
 
 // The real picture of a shot (its rush at the shot's first second) when the native preview is not
 // there: the person always sees their own footage, never an empty frame (Ryan's first test).
+export const isPhoto = (uri: string) => /\.(jpe?g|png|heic|webp)$/i.test(uri);
 const cache = new Map<string, Promise<string | null>>();
-function stillOf(uri: string, at: number, photo: boolean): Promise<string | null> {
+export function stillOf(uri: string, at: number, photo: boolean): Promise<string | null> {
   if (photo) return Promise.resolve(uri);
   const key = `${uri}@${at.toFixed(1)}`;
   if (!cache.has(key)) cache.set(key, VideoThumbnails.getThumbnailAsync(uri, { time: Math.round(at * 1000), quality: 0.7 }).then(r => r.uri, () => null));

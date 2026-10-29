@@ -1,18 +1,19 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
 import { applyCorrection, learn, type Memory } from "../../../core/corrections";
-import { addCalque, addTexte, addVoiceOver, changedPlans, deleteAudio, deleteCalque, deleteCle, deleteEffet, deletePlan, deleteTexte, duplicatePlan, duplicateTexte, isLocked, movePlan, planTimes, push, redo, replaceSource, setAudio, setCalque, setDuo, setLogo, setPlan, setSubtitles, setTexte, splitPlan, startHistory, toDoc, trimPlan, undo, type EditDoc, type History } from "../../../core/edit";
+import { addCalque, addPassage, addTexte, addVoiceOver, changedPlans, deleteAudio, deleteCalque, deleteCle, deleteEffet, deletePlan, deleteTexte, duplicatePlan, duplicateTexte, isLocked, movePlan, planTimes, push, redo, replaceSource, setAudio, setCalque, setDuo, setLogo, setPlan, setSubtitles, setTexte, splitPlan, startHistory, toDoc, trimPlan, undo, type EditDoc, type History } from "../../../core/edit";
 import { exportPlan, placeOf } from "../../../core/export";
 import { MIN_SIZE, PLACE_LIMITS, SWATCHES, TEXT_ALIGNS, TEXT_ANIMS, TEXT_FONDS, TEXT_ROLES, defaultLook, sizeOf, type TextLook } from "../../../core/textlook";
 import { PRESETS, addKey, isOn, moveLayer, newLayer, placeAt, presetOf, type Preset } from "../../../core/layers";
 import { clock } from "../../../core/playback";
 import { ZOOM, clampZoom, lanes as laneList, type Mode } from "../../../core/tracks";
+import { PassageSheet } from "../editor/PassageSheet";
 import { Timeline, type Selection } from "../editor/Timeline";
 import { loadMode, saveMode } from "../editor/mode";
 import { Frame } from "../video/Frame";
 import type { PlayerHandle } from "../video/Player";
 import type { Sources } from "../video/sources";
-import { COURBES, DETOURAGES, ETALONNAGES, FUSIONS, LOGO_POSITIONS, TEXT_POSITIONS, TRANSITIONS, type Calque, type Clips, type Texte, type TimelineV1 } from "../../../core/timeline";
+import { COURBES, DETOURAGES, ETALONNAGES, FUSIONS, LOGO_POSITIONS, REGLAGES, TEXT_POSITIONS, TRANSITIONS, type Calque, type Reglages, type Clips, type Texte, type TimelineV1 } from "../../../core/timeline";
 import { DUOS, duoById } from "../../../core/typo";
 import { fr } from "../copy/fr";
 import { Button, Card, Chip, Icon, MadaSays, Screen, Sheet, Text, haptic, tokens, typeStyle, useTheme, useToast, type IconName } from "../design";
@@ -71,6 +72,8 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
   const [adding, setAdding] = useState(false);
   const [voicing, setVoicing] = useState(false);
   const [layering, setLayering] = useState<null | "pip" | "detoure">(null);
+  const [cropping, setCropping] = useState(false);
+  const [passage, setPassage] = useState(false);
   const file = useMemo(() => exportPlan(tl)[0], [tl]);
   const src = useMemo(() => sources?.() ?? null, []);
   const ids = { plans: d.planIds, textes: d.texteIds };
@@ -114,9 +117,13 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
     if (n >= 0) setSelection({ lane: "textes", index: n, id: next.texteIds[n] } as Selection);
     setTool("texte");
   };
+  useEffect(() => { if (tool !== "plan") setCropping(false); }, [tool]);
+  // Reframing shows the shot being reframed: the play head goes into it.
+  const startCrop = () => { setPlaying(false); setSelection(null); const at = planTimes(tl)[i]; if (at && (time < at.start || time >= at.end)) seek(at.start + 0.05); setCropping(true); };
+  const ZERO: Reglages = { lumiere: 0, contraste: 0, saturation: 0, chaleur: 0 };
   const textSel = selection?.lane === "textes" && tl.textes[selection.index] ? selection.index : null;
-  // Bigger while a text is chosen: it is moved and pinched on the picture itself.
-  const fw = Math.min(wh * (textSel !== null ? 0.46 : 0.3), tokens.layout.largePhoneWidth) * 9 / 16;
+  // Bigger while a text is chosen or a shot reframed: both happen on the picture itself.
+  const fw = Math.min(wh * (textSel !== null || cropping ? 0.46 : 0.3), tokens.layout.largePhoneWidth) * 9 / 16;
   const rushIds = Object.keys(clips);
   const fmt = fr.rush.duration;
 
@@ -152,7 +159,8 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
         <Frame ref={player} timeline={tl} file={file} sources={src} time={time} playing={playing} onTime={setTime} width={fw}
           onTapPicture={() => { haptic("tap"); setPlaying(x => !x); }}
           selectedLayer={selection?.lane === "calques" ? selection.id : null} onLayerMove={(id, m) => apply(moveLayer(d, id, time, m, clips))} onDragging={setDragging}
-          selectedText={textSel} onTextSelect={chooseText} onTextPlace={(n, pl) => apply(setTexte(d, n, { place: pl }))} onTextWrite={(n, v) => apply(setTexte(d, n, { texte: v }))} />
+          selectedText={textSel} onTextSelect={chooseText} onTextPlace={(n, pl) => apply(setTexte(d, n, { place: pl }))} onTextWrite={(n, v) => apply(setTexte(d, n, { texte: v }))}
+          crop={cropping && p ? { index: i, onCadre: cd => apply(setPlan(d, i, { cadre: cd })) } : null} />
         {onPlay ? <IconButton icon="expand" label={fr.player.open} onPress={() => { setPlaying(false); onPlay(tl); }} /> : null}
       </View>
       <View style={styles.between}>
@@ -211,6 +219,15 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
           if (mode === "simple") { setMode("complet"); saveMode("complet"); }
           if (added >= 0) setSelection({ lane: "calques", index: added, id: next.timeline.calques![added].id } as Selection);
           toast({ message: fr.layers.added, action: fr.nav.undo, onAction: () => setH(x => undo(x)) });
+        }} />
+      <PassageSheet visible={passage} onClose={() => setPassage(false)} timeline={tl} clips={clips} sources={src} after={i} source={p?.source}
+        onAdd={(source, debut, length) => {
+          const next = addPassage(d, source, debut, length, i, clips);
+          setPassage(false);
+          if (next === d) return;
+          apply(next); setSel(i + 1); setSelection(null);
+          seek(planTimes(next.timeline)[i + 1]?.start ?? time);
+          toast({ message: fr.passage.added, action: fr.nav.undo, onAction: () => setH(x => undo(x)) });
         }} />
       <VoiceSheet visible={voicing} onClose={() => setVoicing(false)} at={time} duree={tl.duree} brief={brief} ducking={tl.musique.ducking_voix}
         onPlace={(a, lines, ducking) => {
@@ -271,6 +288,13 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
           </View>
           <Group label={t.source}>{rushIds.map((id, k) => <Chip key={id} label={t.sourceName(k + 1)} selected={p.source === id} onPress={() => apply(replaceSource(d, i, id, clips))} />)}</Group>
           {i > 0 ? <Group label={t.transition}>{TRANSITIONS.map(x => <Chip key={x} label={t.transitions[x]} selected={p.transition === x} onPress={() => apply(setPlan(d, i, { transition: x }))} />)}</Group> : null}
+          <Group label={fr.crop.title}>
+            <Chip label={cropping ? fr.crop.done : fr.crop.open} selected={cropping} onPress={() => (cropping ? setCropping(false) : startCrop())} />
+            {p.cadre ? <Chip label={fr.crop.reset} onPress={() => apply(setPlan(d, i, { cadre: undefined }))} /> : null}
+            {p.cadre ? <Text variant="caption" tone="textMuted">{fr.crop.zoom(p.cadre.z)}</Text> : null}
+          </Group>
+          {cropping ? <Text variant="caption" tone="textMuted">{fr.crop.gesture}</Text> : null}
+          <Button variant="secondary" label={fr.passage.open} onPress={() => { setPlaying(false); setPassage(true); }} />
           {tl.plans.length > 1
             ? <Button variant="secondary" label={t.deletePlan} onPress={() => { remove(deletePlan(d, i), fr.toast.planRemoved); setSel(Math.max(0, i - 1)); }} />
             : <Text variant="caption" tone="textMuted">{t.lastPlan}</Text>}
@@ -282,7 +306,32 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
       ) : null}
 
       {tool === "couleur" && p ? (
-        <Card><Group label={t.grade}>{ETALONNAGES.map(x => <Chip key={x} label={t.grades[x]} selected={p.etalonnage === x} onPress={() => apply(setPlan(d, i, { etalonnage: x }))} />)}</Group></Card>
+        <Card>
+          <Group label={t.grade}>{ETALONNAGES.map(x => <Chip key={x} label={t.grades[x]} selected={p.etalonnage === x} onPress={() => apply(setPlan(d, i, { etalonnage: x }))} />)}</Group>
+          <Text variant="caption" tone="textMuted">{fr.fine.title}</Text>
+          {REGLAGES.map(k => {
+            const r = p.reglages ?? ZERO, v = r[k], name = fr.fine.names[k];
+            const step = (dv: number) => apply(setPlan(d, i, { reglages: { ...r, [k]: Math.max(-1, Math.min(1, v + dv)) } }));
+            return (
+              <View key={k} style={styles.between}>
+                <Text variant="body">{name}</Text>
+                <View style={styles.row}>
+                  <Chip label="−" accessibilityLabel={fr.fine.less(name)} disabled={v <= -1} onPress={() => step(-0.25)} />
+                  <Text variant="mono" tone={v ? "text" : "textMuted"} style={styles.value}>{fr.fine.value(v)}</Text>
+                  <Chip label="+" accessibilityLabel={fr.fine.more(name)} disabled={v >= 1} onPress={() => step(0.25)} />
+                </View>
+              </View>
+            );
+          })}
+          <View style={styles.row}>
+            {p.reglages ? <Chip label={fr.fine.reset} onPress={() => apply(setPlan(d, i, { reglages: undefined }))} /> : null}
+            {tl.plans.length > 1 ? <Chip label={fr.fine.all} onPress={() => {
+              let next = d;
+              tl.plans.forEach((_, j) => { next = setPlan(next, j, { etalonnage: p.etalonnage, reglages: p.reglages }); });
+              apply(next); toast({ message: fr.fine.applied, action: fr.nav.undo, onAction: () => setH(x => undo(x)) });
+            }} /> : null}
+          </View>
+        </Card>
       ) : null}
 
       {tool === "son" && p ? (
@@ -291,6 +340,7 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
             <Chip label={t.on} selected={p.garder_son} onPress={() => apply(setPlan(d, i, { garder_son: true }))} />
             <Chip label={t.off} selected={!p.garder_son} onPress={() => apply(setPlan(d, i, { garder_son: false }))} />
           </Group>
+          {p.garder_son ? <Group label={fr.volume.title}>{[0.5, 1, 1.5].map(v => <Chip key={v} label={fr.volume.value(v)} selected={(p.volume ?? 1) === v} onPress={() => apply(setPlan(d, i, { volume: v }))} />)}</Group> : null}
           <Group label={t.effets}>
             {(tl.effets ?? []).map((e, k) => <Chip key={`${e.type}${e.t}`} label={t.effet(t.effetNames[e.type], t.seconds(e.t))} onPress={() => remove(deleteEffet(d, k), fr.toast.effetRemoved)} />)}
           </Group>
@@ -517,5 +567,6 @@ const styles = StyleSheet.create({
   iconButton: { width: tokens.size.touch, height: tokens.size.touch, borderRadius: tokens.radius.full, borderWidth: tokens.size.border, alignItems: "center", justifyContent: "center" },
   preview: { flexDirection: "row", alignItems: "flex-end", justifyContent: "center", gap: tokens.space.sm },
   choice: { flexDirection: "row", alignItems: "center", gap: tokens.space.sm, padding: tokens.space.sm, borderRadius: tokens.radius.card, minHeight: tokens.size.button },
+  value: { minWidth: tokens.size.touch, textAlign: "center" },
   sample: { borderRadius: tokens.radius.card, paddingVertical: tokens.space.lg, paddingHorizontal: tokens.space.md, alignItems: "center" },
 });

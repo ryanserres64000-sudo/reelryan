@@ -34,7 +34,7 @@ final class MadaCompositor: NSObject, AVVideoCompositing {
       let shots = instruction.shots.sorted { $0.start < $1.start }
       for (n, shot) in shots.enumerated() {
         guard var image = source(shot, request) else { continue }
-        image = grade(motion(fill(image, shot, plan.size), shot, t, plan.size), shot.plan.etalonnage)
+        image = adjust(grade(motion(fill(image, shot, plan.size), shot, t, plan.size), shot.plan.etalonnage), shot.plan.reglages)
         // The incoming shot of a transition is drawn over the outgoing one.
         if n > 0, shots.count > 1 {
           let p = max(0, min(1, (t - shot.start) / TRANSITION_SECONDS))
@@ -59,7 +59,16 @@ final class MadaCompositor: NSObject, AVVideoCompositing {
 
   // Covers 1080 × 1920; « gauche » or « droite » keeps that side of a horizontal shot.
   private func fill(_ image: CIImage, _ shot: Shot, _ size: CGSize) -> CIImage {
-    let e = image.extent, k = max(size.width / e.width, size.height / e.height)
+    let e = image.extent
+    // Reframed by hand: zoomed, the chosen point at the centre, never leaving an empty edge.
+    if let c = shot.plan.cadre {
+      let k = max(size.width / e.width, size.height / e.height) * CGFloat(max(1, min(3, c.z)))
+      let w = e.width * k, h = e.height * k
+      let tx = min(0, max(size.width - w, size.width / 2 - CGFloat(c.x) * w))
+      let ty = min(0, max(size.height - h, size.height / 2 - CGFloat(1 - c.y) * h))
+      return image.transformed(by: CGAffineTransform(scaleX: k, y: k)).transformed(by: CGAffineTransform(translationX: tx - e.minX * k, y: ty - e.minY * k))
+    }
+    let k = max(size.width / e.width, size.height / e.height)
     let w = e.width * k, h = e.height * k
     let x = shot.plan.cadrage == "gauche" ? 0 : shot.plan.cadrage == "droite" ? size.width - w : (size.width - w) / 2
     return image.transformed(by: CGAffineTransform(scaleX: k, y: k)).transformed(by: CGAffineTransform(translationX: x - e.minX * k, y: (size.height - h) / 2 - e.minY * k))
@@ -92,6 +101,19 @@ final class MadaCompositor: NSObject, AVVideoCompositing {
     case "noir-et-blanc": return image.applyingFilter("CIPhotoEffectMono")
     default: return image
     }
+  }
+
+  // The fine settings of the editor (« Couleur »): gentle ranges, so -1 or 1 stays natural.
+  private func adjust(_ image: CIImage, _ r: Timeline.Plan.Reglages?) -> CIImage {
+    guard let r else { return image }
+    var out = image.applyingFilter("CIColorControls", parameters: [
+      kCIInputBrightnessKey: CGFloat(r.lumiere * 0.12), kCIInputContrastKey: CGFloat(1 + r.contraste * 0.25), kCIInputSaturationKey: CGFloat(1 + r.saturation * 0.5),
+    ])
+    if r.chaleur != 0 {
+      let c = CGFloat(r.chaleur)
+      out = out.applyingFilter("CIColorMatrix", parameters: ["inputRVector": CIVector(x: 1 + 0.06 * c, y: 0, z: 0, w: 0), "inputGVector": CIVector(x: 0, y: 1, z: 0, w: 0), "inputBVector": CIVector(x: 0, y: 0, z: 1 - 0.07 * c, w: 0)])
+    }
+    return out
   }
 
   private func transition(_ image: CIImage, _ kind: String, _ p: Double, _ size: CGSize) -> CIImage {

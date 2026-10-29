@@ -47,6 +47,7 @@ import type { Photo, VisualResult } from "../visual/api";
 import { deleteVisual, loadVisuals, saveVisual, type SavedVisual } from "../visual/store";
 import { SAMPLE_RUSHES, fakeMontage } from "./fake";
 import { streamMontage } from "./api";
+import { LIMITS, mapLimit } from "../../../core/progress";
 import { aiUrl } from "./server";
 import { canRead, montageBody, thumbnailOf, triageAny } from "./triage";
 import { Onboarding } from "./Onboarding";
@@ -224,14 +225,21 @@ export function Flow() {
       else setStep("generation");
     }} />;
     case "generation": return <GenerationScreen rushes={chosen.length} kept={kept} variants={3}
-      run={(onStep, signal) => {
+      run={(onStep, signal, onRead) => {
         // The web preview keeps its sample answer. On the iPhone, only the real AI edit: a missing server
         // or unreadable rushes are said plainly (Ryan's first test, 28 octobre 2026), never faked.
         const url = aiUrl();
         if (!canRead()) return fakeMontage(chosen, brief, music, onStep, signal, undefined, charteOf(brand?.dna ?? null, !!brand?.logoUri));
         if (!url) return Promise.reject(Object.assign(new Error("server"), { code: "no_server" }));
         return (async () => {
-          const ready = await Promise.all(chosen.map(r => (r.triage ? r : triageAny(r).then(t => { setRushes(list => list.map(x => (x.id === t.id ? t : x))); return t; }).catch(() => r))));
+          // Two rushes at a time, each with its time limit (core/progress.ts), counted on screen.
+          let read = 0;
+          onRead(0, chosen.length);
+          const ready = await mapLimit(chosen, LIMITS.readers, async r => {
+            const t = r.triage ? r : await triageAny(r).then(x => { setRushes(list => list.map(y => (y.id === x.id ? x : y))); return x; }).catch(() => r);
+            if (!signal.aborted) onRead(++read, chosen.length);
+            return t;
+          });
           if (!ready.every(r => r.triage)) throw Object.assign(new Error("rushes"), { code: "unreadable" });
           onStep(1);
           return streamMontage(url, await montageBody(ready, brief, music, brand ?? null, brand?.memory?.rules.map(r => r.text) ?? []), onStep, signal);

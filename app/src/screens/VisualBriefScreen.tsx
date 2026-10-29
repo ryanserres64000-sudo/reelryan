@@ -1,4 +1,3 @@
-import * as ImagePicker from "expo-image-picker";
 import { useRef, useState } from "react";
 import { Image, Pressable, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
 import { INFOS, KINDS, STYLE_OF, type Infos, type Kind, type VisualBrief } from "../../../core/design";
@@ -7,6 +6,8 @@ import type { Brand } from "../brand/types";
 import { Button, Chip, MadaSays, Screen, Text, tokens, typeStyle, useTheme } from "../design";
 import { assetsOf, createVisual, type Photo, type VisualResult } from "../visual/api";
 import { DesignView } from "../visual/DesignView";
+import { pickPhotos } from "../visual/photos";
+import { noteError } from "../diag";
 import type { SavedVisual } from "../visual/store";
 
 type Props = { brand: Brand | null; saved: SavedVisual[]; initial?: { brief: VisualBrief; photos: Photo[] } | null; onCreated: (r: VisualResult, brief: VisualBrief, photos: Photo[]) => void; onOpen: (v: SavedVisual) => void; onBack: () => void; canAi?: boolean; onBlocked?: (brief: VisualBrief, photos: Photo[]) => void };
@@ -28,12 +29,13 @@ export function VisualBriefScreen({ brand, saved, initial, onCreated, onOpen, on
   const ctl = useRef<AbortController | null>(null);
   const thumb = Math.min(width, tokens.layout.largePhoneWidth) / 4;
 
+  const [photoSay, setPhotoSay] = useState<string | null>(null);
   const pick = async () => {
+    setPhotoSay(null);
     try {
-      const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsMultipleSelection: true, selectionLimit: MAX_PHOTOS - photos.length, orderedSelection: true });
-      if (res.canceled) return;
-      setPhotos(p => [...p, ...res.assets.map(a => ({ id: "", uri: a.uri }))].slice(0, MAX_PHOTOS).map((x, i) => ({ ...x, id: `img${i + 1}` })));
-    } catch { /* the picker refused: nothing changes */ }
+      const got = await pickPhotos(MAX_PHOTOS - photos.length);
+      setPhotos(p => [...p, ...got.map(a => ({ id: "", uri: a.uri }))].slice(0, MAX_PHOTOS).map((x, i) => ({ ...x, id: `img${i + 1}` })));
+    } catch (e) { noteError("photos", e instanceof Error ? e.message : String(e)); setPhotoSay(t.photoError); }
   };
   const create = async () => {
     setBusy(true);
@@ -60,16 +62,6 @@ export function VisualBriefScreen({ brand, saved, initial, onCreated, onOpen, on
       </View>
 
       <View style={styles.field}>
-        <Text variant="headline">{t.infos}</Text>
-        <Text variant="caption" tone="textMuted">{t.infosWhy}</Text>
-        {INFOS.map(k => (
-          <TextInput key={k} value={infos[k] ?? ""} onChangeText={v => setInfos(x => ({ ...x, [k]: v }))} placeholder={t.fields[k]} placeholderTextColor={c.textMuted}
-            accessibilityLabel={t.fields[k]} maxLength={k === "autre" ? 200 : 80}
-            style={[typeStyle("body"), styles.input, { color: c.text, borderColor: c.line, backgroundColor: c.surface }]} />
-        ))}
-      </View>
-
-      <View style={styles.field}>
         <Text variant="headline">{t.photos}</Text>
         <Text variant="caption" tone="textMuted">{t.photosWhy}</Text>
         <View style={styles.row}>
@@ -80,6 +72,17 @@ export function VisualBriefScreen({ brand, saved, initial, onCreated, onOpen, on
           ))}
         </View>
         {photos.length < MAX_PHOTOS ? <Button variant="secondary" label={t.addPhoto} onPress={pick} /> : null}
+        {photoSay ? <MadaSays text={photoSay} /> : null}
+      </View>
+
+      <View style={styles.field}>
+        <Text variant="headline">{t.infos}</Text>
+        <Text variant="caption" tone="textMuted">{t.infosWhy}</Text>
+        {INFOS.map(k => (
+          <TextInput key={k} value={infos[k] ?? ""} onChangeText={v => setInfos(x => ({ ...x, [k]: v }))} placeholder={t.fields[k]} placeholderTextColor={c.textMuted}
+            accessibilityLabel={t.fields[k]} maxLength={k === "autre" ? 200 : 80}
+            style={[typeStyle("body"), styles.input, { color: c.text, borderColor: c.line, backgroundColor: c.surface }]} />
+        ))}
       </View>
 
       {saved.length ? (

@@ -26,9 +26,14 @@ public class MadaVideoModule: Module {
       export.metadata = metadata(f.metadonnees)
       await export.export()
       guard export.status == .completed else { throw export.error ?? RenderError.export("\(export.status.rawValue)") }
-      let asset = try await saveToPhotos(out)
-      // The Photos id lets Instagram open on this very video (instagram://library, étape 7).
-      return ["uri": out.absoluteString, "asset": asset ?? NSNull()]
+      // The Photos id lets Instagram open on this very video (instagram://library, étape 7). Without
+      // Photos access the file is still made: the app hands it to the share sheet (« Enregistrer la vidéo »).
+      do {
+        let asset = try await saveToPhotos(out)
+        return ["uri": out.absoluteString, "asset": asset ?? NSNull(), "photos": true]
+      } catch {
+        return ["uri": out.absoluteString, "asset": NSNull(), "photos": false]
+      }
     }
 
     View(MadaVideoView.self) {

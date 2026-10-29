@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { LIMITS, percent, Timeout, withTimeout } from "../../../core/progress";
 import { fr } from "../copy/fr";
-import { Button, GenerationView, Screen, Text, tokens, haptic } from "../design";
+import { Button, GenerationView, LogoWorking, Screen, Text, tokens, haptic } from "../design";
 import type { MontageResult, Runner } from "../flow/types";
 
 type Props = {
@@ -52,6 +52,7 @@ export function GenerationScreen({ rushes, kept, variants, run, onDone, onCancel
       ? <><Button label={fr.nav.retry} onPress={() => setAttempt(a => a + 1)} /><Button variant="secondary" label={fr.nav.back} onPress={onCancel} /></>
       : <Button variant="secondary" label={fr.generation.cancel} onPress={onCancel} disabled={step >= 4} />}>
       <View style={styles.body}>
+        {failed ? null : <LogoWorking step={step} />}
         <GenerationView rushes={rushes} kept={kept} variants={variants} step={step} percent={failed ? undefined : pct} detail={detail} />
         {failed ? <Text tone="danger" accessibilityLiveRegion="assertive">{failed}</Text> : null}
         <Text variant="caption" tone="textMuted">{fr.consent.lead}</Text>

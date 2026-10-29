@@ -19,6 +19,7 @@ export { Icon, type IconName } from "./components/Icon";
 export { Intro } from "./components/Intro";
 export { Gradient } from "./components/Gradient";
 export { LogoLabel, LogoSlash } from "./components/Logo";
+export { LogoWorking } from "./components/LogoWorking";
 export { Sheet } from "./components/Sheet";
 export { ToastProvider, useToast } from "./components/Toast";
 export { Skeleton } from "./components/Skeleton";

@@ -474,7 +474,7 @@ ${dna || "Pas encore de carnet de marque : reste sobre et chaleureux."}
 IMAGES DISPONIBLES (référence-les par leur identifiant) :
 ${assets.map(a => `${a.id} : ${a.desc}`).join("\n") || "Aucune : compose avec la typographie, les aplats et les formes simples."}
 Les vignettes jointes, dans l'ordre : ${assets.map(a => a.id).join(", ") || "aucune"}.
-Réponds avec 4 à 16 calques, du fond vers l'avant, nombres entiers pour x, y, w, h. Chaque photo pertinente est utilisée au moins une fois ; le logo, s'il est fourni, reste petit et propre.`;
+Réponds avec 4 à 16 calques, du fond vers l'avant, nombres entiers pour x, y, w, h. Chaque photo fournie est utilisée au moins une fois, en grand si elle est belle : c'est la personne qui l'a choisie ; le logo, s'il est fourni, reste petit et propre.`;
 }
 
 // ---------- Without the server: hand-made layouts at the brand's colours ----------
@@ -559,6 +559,26 @@ export function addText(d: Design, text: string, look: BrandLook): Design {
   };
   return { ...d, layers: [...d.layers, l] };
 }
+// A photo added by hand (Ryan, build 9 : « je ne peux pas ajouter de photos sur les affiches ») : framed
+// rounded in the middle, below the texts so it never covers one, locked like every change by hand.
+// `ratio`: the photo's width / height, so it is not cropped more than it must be.
+export function addPhoto(d: Design, asset: string, ratio = 0.8): Design {
+  const w = Math.round(d.w * 0.6), h = Math.round(Math.min(d.h * 0.6, w / Math.max(0.3, Math.min(3, ratio))));
+  const l: ImageLayer = {
+    id: layerId(), type: "image", name: "Photo", asset, x: Math.round((d.w - w) / 2), y: Math.round((d.h - h) / 2), w, h, rotation: 0, opacity: 1, blend: "normal",
+    fit: "cover", focusX: 0.5, focusY: 0.5, zoom: 1, mask: "rounded", radius: Math.round(d.w * 0.03), filter: "none", frame: "none", tape: false, locked: true,
+  };
+  const firstText = d.layers.findIndex(x => x.type === "text");
+  const layers = [...d.layers];
+  layers.splice(firstText < 0 ? layers.length : firstText, 0, l);
+  return { ...d, layers };
+}
+// The next free photo alias (img1…img9), or null when all are taken.
+export function nextPhotoId(taken: string[]): string | null {
+  for (let i = 1; i <= 9; i++) if (!taken.includes(`img${i}`)) return `img${i}`;
+  return null;
+}
+
 // After an AI retouch, what the person placed by hand comes back as it was.
 export function keepLockedLayers(before: Design, ai: Design): Design {
   const locked = before.layers.filter(l => l.locked);

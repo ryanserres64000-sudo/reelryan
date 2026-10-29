@@ -219,7 +219,7 @@ export function Flow() {
       onOpen={v => { setVisual({ id: v.id, result: { design: v.design, concept: "", relecture: [], byAi: true }, brief: v.brief, photos: v.photos }); setStep("visual-editor"); }} />;
     case "visual-editor": return visual ? <VisualEditorScreen key={visual.id} result={visual.result} brief={visual.brief} photos={visual.photos} brand={brand ?? null}
       onBack={() => setStep("visual")}
-      onSave={d => { saveVisual({ id: visual.id, brief: visual.brief, design: d, photos: visual.photos, at: new Date().toISOString() }).then(setVisuals); setStep("visual"); }} /> : null;
+      onSave={(d, photos) => { saveVisual({ id: visual.id, brief: visual.brief, design: d, photos, at: new Date().toISOString() }).then(setVisuals); setStep("visual"); }} /> : null;
     case "import": return <ImportScreen onBack={() => setStep("home")} rushes={rushes} selected={selected} pro={!!plans?.pro} demo={demo}
       onRushes={r => { setRushes(r); setDemo(false); }} onSelect={setSelected} onNext={() => (manualMode ? manual() : setStep("brief"))} />;
     case "brief": return <BriefScreen brief={brief} onChange={b => { setBrief(b); if (b.duration !== brief.duration) setMusic(m => ({ ...m, length: b.duration })); }} onBack={() => setStep("import")} onNext={() => setStep("music")} />;
@@ -229,7 +229,7 @@ export function Flow() {
       else if (!aiAllowed()) askConsent("music", () => setStep("generation"), manual);
       else setStep("generation");
     }} />;
-    case "generation": return <GenerationScreen rushes={chosen.length} kept={kept} variants={3}
+    case "generation": return <GenerationScreen rushes={chosen.length} kept={kept} variants={2}
       run={(onStep, signal, onRead) => {
         // The web preview keeps its sample answer. On the iPhone, only the real AI edit: a missing server
         // or unreadable rushes are said plainly (Ryan's first test, 28 octobre 2026), never faked.

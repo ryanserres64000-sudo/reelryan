@@ -59,7 +59,7 @@ export function ImportScreen({ rushes, selected, pro, onRushes, onSelect, onNext
       <View style={styles.grid}>
         {rushes.map(r => {
           const i = selected.indexOf(r.id);
-          return <RushCard key={r.id} width={cardWidth} duration={r.duration} badges={r.badges} order={i >= 0 ? i + 1 : undefined} thumbnail={r.thumb ? { uri: r.thumb } : r.uri && r.photo ? { uri: r.uri } : undefined} onPress={() => toggle(r.id)} />;
+          return <RushCard key={r.id} width={cardWidth} photo={r.photo} duration={r.duration} badges={r.badges} order={i >= 0 ? i + 1 : undefined} thumbnail={r.thumb ? { uri: r.thumb } : undefined} onPress={() => toggle(r.id)} />;
         })}
       </View>
       <Text variant="caption" tone="textMuted">{fr.onboarding.privacy}</Text>

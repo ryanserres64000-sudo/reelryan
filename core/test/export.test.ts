@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { captionFor, exportPlan, inside, offlineCaption, safeZone, trendTip } from "../export.ts";
+import { QUALITES, captionFor, exportPlan, imageSize, inside, offlineCaption, safeZone, trendTip, withQuality } from "../export.ts";
 import { sanitizeTimeline } from "../timeline.ts";
 
 const clips = { a: { duration: 100 }, b: { duration: 100 } };
@@ -65,4 +65,16 @@ test("every AI export says so in its metadata, a hand-made one does not (AI Act,
   const t = tl();
   for (const f of exportPlan(t)) assert.match(f.metadonnees["com.apple.quicktime.description"], /assisté par IA/);
   for (const f of exportPlan(t, false)) assert.equal(f.metadonnees["com.apple.quicktime.description"], undefined);
+});
+
+test("quality: 2K and 4K change only the file's size, the layout stays on 1080", () => {
+  const f = exportPlan(tl())[0];
+  for (const q of ["hd", "2k", "4k"] as const) {
+    const g = withQuality(f, q);
+    assert.deepEqual([g.w, g.h], [QUALITES[q].w, QUALITES[q].h]);
+    assert.equal(g.w * 16, g.h * 9, "toujours en 9:16");
+    assert.deepEqual(g.textes, f.textes);
+  }
+  assert.deepEqual(imageSize(1080, 1350, "4k"), { w: 2160, h: 2700 });
+  assert.deepEqual(imageSize(2160, 3840, "hd"), { w: 2160, h: 3840 }, "jamais plus petit que le visuel");
 });

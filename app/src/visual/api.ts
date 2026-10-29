@@ -6,7 +6,8 @@ import type { Brand } from "../brand/types";
 import { SERVER, aiUrl, serverHeaders } from "../flow/server";
 
 export type Photo = { id: string; uri: string };
-export type VisualResult = { design: Design; concept: string; relecture: string[]; byAi: boolean };
+// `relire`: a new design from the AI, which the editor re-reads once on its render (reviewVisual).
+export type VisualResult = { design: Design; concept: string; relecture: string[]; byAi: boolean; relire?: boolean };
 
 export const lookOf = (b: Brand | null): BrandLook & { nom?: string } => ({
   couleurs: b?.dna?.couleurs?.length ? b.dna.couleurs : b?.kit.couleurs ?? [],
@@ -50,11 +51,22 @@ export async function createVisual(brief: VisualBrief, brand: Brand | null, phot
   try {
     const out = await call({ brief, adn: brand?.dna ? compactDna(brand.dna) : "", couleurs: look.couleurs, polices: look.polices, images: await images(photos, brand) }, signal);
     const { w, h } = KINDS[brief.kind];
-    return { design: sanitizeDesign(out.design, w, h, assets), concept: out.concept ?? "", relecture: out.relecture ?? [], byAi: true };
+    return { design: sanitizeDesign(out.design, w, h, assets), concept: out.concept ?? "", relecture: out.relecture ?? [], byAi: true, relire: true };
   } catch (e) {
     if (signal?.aborted) throw e;
     return offline();
   }
+}
+
+// The art director's second look (lib/visuel.js, mode « relire »): the design as rendered on this
+// iPhone, as a small JPEG, with its JSON. Null when there is nothing to change or no server.
+export async function reviewVisual(d: Design, rendu: string, brief: VisualBrief, brand: Brand | null, photos: Photo[], signal?: AbortSignal): Promise<{ design: Design; relecture: string[] } | null> {
+  if (!aiUrl() || !rendu) return null;
+  const look = lookOf(brand);
+  const out = await call({ mode: "relire", rendu, design: d, brief, adn: brand?.dna ? compactDna(brand.dna) : "", couleurs: look.couleurs, polices: look.polices, images: await images(photos, brand) }, signal);
+  const relecture: string[] = (out.relecture ?? []).filter((x: unknown) => typeof x === "string" && x.trim());
+  if (!relecture.length) return null;
+  return { design: keepLockedLayers(d, sanitizeDesign(out.design, d.w, d.h, Object.keys(assetsOf(photos, brand)))), relecture };
 }
 
 // A retouch in one sentence; what the person moved by hand comes back as it was. Null offline.

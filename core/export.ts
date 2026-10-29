@@ -128,6 +128,20 @@ export function exportPlan(t: TimelineV1, ia = true): ExportFile[] {
   });
 }
 
+// Quality (Ryan, 29 octobre : « propose la qualité 2K, 4K ou autre »). The plan stays in the 1080 × 1920
+// layout (boxes, font sizes); only the file's size changes and the native render draws texts and logo
+// `w / 1080` times sharper. 1080p is what Instagram and TikTok show; 2K and 4K keep more detail for
+// YouTube or for a later re-edit, at the cost of a heavier file and a longer export.
+export type Qualite = "hd" | "2k" | "4k";
+export const QUALITES: Record<Qualite, { w: number; h: number }> = { hd: { w: W, h: H }, "2k": { w: 1440, h: 2560 }, "4k": { w: 2160, h: 3840 } };
+export const withQuality = (f: ExportFile, q: Qualite): ExportFile => ({ ...f, ...QUALITES[q] });
+// A visual (PNG) at the chosen quality: its width brought to 1080, 1440 or 2160 px, the ratio kept,
+// never smaller than the design itself.
+export function imageSize(w: number, h: number, q: Qualite) {
+  const k = Math.max(1, QUALITES[q].w / w);
+  return { w: Math.round(w * k), h: Math.round(h * k) };
+}
+
 // « Mode son tendance » : the edit is cut on a tempo; the person adds the sound in the app when posting.
 export function trendTip(t: TimelineV1): { bpm: number } | null {
   return t.musique.mode === "tendance" && t.musique.bpm ? { bpm: Math.round(t.musique.bpm) } : null;

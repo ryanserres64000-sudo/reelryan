@@ -28,6 +28,7 @@ export const fr = {
   },
 
   generation: {
+    logoLabel: "Ma DA monte ta vidéo",
     steps: (rushes: number, kept: number, variants: number) => [
       `Je regarde tes ${plural(rushes, "rush", "rushes")}`,
       `Je garde les ${plural(kept, "meilleur moment", "meilleurs moments")}`,
@@ -136,6 +137,21 @@ export const fr = {
     share: "Partager",
     native: "L'export vidéo se fait sur ton iPhone, avec le module AVFoundation de l'app compilée. Dans cet aperçu, il n'est pas encore là : ta légende est copiée quand même.",
     error: "L'export s'est arrêté. Rien n'est perdu : réessaie, et vérifie qu'il reste de la place sur ton iPhone.",
+    // Why the export stopped, in words to act on (Ryan, build 9 : « export impossible »).
+    errors: {
+      space: "Il n'y a plus assez de place sur ton iPhone. Libère un peu d'espace, puis réessaie : ton montage est gardé.",
+      photos: "Je n'ai pas pu ranger la vidéo dans Photos. Autorise Ma DA dans Réglages, Ma DA, Photos, puis réessaie.",
+      rush: "Une de tes vidéos n'est plus lisible (supprimée ou encore dans iCloud). Ouvre-la une fois dans Photos, puis réessaie.",
+      other: "L'export s'est arrêté. Rien n'est perdu : réessaie. Si ça recommence, la raison est dans Réglages, Diagnostic.",
+    } as Record<string, string>,
+    noPhotos: "Ta vidéo est prête. Je n'ai pas accès à Photos : touche « Enregistrer la vidéo » dans le menu qui s'ouvre.",
+    quality: "Qualité",
+    qualities: { hd: "1080p", "2k": "2K", "4k": "4K" } as Record<string, string>,
+    qualityWhy: {
+      hd: "Ce qu'Instagram et TikTok affichent. Le plus rapide, le plus léger.",
+      "2k": "Plus de détails, pour YouTube ou pour la garder. Un peu plus long à créer.",
+      "4k": "Le maximum. Fichier lourd et export plus long : utile si tu la retravailles ailleurs.",
+    } as Record<string, string>,
   },
 
   // Publier et revenir (étape 7) : l'écran de fin, le partage, les notifications.
@@ -250,11 +266,9 @@ export const fr = {
   },
 
   consent: {
-    title: "Avant de passer la main à l'IA",
-    lead: "Pour monter, j'envoie 15 à 30 petites images de tes vidéos à Claude (Anthropic). Ma DA ne les garde pas. Anthropic les efface sous 30 jours et ne s'en sert pas pour entraîner son IA.",
-    sent: "Ce qui part : ces petites images, ta phrase, ton carnet de style et, pour un visuel, tes photos en petit.",
-    notSent: "Ce qui reste sur ton iPhone : tes vidéos entières, ta photothèque, ton nom et ton e-mail.",
-    promise: "Aucun entraînement sur tes vidéos, ni par Ma DA ni par ses fournisseurs.",
+    title: "Ma DA travaille avec l'IA",
+    // Short on purpose (Ryan, 29 octobre : pas besoin d'en dire plus) ; Apple still asks to name who receives the data (5.1.2(i)).
+    lead: "Pour t'aider, j'envoie tes réponses et de petites images de tes vidéos à l'IA Claude (Anthropic). Tes vidéos restent sur ton iPhone.",
     later: "Tu peux changer d'avis à tout moment dans Réglages.",
     yes: "J'accepte",
     no: "Sans IA pour l'instant",
@@ -326,6 +340,9 @@ export const fr = {
       google: "Continuer avec Google",
       email: "Continuer avec mon e-mail",
       without: "Continuer sans compte pour l'instant",
+      pull: "Se connecter ou créer un compte",
+      pullHint: "Glisse vers le haut",
+      waysTitle: "Bienvenue chez Ma DA",
       legal: "En continuant, tu acceptes les conditions d'utilisation et la politique de confidentialité.",
       terms: "Conditions",
       privacyLink: "Confidentialité",
@@ -865,7 +882,7 @@ export const fr = {
   create: {
     title: "Créer",
     reel: "Un Reel monté par Ma DA",
-    reelWhy: "Tu choisis tes vidéos, je monte trois versions.",
+    reelWhy: "Tu choisis tes vidéos, je monte deux versions.",
     manual: "Un montage à la main",
     manualWhy: "Gratuit et sans IA, tu gardes tout le contrôle.",
     visual: "Une affiche, un post ou une story",
@@ -980,7 +997,7 @@ export const fr = {
     noSync: "Continuer sans calage",
     rightsNeeded: "Coche la case des droits pour continuer.",
     trendingTempo: "Le tempo de ton son tendance",
-    trendingDetail: "Je cale les coupes sur ce tempo et j'exporte sans musique. Tu ajoutes le son dans Instagram ou TikTok au moment de publier.",
+    trendingDetail: "J'exporte sans musique, avec des coupes au rythme des sons tendance. Tu ajoutes le son dans Instagram ou TikTok au moment de publier.",
     noneDetail: "Je garde ta voix et je te propose des sous-titres.",
   },
 
@@ -1092,9 +1109,18 @@ export const fr = {
     infosWhy: "Je le recopie tel quel, sans rien inventer.",
     fields: { titre: "Titre", date: "Date et heure", lieu: "Lieu ou adresse", prix: "Prix ou offre", contact: "Contact ou lien", autre: "Autre info" },
     photos: "Tes photos",
-    photosWhy: "Tes vraies photos rendent le visuel crédible. 3 au plus.",
+    photosWhy: "Tes vraies photos rendent le visuel crédible. Je les place pour toi : 3 ici, d'autres ensuite dans l'éditeur.",
     addPhoto: "Ajouter une photo",
     removePhoto: (i: number) => `Retirer la photo ${i}`,
+    reviewing: "Je relis mon visuel sur ton écran, une seconde…",
+    reviewed: (fixes: string[]) => `En le revoyant, j'ai corrigé : ${fixes.join(" ")} Tu peux annuler si tu préférais avant.`,
+    photoError: "Je n'ai pas pu lire cette photo. Essaie une autre, ou ouvre-la d'abord dans Photos si elle est dans iCloud.",
+    addPhotoEditor: "Ajouter une photo",
+    changePhoto: "Changer la photo",
+    photoAdded: "Photo ajoutée. Glisse-la pour la placer, elle reste derrière tes textes.",
+    photosFull: "Tu as déjà 9 photos sur ce visuel.",
+    quality: "Qualité de l'image",
+    qualities: { hd: "Standard", "2k": "2K", "4k": "4K" } as Record<string, string>,
     create: "Créer le visuel",
     creating: "Je compose ton visuel…",
     offline: "Serveur injoignable : je t'ai préparé une mise en page à tes couleurs. Tout se modifie.",

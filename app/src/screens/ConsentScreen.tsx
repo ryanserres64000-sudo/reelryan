@@ -1,6 +1,5 @@
-import { StyleSheet, View } from "react-native";
 import { fr } from "../copy/fr";
-import { Button, Card, Screen, Text, tokens } from "../design";
+import { Button, Screen, Text } from "../design";
 
 const t = fr.consent;
 
@@ -14,16 +13,7 @@ export function ConsentScreen({ onAnswer, onBack }: { onAnswer: (ok: boolean) =>
         <Button variant="secondary" label={t.no} onPress={() => onAnswer(false)} />
       </>}>
       <Text variant="headline">{t.lead}</Text>
-      <Card>
-        <View style={styles.list}>
-          <Text>{t.sent}</Text>
-          <Text>{t.notSent}</Text>
-          <Text variant="bodyStrong">{t.promise}</Text>
-        </View>
-      </Card>
       <Text variant="caption" tone="textMuted">{t.later}</Text>
     </Screen>
   );
 }
-
-const styles = StyleSheet.create({ list: { gap: tokens.space.sm } });

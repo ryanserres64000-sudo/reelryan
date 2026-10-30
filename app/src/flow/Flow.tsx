@@ -46,7 +46,8 @@ import type { VisualBrief } from "../../../core/design";
 import type { Photo, VisualResult } from "../visual/api";
 import { deleteVisual, loadVisuals, saveVisual, type SavedVisual } from "../visual/store";
 import { SAMPLE_RUSHES, fakeMontage } from "./fake";
-import { streamMontage } from "./api";
+import { jobState, streamMontage, waitForJob } from "./api";
+import { forgetJob, newJobId, pendingFor, rememberJob, signatureOf } from "./pending";
 import { LIMITS, mapLimit } from "../../../core/progress";
 import { aiUrl } from "./server";
 import { mediaExists, sweepMedia } from "../media/keep";
@@ -71,6 +72,9 @@ const START_BRIEF: Brief = { text: "", trade: "restaurant", goal: null, tone: nu
 // Sign-up first (lot 4: brand DNA), then the core path of lot 2: import → brief → music → generation →
 // result, with sample data until the native module (Vision triage, AVFoundation preview) and the
 // server are plugged in.
+// What makes two AI edits the same request (flow/pending.ts).
+const jobSignature = (selected: string[], brief: Brief, music: Music) => signatureOf([selected, composeBrief(brief), brief.duration, brief.platforms, music]);
+
 export function Flow() {
   const [step, setStep] = useState<Step>(() => typeof location !== "undefined" && location.hash === "#catalogue" ? "catalogue" : "home");
   const [brand, setBrand] = useState<BrandDna | null | undefined>(undefined);
@@ -160,7 +164,10 @@ export function Flow() {
     setDraft(null);
     warnMissing(x.rushes.filter(r => x.selected.includes(r.id)));
     // Without a result (an older draft), the steps after it fall back to the music.
-    setStep(!x.result && (d.step === "result" || d.step === "editor" || d.step === "export") ? "music" : d.step);
+    const step = !x.result && (d.step === "result" || d.step === "editor" || d.step === "export") ? "music" : d.step;
+    setStep(step);
+    // Left during an AI edit: back on the waiting screen, which fetches what the server finished.
+    if (step === "music" && !x.result && aiAllowed()) pendingFor(jobSignature(x.selected, x.brief, x.music)).then(p => { if (p) setStep("generation"); });
   };
   const keepReel = (timeline: TimelineV1) => saveReel({ id: reelId, at: new Date().toISOString(), timeline, byAi: !result?.r.manuel, rushes: chosen, selected }).then(setReels);
   const newReel = (text = "") => {
@@ -252,6 +259,15 @@ export function Flow() {
         if (!canRead()) return fakeMontage(chosen, brief, music, onStep, signal, undefined, charteOf(brand?.dna ?? null, !!brand?.logoUri));
         if (!url) return Promise.reject(Object.assign(new Error("server"), { code: "no_server" }));
         return (async () => {
+          // The same edit asked again (« Réessayer », or the app reopened) picks up the one the server
+          // kept, instead of paying for another (Ryan, 30 octobre).
+          const sig = jobSignature(selected, brief, music);
+          const old = await pendingFor(sig);
+          if (old) {
+            const s = await jobState(url, old.id, signal);
+            if (s?.etat === "pret") { forgetJob(); return s.resultat; }
+            if (s?.etat === "en_cours") { const r = await waitForJob(url, old.id, onStep, signal); forgetJob(); return r; }
+          }
           // Two rushes at a time, each with its time limit (core/progress.ts), counted on screen.
           let read = 0;
           onRead(0, chosen.length);
@@ -264,7 +280,11 @@ export function Flow() {
           // A rush that cannot be read is left out (and said in Réglages); the edit stops only when none can be.
           if (!ready.some(r => r.triage)) throw Object.assign(new Error("rushes"), { code: "unreadable" });
           onStep(1);
-          return streamMontage(url, await montageBody(ready, brief, music, brand ?? null, brand?.memory?.rules.map(r => r.text) ?? []), onStep, signal);
+          const job = newJobId(), body = await montageBody(ready, brief, music, brand ?? null, brand?.memory?.rules.map(r => r.text) ?? []);
+          await rememberJob({ id: job, sig, at: Date.now() });
+          const r = await streamMontage(url, { ...body, travail: job }, onStep, signal, job);
+          forgetJob();
+          return r;
         })();
       }}
       onDone={(r, s) => {

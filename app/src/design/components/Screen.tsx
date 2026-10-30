@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import { Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
+import { useRef, type ReactNode } from "react";
+import { PanResponder, Pressable, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { fr } from "../../copy/fr";
 import { tokens } from "../tokens";
@@ -13,6 +13,12 @@ export function Screen({ title, detail, onBack, footer, children, scroll = true,
   const { c, layout, opacity } = useTheme();
   const { width } = useWindowDimensions();
   const gutter = width >= layout.largePhoneWidth ? layout.gutterLarge : layout.gutter;
+  // Swipe right from the left edge goes back, like every iPhone app (Ryan's test of build 20).
+  const back = useRef(onBack); back.current = onBack;
+  const edge = useRef(PanResponder.create({
+    onMoveShouldSetPanResponder: (_, g) => g.dx > tokens.space.sm && Math.abs(g.dy) < g.dx,
+    onPanResponderRelease: (_, g) => { if (g.dx > tokens.size.touch * 1.5 || g.vx > 0.5) back.current?.(); },
+  })).current;
   const head = !onBack && !title && !detail ? null : (
     <View style={styles.head}>
       {onBack ? (
@@ -31,6 +37,7 @@ export function Screen({ title, detail, onBack, footer, children, scroll = true,
       ) : (
         <View style={[styles.root, styles.content, { paddingHorizontal: gutter }]}>{head}{children}</View>
       )}
+      {onBack ? <View style={styles.edge} {...edge.panHandlers} /> : null}
       {footer ? <View style={[styles.footer, { paddingHorizontal: gutter, borderTopColor: c.line, backgroundColor: c.bg }]}>{footer}</View> : null}
     </SafeAreaView>
   );
@@ -40,6 +47,7 @@ const styles = StyleSheet.create({
   root: { flex: 1 },
   content: { gap: tokens.space.lg, paddingVertical: tokens.space.md, maxWidth: tokens.layout.largePhoneWidth * 1.5, width: "100%", alignSelf: "center" },
   head: { gap: tokens.space.xs },
+  edge: { position: "absolute", left: 0, top: 0, bottom: 0, width: tokens.space.md },
   back: { alignSelf: "flex-start", minHeight: tokens.size.touch, justifyContent: "center" },
   footer: { gap: tokens.space.xs, paddingVertical: tokens.space.sm, borderTopWidth: tokens.size.border },
 });

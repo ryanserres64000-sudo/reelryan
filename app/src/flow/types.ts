@@ -7,7 +7,7 @@ export type Rush = { id: string; duration: number; photo: boolean; uri?: string;
 // What the iPhone measured on a rush (app/src/flow/triage.ts, core/triage.ts).
 export type Triaged = { probed: Probed; frames: Frame[] };
 export type Trade = "coach" | "restaurant" | "artisan" | "commerce" | "freelance";
-export type Brief = { text: string; trade: Trade; goal: number | null; tone: number | null; duration: number; platforms: Plateforme[]; cta: number | null };
+export type Brief = { text: string; trade: Trade; goal: number | null; tone: number | null; duration: number; platforms: Plateforme[]; cta: number | null; ctaText?: string };
 export type Analysis = { bpm: number; confidence: number; beats: number[]; downbeats: number[]; peaks: number[]; perSecond: number[]; duration: number; tapped: boolean };
 export type Music = {
   choice: MusicChoice;

@@ -42,12 +42,14 @@ enum Composer {
     let ab = comp.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)
     let plan = RenderPlan(size: size)
     // Only photos (and photo layers) need the black filler clip.
-    var fillerClip: (track: AVAssetTrack, duration: CMTime)?
-    func filler() async throws -> (track: AVAssetTrack, duration: CMTime) {
+    var fillerClip: (asset: AVURLAsset, track: AVAssetTrack, duration: CMTime)?
+    func filler() async throws -> (asset: AVURLAsset, track: AVAssetTrack, duration: CMTime) {
       if let fillerClip { return fillerClip }
       do { let f = try await Filler.clip(); fillerClip = f; return f } catch { throw RenderError.step("fond noir des photos", explain(error)) }
     }
     var at = 0.0, voice: [(Double, Double)] = []
+    // The source assets, alive until the composition is built (a track holds its asset weakly).
+    var keep: [AVAsset] = []
     // The level of each shot's own sound, on the audio track it went to.
     var levels: [CMPersistentTrackID: [(Double, Float)]] = [:]
 
@@ -68,6 +70,7 @@ enum Composer {
       } else {
         do {
           let asset = AVURLAsset(url: uri)
+          keep.append(asset)
           guard let src = try await asset.loadTracks(withMediaType: .video).first else { throw RenderError.unreadable(p.source) }
           let (natural, transform, available) = try await src.load(.naturalSize, .preferredTransform, .timeRange)
           // The shot as asked, inside what the file really holds: a length rounded up by the photo picker
@@ -115,6 +118,7 @@ enum Composer {
         plan.layers.append(Layer(calque: c, start: c.t, end: c.t + length, track: track.trackID, still: image, orient: .up))
       } else {
         let asset = AVURLAsset(url: uri)
+        keep.append(asset)
         guard let src = try await asset.loadTracks(withMediaType: .video).first else { continue }
         let (transform, available) = try await src.load(.preferredTransform, .timeRange)
         let range = clamp(CMTimeRange(start: time(c.debut), duration: time(length)), to: available)
@@ -138,8 +142,10 @@ enum Composer {
     var params: [AVMutableAudioMixInputParameters] = layerSound
     for a in t.audios ?? [] where a.t < duration && a.fin > a.debut {
       guard let uri = sources.audios?[a.id], let url = URL(string: uri),
-            let src = try await soundOf(url, "voix \(a.id)"),
+            let sound = try await soundOf(url, "voix \(a.id)"),
             let track = comp.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) else { continue }
+      let src = sound.track
+      keep.append(sound.asset)
       let full = try await src.load(.timeRange).duration.seconds
       let length = min(a.fin, full) - a.debut
       let kept = min(length, duration - a.t)
@@ -162,9 +168,11 @@ enum Composer {
       if let last = out.last, r.0 <= last.1 + 0.5 { out[out.count - 1].1 = max(last.1, r.1) } else { out.append(r) }
     }
     if t.musique.mode == "fichier", let m = sources.music, let url = URL(string: m.uri),
-       let srcMusic = try await soundOf(url, "musique"),
+       let sound = try await soundOf(url, "musique"),
        let music = comp.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {
       // The passage inside what the sound file really holds (its length measured by the app may be rounded).
+      let srcMusic = sound.track
+      keep.append(sound.asset)
       let range = clamp(CMTimeRange(start: time(m.debut), duration: time(min(m.fin - m.debut, duration))), to: try await srcMusic.load(.timeRange))
       let length = range.duration.seconds
       do { try music.insertTimeRange(range, of: srcMusic, at: .zero) } catch { throw RenderError.step("musique (\(url.lastPathComponent), \(m.debut)–\(m.fin) s)", explain(error)) }
@@ -186,7 +194,9 @@ enum Composer {
       var free = 0.0
       for e in effets.sorted(by: { $0.t < $1.t }) where e.t >= free && e.t < duration {
         guard let uri = files[e.type], let url = URL(string: uri),
-              let src = try await soundOf(url, "bruitage \(e.type)") else { continue }
+              let sound = try await soundOf(url, "bruitage \(e.type)") else { continue }
+        let src = sound.track
+        keep.append(sound.asset)
         let available = try await src.load(.timeRange)
         let range = clamp(CMTimeRange(start: available.start, duration: time(min(available.duration.seconds, duration - e.t))), to: available)
         guard range.duration.seconds > 0.05 else { continue }
@@ -212,6 +222,7 @@ enum Composer {
     // They end exactly where the composition ends, to the tick: each shot's time is rounded on its
     // own, and an instruction a 600th of a second short or long makes AVFoundation refuse the edit.
     video.instructions = instructions(plan, duration: at, end: comp.duration)
+    withExtendedLifetime((keep, fillerClip)) {}
     return Built(composition: comp, video: video, audio: mix, duration: time(duration))
   }
 
@@ -265,10 +276,14 @@ func explain(_ e: Error) -> String {
 }
 
 // The sound track of a music, voice or effect file, or the reason it cannot be read, named.
-func soundOf(_ url: URL, _ what: String) async throws -> AVAssetTrack? {
+// An AVAssetTrack only holds its asset weakly: the asset is returned too and kept alive by the
+// caller until the track is inserted, or the insert fails with -11800 / -12780 (found on the Mac bench).
+func soundOf(_ url: URL, _ what: String) async throws -> (asset: AVURLAsset, track: AVAssetTrack)? {
   do {
     guard FileManager.default.fileExists(atPath: url.path) else { throw RenderError.step(what, "fichier introuvable : \(url.lastPathComponent)") }
-    return try await AVURLAsset(url: url).loadTracks(withMediaType: .audio).first
+    let asset = AVURLAsset(url: url)
+    guard let track = try await asset.loadTracks(withMediaType: .audio).first else { return nil }
+    return (asset, track)
   } catch let e as RenderError { throw e } catch { throw RenderError.step("\(what) (\(url.lastPathComponent))", explain(error)) }
 }
 
@@ -315,10 +330,11 @@ actor FillerFile {
 }
 
 enum Filler {
-  static func clip() async throws -> (track: AVAssetTrack, duration: CMTime) {
+  static func clip() async throws -> (asset: AVURLAsset, track: AVAssetTrack, duration: CMTime) {
     let url = try await FillerFile.shared.url()
-    guard let track = try await AVURLAsset(url: url).loadTracks(withMediaType: .video).first else { throw RenderError.composition }
-    return (track, try await track.load(.timeRange).duration)
+    let asset = AVURLAsset(url: url)
+    guard let track = try await asset.loadTracks(withMediaType: .video).first else { throw RenderError.composition }
+    return (asset, track, try await track.load(.timeRange).duration)
   }
 
   static func write(_ url: URL) async throws {

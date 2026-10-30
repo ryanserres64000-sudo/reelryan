@@ -961,7 +961,7 @@ export const fr = {
   brief: {
     title: "Ton idée",
     detail: "Dis-moi en une phrase ce que la vidéo raconte, comme à un ami. Un texte entre « guillemets » apparaîtra mot pour mot à l'écran.",
-    more: "Préciser le ton et la fin",
+    more: "Préciser le ton",
     trade: "Ton métier",
     trades: {
       coach: { label: "Coach", example: "Ma séance du samedi au parc, l'énergie du groupe, et finir sur « Premier cours offert »." },
@@ -991,6 +991,7 @@ export const fr = {
     platformsMin: "Choisis au moins une plateforme.",
     cta: "Appel à l'action",
     ctas: ["Réserve", "Passe nous voir", "Lien en bio", "Écris-moi", "Aucun"],
+    ctaOwn: "Ou écris le tien : « Réserve ta table ce soir »",
     imposed: "Gardé mot pour mot",
     empty: "Écris au moins quelques mots, ou prends l'exemple.",
     compose: { goal: "Objectif", tone: "Ton", cta: "Appel à l'action à la fin" },

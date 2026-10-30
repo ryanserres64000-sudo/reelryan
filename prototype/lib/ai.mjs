@@ -108,6 +108,7 @@ Ce qui fait un bon montage MaDA :
 - Une histoire lisible : début, montée, fin claire (résultat, produit fini, sourire, lieu, appel à l'action).
 - Du rythme, avec une courbe : plans courts au début (0,8 à 1,5 s), une respiration au milieu, un plan final tenu 2 à 3 s. Plus long seulement quand quelqu'un parle. Varie les valeurs de plan (large, moyen, serré, détail) : jamais deux plans de même valeur sur le même sujet à la suite.
 - Coupe sur le mouvement : quand c'est possible, la coupe tombe pendant un geste et le geste continue dans le plan suivant.
+- L'ordre des rushes dans la liste ne veut rien dire : la personne les a choisis dans sa galerie sans les trier. Remets les plans dans l'ordre qui raconte le mieux l'histoire (arrivée, découverte, détails, moment fort, fin), d'après ce que montrent les images clés.
 - Un rush long est une réserve : tu peux en tirer plusieurs passages, à des moments différents du montage.
 - La dernière image doit pouvoir s'enchaîner avec la première : le Reel se revoit en boucle sans heurt.
 - Surtout des coupes franches. Une transition (fondu, glisse, zoom) seulement quand elle sert l'histoire, 2 au maximum.

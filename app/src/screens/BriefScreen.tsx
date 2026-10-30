@@ -14,9 +14,9 @@ export function BriefScreen({ brief, onChange, onBack, onNext }: Props) {
   const { c } = useTheme();
   const input = useRef<ComponentRef<typeof TextInput>>(null);
   const [hint, setHint] = useState(false);
-  const [more, setMore] = useState(brief.tone !== null || brief.cta !== null);
+  const [more, setMore] = useState(brief.tone !== null);
   const set = (p: Partial<Brief>) => onChange({ ...brief, ...p });
-  const toggle = (k: "goal" | "tone" | "cta", i: number) => set({ [k]: brief[k] === i ? null : i });
+  const toggle = (k: "goal" | "tone", i: number) => set({ [k]: brief[k] === i ? null : i });
   const example = fr.brief.trades[brief.trade].example;
   const imposed = imposedTexts(brief.text);
   const empty = brief.text.trim().length < 3;
@@ -59,10 +59,13 @@ export function BriefScreen({ brief, onChange, onBack, onNext }: Props) {
         <Chip label={fr.brief.durationPlus} onPress={() => set({ duration: step(brief.duration, 1) })} />
         <Chip label={fr.brief.durationMore} onPress={() => set({ duration: step(brief.duration, 5) })} />
       </View>
-      {more ? <>
-        <Group label={fr.brief.tone}>{fr.brief.tones.map((g, i) => <Chip key={g} label={g} selected={brief.tone === i} onPress={() => toggle("tone", i)} />)}</Group>
-        <Group label={fr.brief.cta}>{fr.brief.ctas.map((g, i) => <Chip key={g} label={g} selected={brief.cta === i} onPress={() => toggle("cta", i)} />)}</Group>
-      </> : <Button variant="secondary" label={fr.brief.more} onPress={() => setMore(true)} />}
+      {/* The call to action at the end: a ready one, or the person's own words (Ryan's test of build 20). */}
+      <Group label={fr.brief.cta}>{fr.brief.ctas.map((g, i) => <Chip key={g} label={g} selected={brief.cta === i && !brief.ctaText?.trim()} onPress={() => set({ cta: brief.cta === i ? null : i, ctaText: "" })} />)}</Group>
+      <TextInput value={brief.ctaText ?? ""} onChangeText={ctaText => set({ ctaText })} placeholder={fr.brief.ctaOwn} placeholderTextColor={c.textMuted}
+        accessibilityLabel={fr.brief.ctaOwn} maxLength={80} returnKeyType="done"
+        style={[typeStyle("body"), styles.line, { color: c.text, borderColor: c.line, backgroundColor: c.surface }]} />
+      {more ? <Group label={fr.brief.tone}>{fr.brief.tones.map((g, i) => <Chip key={g} label={g} selected={brief.tone === i} onPress={() => toggle("tone", i)} />)}</Group>
+        : <Button variant="secondary" label={fr.brief.more} onPress={() => setMore(true)} />}
     </Screen>
   );
 }
@@ -81,6 +84,7 @@ function Group({ label, children }: { label: string; children: ReactNode }) {
 
 const styles = StyleSheet.create({
   field: { gap: tokens.space.xs },
+  line: { borderWidth: tokens.size.border, borderRadius: tokens.radius.button, paddingHorizontal: tokens.space.sm, minHeight: tokens.size.button },
   input: { minHeight: tokens.size.button * 2.5, borderWidth: tokens.size.border, borderRadius: tokens.radius.button, padding: tokens.space.sm },
   row: { flexDirection: "row", flexWrap: "wrap", gap: tokens.space.xs, alignItems: "center" },
   kept: { borderWidth: tokens.size.border, borderRadius: tokens.radius.chip, paddingHorizontal: tokens.space.xs },

@@ -116,12 +116,17 @@ enum Composer {
       } else {
         let asset = AVURLAsset(url: uri)
         guard let src = try await asset.loadTracks(withMediaType: .video).first else { continue }
-        let transform = try await src.load(.preferredTransform)
-        try track.insertTimeRange(CMTimeRange(start: time(c.debut), duration: time(length)), of: src, at: target.start)
+        let (transform, available) = try await src.load(.preferredTransform, .timeRange)
+        let range = clamp(CMTimeRange(start: time(c.debut), duration: time(length)), to: available)
+        guard range.duration.seconds > 0.05 else { continue }
+        do { try track.insertTimeRange(range, of: src, at: target.start) } catch { throw RenderError.step("calque \(c.id) (\(uri.lastPathComponent))", explain(error)) }
         plan.layers.append(Layer(calque: c, start: c.t, end: c.t + length, track: track.trackID, still: nil, orient: orientation(transform)))
         if c.volume > 0, let srcAudio = try await asset.loadTracks(withMediaType: .audio).first,
            let audio = comp.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {
-          try audio.insertTimeRange(CMTimeRange(start: time(c.debut), duration: time(length)), of: srcAudio, at: target.start)
+          let heard = clamp(range, to: try await srcAudio.load(.timeRange))
+          if heard.duration.seconds > 0.05 {
+            do { try audio.insertTimeRange(heard, of: srcAudio, at: target.start + (heard.start - range.start)) } catch { throw RenderError.step("son du calque \(c.id)", explain(error)) }
+          }
           let p = AVMutableAudioMixInputParameters(track: audio); p.setVolume(Float(min(2, c.volume)), at: .zero)
           layerSound.append(p)
         }
@@ -133,13 +138,15 @@ enum Composer {
     var params: [AVMutableAudioMixInputParameters] = layerSound
     for a in t.audios ?? [] where a.t < duration && a.fin > a.debut {
       guard let uri = sources.audios?[a.id], let url = URL(string: uri),
-            let src = try await AVURLAsset(url: url).loadTracks(withMediaType: .audio).first,
+            let src = try await soundOf(url, "voix \(a.id)"),
             let track = comp.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) else { continue }
       let full = try await src.load(.timeRange).duration.seconds
       let length = min(a.fin, full) - a.debut
       let kept = min(length, duration - a.t)
       guard kept > 0.05 else { continue }
-      try track.insertTimeRange(CMTimeRange(start: time(a.debut), duration: time(kept)), of: src, at: time(a.t))
+      let range = clamp(CMTimeRange(start: time(a.debut), duration: time(kept)), to: try await src.load(.timeRange))
+      guard range.duration.seconds > 0.05 else { continue }
+      do { try track.insertTimeRange(range, of: src, at: time(a.t)) } catch { throw RenderError.step("voix \(a.id) (\(url.lastPathComponent))", explain(error)) }
       let p = AVMutableAudioMixInputParameters(track: track), v = Float(min(2, max(0, a.volume)))
       p.setVolume(v, at: .zero)
       if a.fondu_entree > 0 { p.setVolumeRamp(fromStartVolume: 0, toEndVolume: v, timeRange: CMTimeRange(start: time(a.t), duration: time(min(a.fondu_entree, kept)))) }
@@ -155,10 +162,12 @@ enum Composer {
       if let last = out.last, r.0 <= last.1 + 0.5 { out[out.count - 1].1 = max(last.1, r.1) } else { out.append(r) }
     }
     if t.musique.mode == "fichier", let m = sources.music, let url = URL(string: m.uri),
-       let srcMusic = try await AVURLAsset(url: url).loadTracks(withMediaType: .audio).first,
+       let srcMusic = try await soundOf(url, "musique"),
        let music = comp.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {
-      let length = min(m.fin - m.debut, duration)
-      try music.insertTimeRange(CMTimeRange(start: time(m.debut), duration: time(length)), of: srcMusic, at: .zero)
+      // The passage inside what the sound file really holds (its length measured by the app may be rounded).
+      let range = clamp(CMTimeRange(start: time(m.debut), duration: time(min(m.fin - m.debut, duration))), to: try await srcMusic.load(.timeRange))
+      let length = range.duration.seconds
+      do { try music.insertTimeRange(range, of: srcMusic, at: .zero) } catch { throw RenderError.step("musique (\(url.lastPathComponent), \(m.debut)–\(m.fin) s)", explain(error)) }
       let p = AVMutableAudioMixInputParameters(track: music), v = Float(t.musique.volume)
       p.setVolume(v, at: .zero)
       if t.musique.ducking_voix {
@@ -177,11 +186,12 @@ enum Composer {
       var free = 0.0
       for e in effets.sorted(by: { $0.t < $1.t }) where e.t >= free && e.t < duration {
         guard let uri = files[e.type], let url = URL(string: uri),
-              let src = try await AVURLAsset(url: url).loadTracks(withMediaType: .audio).first else { continue }
-        let full = try await src.load(.timeRange).duration.seconds
-        let length = min(full, duration - e.t)
-        try sfx.insertTimeRange(CMTimeRange(start: .zero, duration: time(length)), of: src, at: time(e.t))
-        free = e.t + length
+              let src = try await soundOf(url, "bruitage \(e.type)") else { continue }
+        let available = try await src.load(.timeRange)
+        let range = clamp(CMTimeRange(start: available.start, duration: time(min(available.duration.seconds, duration - e.t))), to: available)
+        guard range.duration.seconds > 0.05 else { continue }
+        do { try sfx.insertTimeRange(range, of: src, at: time(e.t)) } catch { throw RenderError.step("bruitage \(e.type) à \(e.t) s", explain(error)) }
+        free = e.t + range.duration.seconds
       }
       let p = AVMutableAudioMixInputParameters(track: sfx); p.setVolume(0.7, at: .zero)
       params.append(p)
@@ -252,6 +262,14 @@ func explain(_ e: Error) -> String {
   if let r = n.localizedFailureReason { s += " | \(r)" }
   if let u = n.userInfo[NSUnderlyingErrorKey] as? NSError { s += " | dessous : \(u.domain) \(u.code)" }
   return s
+}
+
+// The sound track of a music, voice or effect file, or the reason it cannot be read, named.
+func soundOf(_ url: URL, _ what: String) async throws -> AVAssetTrack? {
+  do {
+    guard FileManager.default.fileExists(atPath: url.path) else { throw RenderError.step(what, "fichier introuvable : \(url.lastPathComponent)") }
+    return try await AVURLAsset(url: url).loadTracks(withMediaType: .audio).first
+  } catch let e as RenderError { throw e } catch { throw RenderError.step("\(what) (\(url.lastPathComponent))", explain(error)) }
 }
 
 func clamp(_ r: CMTimeRange, to available: CMTimeRange) -> CMTimeRange {

@@ -2,8 +2,11 @@
 // AI's, over the real files that `bench probe` measured, passed through the very sanitizeTimeline and
 // exportPlan of the app. Usage:
 //   node scripts/bench/plan.mjs <probe.json> <plan.json> [--gonfle] [--muet] [--duree 30] [--plateforme reels]
+//     [--effets] [--musique <fichier audio> [--passage 10]]
 // --gonfle adds 0.05 s to each rush's length, as a rounded duration from the photo picker would.
 import { readFileSync, writeFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { sanitizeTimeline } from "../../core/timeline.ts";
 import { exportPlan } from "../../core/export.ts";
 
@@ -41,14 +44,19 @@ for (let pass = 0; total < target && videos.length && pass < 20; pass++) {
 const raw = {
   titre: "Banc de test", intention: "Vérifier le rendu sur de vrais rushes", variante: "rythmee", plans,
   textes: [{ texte: "Ce soir 🔥 on ouvre", debut: 0.3, fin: 2.8, position: "haut", style: "accroche", accent: "" }],
-  effets: [], sous_titres: { actifs: false, style: "marque" }, musique: { mode: "aucune", bpm: 110 },
+  // The house sound effects (app/assets/sfx) and a music passage, as the app sends them.
+  effets: flag("--effets") ? [{ t: 0.4, type: "whoosh" }, { t: 6, type: "pop" }, { t: 12, type: "impact" }] : [],
+  sous_titres: { actifs: false, style: "marque" },
+  musique: value("--musique") ? { mode: "fichier", bpm: 110, source: { type: "fichier", empreinte: "banc", droits_confirmes_le: "2026-10-30" }, passage: { debut: Number(value("--passage", "0")), fin: Number(value("--passage", "0")) + target + 5 }, volume: 0.8, ducking_voix: true, fondu_sortie: 1.5 } : { mode: "aucune", bpm: 110 },
   charte: {}, exports: [{ plateforme }], style_utilise: [], relecture: { corrections: [], plans_a_tourner: [] }, legende: { texte: "Banc", hashtags: [] },
 };
 const { timeline, warnings } = sanitizeTimeline(raw, clips, { maxDuration: 90 });
 const file = exportPlan(timeline)[0];
 const sources = {
-  rushes: Object.fromEntries(ids.map(id => [id, probe[id].uri])), logo: null, music: null,
-  fonts: { titre: null, texte: null, accent: null }, effets: {}, audios: {},
+  rushes: Object.fromEntries(ids.map(id => [id, probe[id].uri])), logo: null,
+  music: value("--musique") ? { uri: pathToFileURL(resolve(value("--musique"))).href, ...timeline.musique.passage } : null,
+  fonts: { titre: null, texte: null, accent: null }, audios: {},
+  effets: Object.fromEntries(["whoosh", "pop", "clic", "ding", "impact"].map(k => [k, pathToFileURL(resolve(import.meta.dirname, "../../app/assets/sfx", `${k}.m4a`)).href])),
 };
 writeFileSync(outPath, JSON.stringify({ timeline, file, sources }, null, 2));
 const vids = timeline.plans.filter(p => !probe[p.source].photo).length;

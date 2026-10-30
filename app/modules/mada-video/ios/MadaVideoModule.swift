@@ -7,6 +7,11 @@ import Photos
 public class MadaVideoModule: Module {
   public func definition() -> ModuleDefinition {
     Name("MadaVideo")
+    // The export's real progress (0 to 1), from AVAssetExportSession, a few times a second.
+    Events("onExportProgress")
+
+    // « Annuler » on the export screen: stops the file being written; the edit itself is untouched.
+    AsyncFunction("cancelExport") { Running.shared.cancel() }
 
     // Renders one file of the export plan (core/export.ts), adds the AI-Act metadata, saves it to
     // Photos (add-only permission) and returns the file for the share sheet.
@@ -24,8 +29,20 @@ public class MadaVideoModule: Module {
       export.timeRange = CMTimeRange(start: .zero, duration: built.duration)
       export.shouldOptimizeForNetworkUse = true
       export.metadata = metadata(f.metadonnees)
+      Running.shared.set(export)
+      defer { Running.shared.set(nil) }
+      let ticker = Task { [weak self] in
+        while !Task.isCancelled {
+          self?.sendEvent("onExportProgress", ["progress": Double(export.progress), "nom": f.nom])
+          try? await Task.sleep(nanoseconds: 250_000_000)
+        }
+      }
       await export.export()
-      guard export.status == .completed else { throw export.error ?? RenderError.export("\(export.status.rawValue)") }
+      ticker.cancel()
+      if export.status == .cancelled { throw RenderError.cancelled }
+      // The exact AVFoundation reason (domain, code, underlying error) goes to Réglages > Diagnostic.
+      guard export.status == .completed else { throw RenderError.export(export.error.map(explain) ?? "statut \(export.status.rawValue)") }
+      sendEvent("onExportProgress", ["progress": 1.0, "nom": f.nom])
       // The Photos id lets Instagram open on this very video (instagram://library, étape 7). Without
       // Photos access the file is still made: the app hands it to the share sheet (« Enregistrer la vidéo »).
       do {
@@ -48,6 +65,15 @@ public class MadaVideoModule: Module {
       }
     }
   }
+}
+
+// The export being written, so « Annuler » reaches it.
+final class Running: @unchecked Sendable {
+  static let shared = Running()
+  private let lock = NSLock()
+  private var session: AVAssetExportSession?
+  func set(_ s: AVAssetExportSession?) { lock.lock(); session = s; lock.unlock() }
+  func cancel() { lock.lock(); let s = session; lock.unlock(); s?.cancelExport() }
 }
 
 // Common identifiers, so the keys land where each file type keeps them (core/export.ts, provenance).
@@ -118,7 +144,7 @@ public final class MadaVideoView: ExpoView {
         _ = await player.seek(to: min(at, built.duration), toleranceBefore: .zero, toleranceAfter: .zero)
         if playing { player.play() }
       } catch {
-        onError(["message": error.localizedDescription])
+        onError(["message": explain(error)])
       }
     }
   }

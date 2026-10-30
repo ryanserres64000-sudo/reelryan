@@ -32,7 +32,9 @@ export const STYLE_PAR_PROFIL: Record<Profil, StyleMaison> = {
 // holds their labels (app/src/copy/fr.ts) and sends the labels, so the server reads plain French.
 // `si`: a follow-up, asked when an earlier answer holds one of these options (core/interview.ts), even
 // outside `profils` (Ryan, 29 octobre : des questions qui s'adaptent à la réponse précédente).
-export type Question = { id: string; kind: "texte" | "choix" | "multi" | "mots"; options?: readonly string[]; max?: number; profils?: readonly Profil[]; si?: { q: string; any: readonly string[] } };
+// `parProfil`: the choices that make sense for this profile, in this order (Ryan, 30 octobre : un
+// créateur ne cherche pas des réservations ni à recruter) ; `options` stays the list of every id.
+export type Question = { id: string; kind: "texte" | "choix" | "multi" | "mots"; options?: readonly string[]; parProfil?: Partial<Record<Profil, readonly string[]>>; max?: number; profils?: readonly Profil[]; si?: { q: string; any: readonly string[] } };
 const VITRINE: Profil[] = ["restaurant", "commerce", "beaute", "artisan", "petite-entreprise"];
 export const QUESTIONS: readonly Question[] = [
   { id: "nom", kind: "texte", max: 60 },
@@ -42,12 +44,28 @@ export const QUESTIONS: readonly Question[] = [
   { id: "frein", kind: "multi", options: ["sujet", "camera", "temps", "montage", "idees"], profils: ["debutant", "artisan", "freelance"] },
   { id: "regles", kind: "texte", max: 300, profils: ["grande-entreprise"] },
   { id: "public", kind: "texte", max: 200 },
-  { id: "objectifs", kind: "multi", options: ["clients", "reservations", "ventes", "notoriete", "recrutement", "communaute", "evenements", "inscriptions"] },
+  { id: "objectifs", kind: "multi", options: ["clients", "reservations", "ventes", "notoriete", "recrutement", "communaute", "evenements", "inscriptions", "devis", "abonnes", "partenariats", "revenus"], parProfil: {
+    restaurant: ["clients", "reservations", "notoriete", "evenements", "communaute", "recrutement"],
+    commerce: ["clients", "ventes", "notoriete", "communaute", "evenements", "recrutement"],
+    beaute: ["reservations", "clients", "notoriete", "ventes", "communaute", "recrutement"],
+    coach: ["inscriptions", "ventes", "notoriete", "communaute", "reservations", "evenements"],
+    artisan: ["devis", "ventes", "notoriete", "clients", "communaute", "recrutement"],
+    freelance: ["devis", "notoriete", "ventes", "partenariats", "communaute"],
+    "petite-entreprise": ["devis", "clients", "notoriete", "ventes", "recrutement", "evenements"],
+    "grande-entreprise": ["notoriete", "ventes", "recrutement", "communaute", "evenements"],
+    ecole: ["inscriptions", "evenements", "communaute", "notoriete", "recrutement"],
+    createur: ["abonnes", "communaute", "partenariats", "revenus", "ventes", "evenements"],
+    debutant: ["abonnes", "notoriete", "ventes", "communaute", "partenariats"],
+  } },
   { id: "creneaux", kind: "texte", max: 160, si: { q: "objectifs", any: ["reservations"] } },
   { id: "offre", kind: "texte", max: 200, si: { q: "objectifs", any: ["ventes", "inscriptions"] } },
   { id: "postes", kind: "texte", max: 160, si: { q: "objectifs", any: ["recrutement"] } },
   { id: "evenements", kind: "texte", max: 200, profils: ["ecole"], si: { q: "objectifs", any: ["evenements"] } },
-  { id: "visage", kind: "multi", options: ["moi", "mains", "equipe", "clients", "produits"] },
+  { id: "visage", kind: "multi", options: ["moi", "mains", "equipe", "clients", "produits", "lieux", "proches"], parProfil: {
+    createur: ["moi", "lieux", "produits", "proches", "mains"], debutant: ["moi", "mains", "produits", "lieux", "proches"],
+    ecole: ["equipe", "moi", "lieux", "clients"], "grande-entreprise": ["equipe", "clients", "produits", "lieux", "moi"],
+    coach: ["moi", "clients", "lieux", "equipe"], freelance: ["moi", "mains", "clients", "produits", "lieux"],
+  } },
   { id: "valeurs", kind: "mots", max: 3 },
   { id: "ton", kind: "choix", options: ["chaleureux", "expert", "drole", "chic", "energique", "direct"] },
   { id: "eviter", kind: "texte", max: 200 },
@@ -58,7 +76,8 @@ export const QUESTIONS: readonly Question[] = [
 ];
 // Every question this profile may be asked (follow-ups included); core/interview.ts picks the ones
 // the answers call for.
-export const questionsFor = (p: Profil) => QUESTIONS.filter(q => !q.profils || q.profils.includes(p) || q.si);
+export const questionsFor = (p: Profil): Question[] => QUESTIONS.filter(q => !q.profils || q.profils.includes(p) || q.si)
+  .map(q => (q.parProfil?.[p] ? { ...q, options: q.parProfil[p] } : q));
 
 export type Answers = Record<string, string | string[]>;
 export type Kit = { couleurs: string[]; polices: { titres: string; texte: string }; logo: boolean };

@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { packDraft, readDraft, type Draft } from "../../../core/draft";
 import type { TimelineV1 } from "../../../core/timeline";
+import { liveRush } from "../media/keep";
 import type { Brief, MontageResult, Music, Rush } from "./types";
 
 // The Reel in progress, as Flow holds it. Vision measurements are left out (they are redone from the
@@ -16,7 +17,10 @@ const KEY = "mada.brouillon.v1";
 let timer: ReturnType<typeof setTimeout> | null = null;
 
 export async function loadDraft(): Promise<Draft<FlowDraft> | null> {
-  try { return readDraft<FlowDraft>(await AsyncStorage.getItem(KEY)); } catch { return null; }
+  try {
+    const d = readDraft<FlowDraft>(await AsyncStorage.getItem(KEY));
+    return d ? { ...d, data: { ...d.data, rushes: d.data.rushes.map(liveRush) } } : null;
+  } catch { return null; }
 }
 
 // Saved a moment after the last change, so a burst of gestures writes once.

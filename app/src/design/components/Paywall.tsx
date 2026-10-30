@@ -63,6 +63,7 @@ export function Paywall({ background, title = fr.paywall.title, offres = DEFAULT
         <Text variant="caption" tone="textMuted">{fr.paywall.priceLock}</Text>
         {status ? <Text variant="callout" tone="ai" accessibilityLiveRegion="polite">{status}</Text> : null}
         <Button label={fr.paywall.cta} haptic disabled={busy || !picked} onPress={() => picked && onBuy?.(picked)} />
+        {picked ? <Text variant="caption">{fr.paywall.summary(fr.paywall.periods[picked.periode].label, prices[picked.produit] ?? picked.prix, fr.paywall.periods[picked.periode].per)}</Text> : null}
         {extra}
         <Text variant="caption" tone="textMuted">{fr.paywall.autoRenew}</Text>
         <View style={styles.links}>

@@ -7,7 +7,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : 
 // What a sign-up question can say about the person (app/src/screens/QuestionsScreen.tsx): her name, the
 // place her profile names, and whether she ticked an option before.
 export type Ctx = { nom: string; profil: Profil; chez: string; has: (q: string, option: string) => boolean };
-const short = (v: string) => (v.length > 48 ? `${v.slice(0, 46).trimEnd()}…` : v);
+const short = (v: string, max = 48) => (v.length > max ? `${v.slice(0, max - 2).trimEnd()}…` : v);
 const secondes = (s: number) => `${Math.round(s)} seconde${Math.round(s) > 1 ? "s" : ""}`;
 
 export const fr = {
@@ -41,6 +41,7 @@ export const fr = {
     percent: (p: number) => `${p} %`,
     reading: (read: number, total: number) => `Rush ${Math.min(read + 1, total)} sur ${total}`,
     sending: "J'envoie les images clés",
+    keepOpen: "Tu peux changer d'appli : à ton retour, je reprends où j'en étais, sans reprendre de crédit.",
     elapsed: (s: number) => (s < 60 ? `${Math.floor(s)} s` : `${Math.floor(s / 60)} min ${String(Math.floor(s % 60)).padStart(2, "0")}`),
   },
 
@@ -133,6 +134,8 @@ export const fr = {
     trendTip: (bpm: number) => `J'ai calé les coupes sur ${bpm} BPM. Au moment de publier, choisis un son tendance autour de ce tempo dans Instagram ou TikTok : les coupes tomberont sur ses temps.`,
     save: "Enregistrer la vidéo",
     saving: (i: number, n: number) => `Vidéo ${i} sur ${n}…`,
+    progress: (n: number) => `Export : ${n} %`,
+    cancel: "Annuler l'export",
     saved: "C'est dans ta pellicule. Ta légende est copiée, il n'y a plus qu'à coller.",
     share: "Partager",
     native: "L'export vidéo se fait sur ton iPhone, avec le module AVFoundation de l'app compilée. Dans cet aperçu, il n'est pas encore là : ta légende est copiée quand même.",
@@ -143,6 +146,8 @@ export const fr = {
       photos: "Je n'ai pas pu ranger la vidéo dans Photos. Autorise Ma DA dans Réglages, Ma DA, Photos, puis réessaie.",
       rush: "Une de tes vidéos n'est plus lisible (supprimée ou encore dans iCloud). Ouvre-la une fois dans Photos, puis réessaie.",
       other: "L'export s'est arrêté. Rien n'est perdu : réessaie. Si ça recommence, la raison est dans Réglages, Diagnostic.",
+      cancelled: "Export annulé. Ton montage est gardé tel quel.",
+      interrupted: "L'export s'est mis en pause quand tu as quitté Ma DA. Il reprend tout seul à ton retour.",
     } as Record<string, string>,
     noPhotos: "Ta vidéo est prête. Je n'ai pas accès à Photos : touche « Enregistrer la vidéo » dans le menu qui s'ouvre.",
     quality: "Qualité",
@@ -240,8 +245,8 @@ export const fr = {
   paywall: {
     title: "Tu as aimé ? Garde ta DA.",
     titleBlocked: "Un autre montage avec ta DA ?",
-    detail: "30 montages IA par mois, ton style qui s'affine, sans engagement.",
-    benefits: ["30 montages IA par mois, sur 10 min de rushes", "Ton style qui s'affine à chaque correction", "Tes affiches, posts et stories en une phrase"],
+    detail: "20 montages IA par mois, ton style qui s'affine, sans engagement.",
+    benefits: ["20 montages IA par mois, sur 10 min de rushes", "Ton style qui s'affine à chaque correction", "Tes affiches, posts et stories en une phrase"],
     blocked: (n: number) => `Tes ${plural(n, "création IA offerte est utilisée", "créations IA offertes sont utilisées")}. Le montage à la main et l'export restent gratuits.`,
     periods: { an: { label: "À l'année", per: "par an" }, mois: { label: "Au mois", per: "par mois" }, semaine: { label: "À la semaine", per: "par semaine" } },
     perMonth: (eur: string) => `soit ${eur} par mois`,
@@ -255,6 +260,9 @@ export const fr = {
     privacy: "Confidentialité",
     close: "Fermer",
     priceLock: "Ton prix reste le même tant que tu restes abonné.",
+    // App Store règle 3.1.2 : the name, the length and the price of what is bought, next to the button.
+    summary: (label: string, price: string, per: string) => `Ma DA Pro, ${label.toLowerCase()} : ${price} ${per}, renouvelé automatiquement.`,
+    notReady: "Les offres ne sont pas encore disponibles sur l'App Store. Réessaie un peu plus tard ; rien n'a été payé.",
     autoRenew: "Abonnement renouvelé automatiquement au même prix. Résiliable à tout moment dans Réglages, Identifiant Apple, Abonnements, au plus tard 24 h avant la fin de la période. Le paiement est débité sur ton compte Apple à la confirmation.",
     buying: "J'ouvre le paiement Apple…",
     thanks: "Bienvenue en Pro. Ton style continue de s'affiner.",
@@ -289,6 +297,7 @@ export const fr = {
     plan: "Abonnement",
     planPro: "Tu es en Pro.",
     planFree: (n: number) => (n ? `Version gratuite : ${n} montages IA offerts restants.` : "Version gratuite : tes montages IA offerts sont utilisés."),
+    offers: "Voir les offres Pro",
     manage: "Gérer mon abonnement",
     restore: "Restaurer mes achats",
     docs: "Documents",
@@ -297,7 +306,7 @@ export const fr = {
     notices: "Mentions légales",
     help: "Aide et contact",
     rights: "Signaler un son (ayants droit)",
-    noSite: "Les pages légales s'ouvriront une fois le site en ligne.",
+    linkFailed: "Cette page ne s'ouvre pas. Vérifie ta connexion et réessaie ; le détail est dans le diagnostic plus bas.",
     delete: "Supprimer mon compte et mes données",
     deleteWhat: "J'efface ton carnet de style, tes visuels, tes réglages et ce que le serveur sait de tes usages. Tes vidéos dans Photos ne bougent pas.",
     deleteKept: "Je garde seulement, sans ton nom, le nombre de créations offertes déjà utilisées sur cet iPhone, pour éviter les abus.",
@@ -489,7 +498,7 @@ export const fr = {
         },
         regles: { title: "Les règles de ta charte", why: "Je les appliquerai sans exception : logo, mentions, couleurs interdites…", placeholder: "Logo toujours en bas à droite, jamais de rouge…", after: () => "Noté, sans exception. Je te montrerai chaque fois où je les applique." },
         public: {
-          title: (x: Ctx) => (["restaurant", "commerce", "beaute"].includes(x.profil) ? `Qui vient chez ${x.nom || "toi"} ?` : x.profil === "ecole" ? "Tu t'adresses à qui ?" : x.profil === "grande-entreprise" ? "Qui doit voir vos vidéos ?" : "Tes clients idéaux, c'est qui ?"),
+          title: (x: Ctx) => (["restaurant", "commerce", "beaute"].includes(x.profil) ? `Qui vient chez ${x.nom || "toi"} ?` : x.profil === "ecole" ? "Tu t'adresses à qui ?" : x.profil === "grande-entreprise" ? "Qui doit voir vos vidéos ?" : x.profil === "createur" || x.profil === "debutant" ? "Qui te regarde, ou qui tu veux toucher ?" : "Tes clients idéaux, c'est qui ?"),
           why: "On n'écrit pas pareil pour des étudiants et pour des retraités.",
           placeholder: {
             restaurant: "Les gens du quartier et les bureaux le midi", commerce: "Des femmes de 30 à 50 ans qui aiment offrir", beaute: "Des actives pressées, 25 à 45 ans",
@@ -497,13 +506,13 @@ export const fr = {
             "petite-entreprise": "Des particuliers propriétaires, 35 à 60 ans", "grande-entreprise": "Les jeunes actifs, et nos futurs collaborateurs",
             ecole: "Les étudiants de l'école et les futurs inscrits", createur: "Les étudiants qui cuisinent peu", debutant: "Les gens qui aiment les bijoux faits main",
           },
-          after: (_: Ctx, v: string) => `J'écrirai pour « ${short(v)} » : leurs mots, leur rythme.`,
+          after: (_: Ctx, v: string) => `J'écrirai pour « ${short(v, 90)} » : leurs mots, leur rythme.`,
         },
         objectifs: {
-          title: (x: Ctx) => `Tes vidéos doivent apporter quoi à ${x.chez} ?`,
+          title: (x: Ctx) => (x.profil === "createur" || x.profil === "debutant" ? "Qu'est-ce que tu attends de tes vidéos ?" : `Tes vidéos doivent apporter quoi à ${x.chez} ?`),
           why: "Je choisis l'accroche et la phrase de fin selon ce que tu veux obtenir.",
-          options: { clients: "Faire venir du monde", reservations: "Avoir des réservations", ventes: "Vendre en ligne", notoriete: "Me faire connaître", recrutement: "Recruter", communaute: "Fédérer une communauté", evenements: "Remplir mes événements", inscriptions: "Avoir des inscriptions" },
-          after: (x: Ctx) => (x.has("objectifs", "reservations") ? "Des réservations : je finirai tes vidéos par une invitation claire à réserver." : x.has("objectifs", "ventes") ? "Vendre : je montrerai le produit tôt, et le prix sans détour." : x.has("objectifs", "recrutement") ? "Recruter : on montrera l'équipe et l'ambiance, c'est ce qui attire." : "Compris. Chaque vidéo aura un seul but, pas trois."),
+          options: { clients: "Faire venir du monde", reservations: "Avoir des réservations", ventes: "Vendre en ligne", notoriete: "Me faire connaître", recrutement: "Recruter", communaute: "Fédérer une communauté", evenements: "Remplir mes événements", inscriptions: "Avoir des inscriptions", devis: "Avoir des demandes de devis", abonnes: "Gagner des abonnés", partenariats: "Travailler avec des marques", revenus: "Vivre de mon contenu" },
+          after: (x: Ctx) => (x.has("objectifs", "reservations") ? "Des réservations : je finirai tes vidéos par une invitation claire à réserver." : x.has("objectifs", "ventes") ? "Vendre : je montrerai le produit tôt, et le prix sans détour." : x.has("objectifs", "recrutement") ? "Recruter : on montrera l'équipe et l'ambiance, c'est ce qui attire." : x.has("objectifs", "partenariats") ? "Les marques regardent la qualité et la régularité : on soignera les deux." : x.has("objectifs", "abonnes") ? "Des abonnés : une accroche forte dès la première seconde, et une vraie raison de te suivre." : "Compris. Chaque vidéo aura un seul but, pas trois."),
         },
         creneaux: {
           title: "Quels moments veux-tu remplir en priorité ?", why: "Je te proposerai des stories juste avant ces moments-là.",
@@ -521,7 +530,7 @@ export const fr = {
         visage: {
           title: (x: Ctx) => (x.has("frein", "camera") ? "Sans te filmer, qu'est-ce qu'on montre ?" : "Qui ou quoi on voit dans tes vidéos ?"),
           why: "Je construis mes idées autour de ce que tu es prête ou prêt à filmer.",
-          options: { moi: "Moi, face caméra", mains: "Mes mains au travail", equipe: "Mon équipe", clients: "Mes clients, avec leur accord", produits: "Mes produits ou mes plats" },
+          options: { moi: "Moi, face caméra", mains: "Mes mains au travail", equipe: "Mon équipe", clients: "Mes clients, avec leur accord", produits: "Mes produits ou mes plats", lieux: "Les lieux que je montre", proches: "Mes proches ou mes invités" },
           after: (x: Ctx) => (x.has("visage", "mains") ? "Les mains au travail, c'est souvent ce qui se regarde le plus longtemps." : x.has("visage", "moi") ? "Face caméra, je couperai les silences et je mettrai ta phrase en bas." : "Parfait, mes idées partiront de là."),
         },
         valeurs: {
@@ -530,7 +539,7 @@ export const fr = {
           after: (_: Ctx, v: string) => `${v} : je m'en sers comme boussole à chaque montage.`,
         },
         ton: {
-          title: (x: Ctx) => (x.profil === "grande-entreprise" || x.profil === "ecole" ? "Votre ton sur les réseaux ?" : "Comment tu parles à tes clients ?"), why: "Je l'applique à tous tes textes et à tes légendes.",
+          title: (x: Ctx) => (x.profil === "grande-entreprise" || x.profil === "ecole" ? "Votre ton sur les réseaux ?" : x.profil === "createur" || x.profil === "debutant" ? "Comment tu parles à ceux qui te suivent ?" : "Comment tu parles à tes clients ?"), why: "Je l'applique à tous tes textes et à tes légendes.",
           options: { chaleureux: "Chaleureux", expert: "Expert", drole: "Avec humour", chic: "Chic", energique: "Énergique", direct: "Simple et direct" },
           after: (_: Ctx, v: string) => `${v} : ce sera la voix de tes textes et de tes légendes.`,
         },
@@ -622,6 +631,7 @@ export const fr = {
   // The home screen (« Atelier clair », Ryan, 28 octobre 2026): the idea of the week, one button to start
   // a Reel, and what to pick up again.
   home: {
+    offers: "Voir les offres Pro",
     title: "Ton studio",
     idea: "Idée de la semaine",
     today: "Aujourd'hui",
@@ -866,6 +876,9 @@ export const fr = {
     scrub: "Position dans la vidéo",
     time: (now: string, total: string) => `${now} / ${total}`,
     shot: (n: number, total: number) => `Plan ${n} sur ${total}`,
+    broken: "La vidéo n'a pas pu se lire",
+    brokenHelp: "Rien n'est perdu : ton montage est gardé. Envoie une capture de Réglages > Diagnostic pour qu'on corrige.",
+    unknown: "erreur inconnue",
     retouch: "Retoucher ce moment",
     export: "Exporter",
     seeAs: "Voir comme sur",
@@ -948,7 +961,7 @@ export const fr = {
   brief: {
     title: "Ton idée",
     detail: "Dis-moi en une phrase ce que la vidéo raconte, comme à un ami. Un texte entre « guillemets » apparaîtra mot pour mot à l'écran.",
-    more: "Préciser le ton et la fin",
+    more: "Préciser le ton",
     trade: "Ton métier",
     trades: {
       coach: { label: "Coach", example: "Ma séance du samedi au parc, l'énergie du groupe, et finir sur « Premier cours offert »." },
@@ -968,11 +981,17 @@ export const fr = {
     duration: "Durée",
     durations: [15, 30, 60] as const,
     durationValue: (s: number) => `${s} s`,
+    durationOwn: (s: number) => `Durée : ${s} s`,
+    durationLess: "−5 s",
+    durationMinus: "−1 s",
+    durationPlus: "+1 s",
+    durationMore: "+5 s",
     platforms: "Où tu publies",
     platformNames: { reels: "Reels", tiktok: "TikTok", shorts: "Shorts" },
     platformsMin: "Choisis au moins une plateforme.",
     cta: "Appel à l'action",
     ctas: ["Réserve", "Passe nous voir", "Lien en bio", "Écris-moi", "Aucun"],
+    ctaOwn: "Ou écris le tien : « Réserve ta table ce soir »",
     imposed: "Gardé mot pour mot",
     empty: "Écris au moins quelques mots, ou prends l'exemple.",
     compose: { goal: "Objectif", tone: "Ton", cta: "Appel à l'action à la fin" },
@@ -1022,6 +1041,9 @@ export const fr = {
       timeout: "Le montage a pris trop de temps, je l'ai arrêté. Ton brief et tes rushes sont gardés : réessaie, ou garde moins de rushes.",
       credits: "L'IA de Ma DA est en pause côté serveur (crédits épuisés). Ton brief et tes rushes sont gardés : réessaie plus tard, ou monte à la main.",
       rate_limited: "L'IA est très demandée en ce moment. Réessaie dans une minute.",
+      ia_coupee: "L'IA de Ma DA est en pause pour quelques instants. Ton brief et tes rushes sont gardés : réessaie plus tard, ou monte à la main.",
+      plafond_jour: "Ma DA a beaucoup travaillé aujourd'hui : l'IA revient demain. Ton brief et tes rushes sont gardés, et le montage à la main reste ouvert.",
+      compte: "Connecte-toi à ton compte Ma DA pour monter avec l'IA. Ton brief et tes rushes sont gardés.",
       server_error: "Le serveur de l'IA a eu un problème. Ton brief et tes rushes sont gardés : réessaie.",
     },
   },
@@ -1043,9 +1065,28 @@ export const fr = {
     detail: "Touche un plan sur la frise pour le régler. Ce que tu changes à la main, je n'y touche plus.",
     open: "Modifier moi-même",
     save: "Enregistrer mes changements",
+    saveShort: "Enregistrer",
     saved: "Changements gardés",
     tools: { plan: "Plan", vitesse: "Vitesse", texte: "Texte", son: "Son", couleur: "Couleur", marque: "Marque" },
     toolsLabel: "Outils de montage",
+    // The bottom bar (Ryan, 30 octobre, d'après Edits): the main tools, or those of what is touched.
+    bar: {
+      media: "Médias", text: "Texte", subtitles: "Sous-titres", sound: "Son", voice: "Voix off", passage: "Passage",
+      layer: "Superposer", cutout: "Détourer", color: "Filtres", brand: "Marque", ai: "Ma DA",
+      allTracks: "Toutes les pistes", fewTracks: "Pistes simples",
+      deselect: "Outils", split: "Diviser", speed: "Vitesse", volume: "Volume", crop: "Rogner", replace: "Remplacer",
+      transition: "Transition", duplicate: "Dupliquer", move: "Déplacer", remove: "Supprimer", edit: "Modifier", done: "Terminé",
+    },
+    panels: {
+      vitesse: "Vitesse", son: "Son", couleur: "Filtres et réglages", remplacer: "Remplacer ce plan", transition: "Transition",
+      ordre: "Déplacer ce plan", texte: "Texte", sous_titres: "Sous-titres et textes", marque: "Marque", calque: "Vidéo par-dessus", ia: "Demander à Ma DA",
+    },
+    panelOf: (title: string, shot: number) => `${title} · plan ${shot}`,
+    close: "Valider",
+    fromGallery: "Depuis ma galerie",
+    mediaAdded: (n: number) => (n > 1 ? `${n} médias ajoutés` : "Média ajouté"),
+    mediaError: "Je n'ai pas pu ouvrir ta galerie. Vérifie l'accès aux photos dans Réglages.",
+    replaced: "Plan remplacé",
     ask: "Demander à Ma DA",
     planTitle: (i: number, s: string) => `Plan ${i} · ${s}`,
     locked: "Réglé à la main",

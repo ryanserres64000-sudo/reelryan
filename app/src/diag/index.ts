@@ -12,7 +12,10 @@ export function diagnostic(): { key: DiagKey; ok: boolean }[] {
   return [
     { key: "vision", ok: has("MadaVision") }, { key: "video", ok: has("MadaVideo") },
     { key: "store", ok: has("MadaStore") }, { key: "audio", ok: has("MadaAudio") },
-    { key: "server", ok: !!SERVER.url }, { key: "access", ok: !!SERVER.access },
+    { key: "server", ok: !!SERVER.url },
+    // The optional access code is listed only when this build has one: without it is the normal case
+    // (the server is protected by accounts and quotas), and a red cross there only worried Ryan.
+    ...(SERVER.access ? [{ key: "access" as const, ok: true }] : []),
   ];
 }
 export const lastErrors = () => [...errors];

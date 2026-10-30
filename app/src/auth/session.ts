@@ -26,18 +26,20 @@ export async function loadSession(): Promise<Session | null> {
     const s = raw ? JSON.parse(raw) : null;
     current = s && typeof s.jeton === "string" ? s : null;
   } catch { current = null; }
+  serverHeaders.setSession(current?.jeton ?? null);
   return current;
 }
 export const session = () => current;
 async function keep(s: Session | null) {
   current = s;
+  serverHeaders.setSession(s?.jeton ?? null);
   try {
     if (!s) { if (web) await AsyncStorage.removeItem(KEY); else await SecureStore.deleteItemAsync(KEY); return; }
     const raw = JSON.stringify(s);
     if (web) await AsyncStorage.setItem(KEY, raw); else await SecureStore.setItemAsync(KEY, raw, { keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY });
   } catch { /* kept for this launch */ }
 }
-const headers = () => ({ ...serverHeaders.get(), ...(current ? { authorization: `Bearer ${current.jeton}` } : {}) });
+const headers = () => serverHeaders.get();
 
 async function call(method: "GET" | "POST" | "DELETE", body?: object, query = ""): Promise<{ status: number; out: any } | null> {
   if (!SERVER.url) return null;
@@ -63,7 +65,8 @@ export async function methods(): Promise<Methodes> {
 }
 
 // Apple: the identity token from the native sheet (expo-apple-authentication), checked by the server.
-export const signInApple = async (jeton: string, nom: string | null) => signedIn(await call("POST", { action: "apple", jeton, nom }));
+// The authorization code lets the server revoke « Se connecter avec Apple » when the account is deleted.
+export const signInApple = async (jeton: string, nom: string | null, code?: string | null) => signedIn(await call("POST", { action: "apple", jeton, nom, ...(code ? { code } : {}) }));
 
 // Google: the server's sign-in page in Safari, then back to the app with the session.
 export async function signInGoogle(): Promise<Result<Session>> {

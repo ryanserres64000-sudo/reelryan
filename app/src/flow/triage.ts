@@ -11,6 +11,7 @@ import { noteError } from "../diag";
 import { toMusique } from "../music/musique";
 import { composeBrief } from "./brief";
 import type { Brief, Music, Rush, Triaged } from "./types";
+import { keepMedia } from "../media/keep";
 
 // Triage on the iPhone with Vision (app/modules/mada-vision measures, core/triage.ts decides), then
 // the body of POST /api/montage. Without the compiled module the app keeps its sample data.
@@ -43,20 +44,27 @@ export async function triageRush(r: Rush): Promise<Rush> {
 // system may move) stayed grey on Ryan's iPhone (build 9, 29 octobre). A failure is noted for Réglages.
 // Build 10 still showed grey cards: 21 rushes were read at once and the pictures waited behind them.
 // They now have their own short line, ahead of the reading, and a resize that fails keeps the frame.
-const THUMB_PX = 360;
+// Build 11 still showed grey cards, the photo too: each picture now has 8 s, so one that never answers
+// cannot hold the line, and the reading's own first frame stands in (Flow.tsx).
+const THUMB_PX = 360, THUMB_MS = 8_000;
 const thumbs = queue(3);
-export const thumbnailOf = (r: Rush): Promise<string | null> => thumbs(async () => {
+export const thumbnailOf = (r: Rush): Promise<string | null> => thumbs(() => withTimeout(thumbnail(r), THUMB_MS).catch(e => {
+  noteError("miniature", `${r.id} : ${e instanceof Error ? e.message : String(e)}`);
+  return null;
+}));
+async function thumbnail(r: Rush): Promise<string | null> {
   if (!r.uri) return null;
   let src: string | null = null;
   try {
     src = r.photo ? r.uri : (await VideoThumbnails.getThumbnailAsync(r.uri, { time: Math.min(300, r.duration * 500), quality: 0.7 })).uri;
     const out = await (await ImageManipulator.manipulate(src).resize({ width: THUMB_PX }).renderAsync()).saveAsync({ format: SaveFormat.JPEG, compress: 0.7 });
-    return out.uri;
+    // Kept beside the rush: the cache folder is emptied by iOS, and the cover went black.
+    return keepMedia(out.uri, `${r.id}-vignette`);
   } catch (e) {
     noteError("miniature", e instanceof Error ? e.message : String(e));
     return src;
   }
-});
+}
 
 // Without Vision (module missing or failing): the same candidate frames, read with expo-video-thumbnails
 // and shrunk to 512 px, without sharpness or faces. The AI still sees the real footage, never a sample.

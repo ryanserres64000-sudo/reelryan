@@ -50,3 +50,17 @@ test("the small model's wording is cleaned and never empty-handed", () => {
   assert.match(c, /Chez Lou/);
   assert.match(c, /elle a passé la question/);
 });
+
+test("the choices fit the profile, and every follow-up stays reachable (Ryan, 30 octobre)", async () => {
+  const { QUESTIONS, questionsFor } = await import("../brand.ts");
+  const objectifs = (p: (typeof PROFILS)[number]) => questionsFor(p).find(q => q.id === "objectifs")!.options!;
+  assert.ok(!objectifs("createur").includes("reservations") && !objectifs("createur").includes("recrutement"));
+  assert.ok(objectifs("createur").includes("partenariats"));
+  for (const q of QUESTIONS) for (const [p, list] of Object.entries(q.parProfil ?? {}))
+    for (const o of list!) assert.ok(q.options!.includes(o), `${q.id} : ${o} (${p}) est dans options`);
+  // A follow-up whose trigger a profile never sees is never asked to it by mistake.
+  for (const p of PROFILS) for (const f of QUESTIONS.filter(q => q.si && !q.profils?.includes(p))) {
+    const seen = questionsFor(p).find(q => q.id === f.si!.q)?.options ?? [];
+    if (!f.si!.any.some(o => seen.includes(o))) assert.ok(!ids(p, { [f.si!.q]: [] }).includes(f.id));
+  }
+});

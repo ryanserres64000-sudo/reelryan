@@ -6,7 +6,7 @@ import { Text } from "../Text";
 import { useTheme } from "../theme";
 import { Gradient } from "./Gradient";
 
-type Props = { rushes: number; kept: number[]; variants?: number; step: number; beat?: number; thumbnails?: ImageSourcePropType[]; percent?: number; detail?: string };
+type Props = { rushes: number; kept: number[]; variants?: number; step: number; beat?: number; thumbnails?: (ImageSourcePropType | undefined)[]; percent?: number; detail?: string };
 
 // The wait shows the work (étude, ch. 6 §3 « Motion design » ; ch. 5 §4): the rushes drop onto a strip,
 // a lavender line sweeps each one (the triage), the kept shots light up in gold on the music's beat.

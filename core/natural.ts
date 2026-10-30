@@ -28,9 +28,30 @@ export function isNeon(hex: string, brand: string[] = []): boolean {
 const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : one}`;
 
 // Timeline v1. Locked shots come back afterwards anyway (core/edit.ts keepLocked).
-export function naturalTimeline(t: TimelineV1, opts: { photos?: string[] } = {}): { timeline: TimelineV1; fixes: string[] } {
+// `photos`: the rushes that are photos. For a new AI edit (not a retouch, where the person decides),
+// `sons`: the videos that have sound, `brief`: the person's words.
+export function naturalTimeline(t: TimelineV1, opts: { photos?: string[]; sons?: string[]; brief?: string } = {}): { timeline: TimelineV1; fixes: string[] } {
   const fixes: string[] = [];
   let plans = t.plans;
+  const still = new Set(opts.photos ?? []);
+
+  // Ryan's first test: the rushes are the edit. A photo shown again and again pads a short edit into
+  // a slideshow; with videos there, each photo comes once, and the edit is shorter, said plainly.
+  if (opts.sons && plans.some(p => !still.has(p.source))) {
+    const seen = new Set<string>();
+    const kept = plans.filter(p => !still.has(p.source) || (!seen.has(p.source) && !!seen.add(p.source)));
+    if (kept.length < plans.length) {
+      plans = kept;
+      fixes.push(`Tes vidéos sont courtes : j'ai fait un montage de ${Math.round(timelineDuration(plans))} s plutôt que de répéter tes photos.`);
+    }
+  }
+  // The sound of a video is its life (voices, place, laughter): kept unless the person asked for silence.
+  const silent = /sans (le |aucun )?son|\bmuets?\b|coupe[rz]? (le )?son/i.test(opts.brief ?? "");
+  const sons = new Set(opts.sons ?? []);
+  if (!silent && plans.some(p => sons.has(p.source) && !p.garder_son)) {
+    plans = plans.map(p => (sons.has(p.source) && !p.garder_son ? { ...p, garder_son: true } : p));
+    fixes.push("J'ai gardé le son d'origine de tes vidéos.");
+  }
 
   // « Zoom à chaque coupe » : one zoom transition at most.
   let zooms = 0;
@@ -41,7 +62,6 @@ export function naturalTimeline(t: TimelineV1, opts: { photos?: string[] } = {})
   }
   // Camera moves on more than a third of the video shots look automatic. A photo keeps its slow
   // zoom: without it, a still looks frozen.
-  const still = new Set(opts.photos ?? []);
   const moving = plans.map((p, i) => (p.mouvement !== "aucun" && !still.has(p.source) ? i : -1)).filter(i => i >= 0);
   const maxMoves = Math.max(1, Math.floor(plans.length / 3));
   if (moving.length > maxMoves) {
@@ -88,7 +108,7 @@ export function naturalTimeline(t: TimelineV1, opts: { photos?: string[] } = {})
     }
   }
   if (!fixes.length) return { timeline: t, fixes };
-  // A zoom turned into a cut no longer overlaps the next shot: the edit gets a little longer.
+  // A zoom turned into a cut no longer overlaps the next shot, a dropped photo shortens the edit.
   const duree = Math.round(timelineDuration(plans) * 100) / 100;
   textes = textes.map(x => ({ ...x, fin: Math.min(x.fin, duree) })).filter(x => x.fin - x.debut >= 0.4);
   const corrections = [...fixes, ...t.relecture.corrections].slice(0, 6);

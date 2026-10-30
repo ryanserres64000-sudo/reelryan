@@ -40,7 +40,7 @@ export function WelcomeScreen({ onSignedIn, onWithout }: { onSignedIn: (s: Sessi
     try {
       const cred = await AppleAuthentication.signInAsync({ requestedScopes: [AppleAuthentication.AppleAuthenticationScope.FULL_NAME, AppleAuthentication.AppleAuthenticationScope.EMAIL] });
       if (!cred.identityToken) return done({ ok: false, error: "autre" });
-      done(await signInApple(cred.identityToken, cred.fullName?.givenName ?? null));
+      done(await signInApple(cred.identityToken, cred.fullName?.givenName ?? null, cred.authorizationCode));
     } catch (e: any) { done({ ok: false, error: e?.code === "ERR_REQUEST_CANCELED" ? "refus" : "autre" }); }
   };
 

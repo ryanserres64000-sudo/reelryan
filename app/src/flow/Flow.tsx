@@ -46,7 +46,9 @@ import type { VisualBrief } from "../../../core/design";
 import type { Photo, VisualResult } from "../visual/api";
 import { deleteVisual, loadVisuals, saveVisual, type SavedVisual } from "../visual/store";
 import { SAMPLE_RUSHES, fakeMontage } from "./fake";
-import { streamMontage } from "./api";
+import { jobState, streamMontage, waitForJob } from "./api";
+import { pickMedia } from "../media/pick";
+import { forgetJob, newJobId, pendingFor, rememberJob, signatureOf } from "./pending";
 import { LIMITS, mapLimit } from "../../../core/progress";
 import { aiUrl } from "./server";
 import { mediaExists, sweepMedia } from "../media/keep";
@@ -59,6 +61,7 @@ import type { Draft } from "../../../core/draft";
 import type { TimelineV1 } from "../../../core/timeline";
 import { tokens, useToast } from "../design";
 import type { Brief, MontageResult, Music, Rush, Trade } from "./types";
+import { LIMITS as RUSHES } from "./types";
 
 type Step = "home" | "creations" | "ideas" | "player" | "brand" | "import" | "brief" | "music" | "generation" | "result" | "editor" | "catalogue" | "visual" | "visual-editor" | "export" | "paywall" | "consent" | "settings" | "stats";
 // The brief's trade chips (lot 2) start from the sign-up profile.
@@ -71,6 +74,9 @@ const START_BRIEF: Brief = { text: "", trade: "restaurant", goal: null, tone: nu
 // Sign-up first (lot 4: brand DNA), then the core path of lot 2: import → brief → music → generation →
 // result, with sample data until the native module (Vision triage, AVFoundation preview) and the
 // server are plugged in.
+// What makes two AI edits the same request (flow/pending.ts).
+const jobSignature = (selected: string[], brief: Brief, music: Music) => signatureOf([selected, composeBrief(brief), brief.duration, brief.platforms, music]);
+
 export function Flow() {
   const [step, setStep] = useState<Step>(() => typeof location !== "undefined" && location.hash === "#catalogue" ? "catalogue" : "home");
   const [brand, setBrand] = useState<BrandDna | null | undefined>(undefined);
@@ -95,7 +101,7 @@ export function Flow() {
   // Once the saved Reels and the draft are known, the rush files none of them uses are cleared.
   useEffect(() => {
     Promise.all([loadReels(), loadDraft()]).then(([rs, d]) => {
-      sweepMedia([...rs.flatMap(r => r.rushes.map(x => x.uri)), ...(d?.data.rushes ?? []).map(x => x.uri)].filter((u): u is string => !!u));
+      sweepMedia([...rs.flatMap(r => r.rushes), ...(d?.data.rushes ?? [])].flatMap(x => [x.uri, x.thumb]).filter((u): u is string => !!u));
     });
   }, []);
   // Créations and Idées (étape 2 de la refonte): the saved Reels, the ideas refused for a month, the
@@ -130,6 +136,8 @@ export function Flow() {
   useEffect(() => { initDevice().then(loadPlans).then(p => { proHeader(p); setPlans(p); }); }, []);
   const updatePlans = (p: Plans) => { proHeader(p); setPlans(p); savePlans(p); };
   const [paywall, setPaywall] = useState<{ mode: "doux" | "bloquant"; back: Step; manual?: boolean; offline?: { brief: VisualBrief; photos: Photo[] } } | null>(null);
+  // The offers, opened by the person from Accueil or Réglages (they used to show only after an AI result).
+  const offers = (back: Step) => { if (!plans) return; setPaywall({ mode: "doux", back }); setStep("paywall"); };
   const [keptVersion, setKeptVersion] = useState<number | null>(null);
   // The AI permission (lot 9), asked where it is first needed, with where each answer leads.
   const [ask, setAsk] = useState<{ back: Step; yes: () => void; no: () => void } | null>(null);
@@ -142,8 +150,9 @@ export function Flow() {
     for (const r of rushes.filter(x => x.uri && !x.triage && !reading.has(x.id))) {
       reading.add(r.id);
       const put = (p: Partial<Rush>) => setRushes(list => list.map(x => (x.id === r.id ? { ...x, ...p } : x)));
-      thumbnailOf(r).then(thumb => put({ thumb }));
-      triageAny(r).then(t => put({ triage: t.triage, badges: t.badges, duration: t.duration })).catch(() => {});
+      // The reading writes small frames too: the first one stands in when the card picture failed.
+      thumbnailOf(r).then(thumb => { if (thumb) put({ thumb }); });
+      triageAny(r).then(t => setRushes(list => list.map(x => (x.id === r.id ? { ...x, triage: t.triage, badges: t.badges, duration: t.duration, thumb: x.thumb ?? t.triage?.frames[0]?.jpeg } : x)))).catch(() => {});
     }
   }, [rushes]);
   // Saved a moment after each change while a Reel is in progress; the home offers to pick it up.
@@ -157,7 +166,10 @@ export function Flow() {
     setDraft(null);
     warnMissing(x.rushes.filter(r => x.selected.includes(r.id)));
     // Without a result (an older draft), the steps after it fall back to the music.
-    setStep(!x.result && (d.step === "result" || d.step === "editor" || d.step === "export") ? "music" : d.step);
+    const step = !x.result && (d.step === "result" || d.step === "editor" || d.step === "export") ? "music" : d.step;
+    setStep(step);
+    // Left during an AI edit: back on the waiting screen, which fetches what the server finished.
+    if (step === "music" && !x.result && aiAllowed()) pendingFor(jobSignature(x.selected, x.brief, x.music)).then(p => { if (p) setStep("generation"); });
   };
   const keepReel = (timeline: TimelineV1) => saveReel({ id: reelId, at: new Date().toISOString(), timeline, byAi: !result?.r.manuel, rushes: chosen, selected }).then(setReels);
   const newReel = (text = "") => {
@@ -220,7 +232,7 @@ export function Flow() {
       draft={draft} onResume={() => draft && resume(draft)}
       onIdea={p => (p ? startIdea(p.idee) : newReel())} onMoreIdeas={() => setStep("ideas")} onBrand={() => setStep("brand")}
       onStats={() => setStep("stats")} lastViews={lastViews}
-      onSettings={() => setStep("settings")} onOpen={openCreation} onSeeAll={() => setStep("creations")} />);
+      onSettings={() => setStep("settings")} onOffers={() => offers("home")} onOpen={openCreation} onSeeAll={() => setStep("creations")} />);
     case "creations": return tabs("creations", <CreationsScreen items={creations} brand={brand ?? null} onOpen={openCreation} onDuplicate={duplicate} onDelete={remove} onNew={() => newReel()} />);
     case "ideas": return tabs("ideas", <IdeasScreen plan={plan} ideas={brand?.dna?.idees ?? []} pillars={brand?.dna?.piliers ?? []} hasBrand={!!brand?.dna}
       onMake={startIdea} onBrand={() => setStep("brand")}
@@ -241,7 +253,7 @@ export function Flow() {
       else if (!aiAllowed()) askConsent("music", () => setStep("generation"), manual);
       else setStep("generation");
     }} />;
-    case "generation": return <GenerationScreen rushes={chosen.length} kept={kept} variants={2}
+    case "generation": return <GenerationScreen rushes={chosen.length} kept={kept} variants={2} thumbnails={chosen.map(r => (r.thumb ? { uri: r.thumb } : undefined))}
       run={(onStep, signal, onRead) => {
         // The web preview keeps its sample answer. On the iPhone, only the real AI edit: a missing server
         // or unreadable rushes are said plainly (Ryan's first test, 28 octobre 2026), never faked.
@@ -249,11 +261,20 @@ export function Flow() {
         if (!canRead()) return fakeMontage(chosen, brief, music, onStep, signal, undefined, charteOf(brand?.dna ?? null, !!brand?.logoUri));
         if (!url) return Promise.reject(Object.assign(new Error("server"), { code: "no_server" }));
         return (async () => {
+          // The same edit asked again (« Réessayer », or the app reopened) picks up the one the server
+          // kept, instead of paying for another (Ryan, 30 octobre).
+          const sig = jobSignature(selected, brief, music);
+          const old = await pendingFor(sig);
+          if (old) {
+            const s = await jobState(url, old.id, signal);
+            if (s?.etat === "pret") { forgetJob(); return s.resultat; }
+            if (s?.etat === "en_cours") { const r = await waitForJob(url, old.id, onStep, signal); forgetJob(); return r; }
+          }
           // Two rushes at a time, each with its time limit (core/progress.ts), counted on screen.
           let read = 0;
           onRead(0, chosen.length);
           const ready = await mapLimit(chosen, LIMITS.readers, async r => {
-            const t = r.triage ? r : await triageAny(r).then(x => { setRushes(list => list.map(y => (y.id === x.id ? x : y))); return x; })
+            const t = r.triage ? r : await triageAny(r).then(x => { setRushes(list => list.map(y => (y.id === x.id ? { ...y, triage: x.triage, badges: x.badges, duration: x.duration, thumb: y.thumb ?? x.triage?.frames[0]?.jpeg } : y))); return { ...r, ...x, thumb: r.thumb }; })
               .catch(e => { noteError("lecture", `${r.id} : ${e instanceof Error ? e.message : String(e)}`); return r; });
             if (!signal.aborted) onRead(++read, chosen.length);
             return t;
@@ -261,10 +282,21 @@ export function Flow() {
           // A rush that cannot be read is left out (and said in Réglages); the edit stops only when none can be.
           if (!ready.some(r => r.triage)) throw Object.assign(new Error("rushes"), { code: "unreadable" });
           onStep(1);
-          return streamMontage(url, await montageBody(ready, brief, music, brand ?? null, brand?.memory?.rules.map(r => r.text) ?? []), onStep, signal);
+          const job = newJobId(), body = await montageBody(ready, brief, music, brand ?? null, brand?.memory?.rules.map(r => r.text) ?? []);
+          await rememberJob({ id: job, sig, at: Date.now() });
+          const r = await streamMontage(url, { ...body, travail: job }, onStep, signal, job);
+          forgetJob();
+          return r;
         })();
       }}
-      onDone={(r, s) => { if (plans) updatePlans(record(plans, "montage")); setKeptVersion(null); setReelId(Date.now().toString(36)); setResult({ r, s }); setStep("result"); }} onCancel={() => setStep("music")} onManual={manual} />;
+      onDone={(r, s) => {
+        if (plans) updatePlans(record(plans, "montage"));
+        const id = Date.now().toString(36);
+        setKeptVersion(null); setReelId(id); setResult({ r, s }); setStep("result");
+        // In Créations at once (Ryan's test of build 19): « Retour » never loses a finished edit; the
+        // version kept later replaces it under the same id.
+        if (r.variantes[0]) saveReel({ id, at: new Date().toISOString(), timeline: r.variantes[0].timeline, byAi: !r.manuel, rushes: chosen, selected }).then(setReels);
+      }} onCancel={() => setStep("music")} onManual={manual} />;
     case "result": return result ? <ResultScreen result={result.r} seconds={result.s} onBack={() => setStep("brief")} onRestart={() => { setResult(null); setEditorTl(null); clearDraft(); setStep("home"); }}
       sources={i => videoSources(result.r.variantes[i].timeline, chosen, brand ?? null, music)}
       onEdit={i => { setEditing(i); setFocusShot(0); setStep("editor"); }} onPlay={i => { setEditing(i); play("result"); }} onExport={i => { setEditing(i); keepReel(result.r.variantes[i].timeline); setStep("export"); }}
@@ -283,7 +315,7 @@ export function Flow() {
     case "consent": return ask ? <ConsentScreen onBack={() => setStep(ask.back)} onAnswer={ok => setConsent(ok).then(() => (ok ? ask.yes() : ask.no()))} /> : null;
     case "stats": return <StatsScreen memory={brand?.memory ?? null} reels={reels.map(r => ({ id: r.id, at: r.at, duree: r.timeline.duree }))} onBack={() => { loadCaptures().then(c => setLastViews(c.find(p => p.type === "reel")?.vues ?? lastViews)); setStep("home"); }}
       onMemory={m => { if (!brand) return; const b = { ...brand, memory: m }; setBrand(b); saveBrand(b); }} />;
-    case "settings": return <SettingsScreen plans={plans} onPlans={updatePlans} onBack={() => setStep("home")}
+    case "settings": return <SettingsScreen plans={plans} onPlans={updatePlans} onBack={() => setStep("home")} onOffers={() => offers("settings")}
       onDeleted={() => { setBrand(null); setSignedIn(false); setVisuals([]); setVisual(null); setResult(null); setStep("brand"); }} />;
     case "export": {
       const v = result?.r.variantes[editing];
@@ -319,7 +351,13 @@ export function Flow() {
         onMemory={m => { if (!brand) return; const b = { ...brand, memory: m }; setBrand(b); saveBrand(b); }}
         // Back keeps the retouches (audit, phase 10 : « ne jamais rien perdre ») ; « Annuler » in the editor undoes them.
         onBack={() => { if (editorTl && editorTl !== v.timeline) { saveEdit(editorTl); toast({ message: fr.editor.keptOnBack }); } else { setEditorTl(null); setStep("result"); } }}
-        onSave={saveEdit} /></ThemeProvider>;
+        onSave={saveEdit}
+        onAddMedia={async () => {
+          // Added to the Reel's rushes, so they are kept with it and play in the preview at once.
+          const added = await pickMedia(RUSHES.maxRushes).catch(e => { noteError("galerie", e instanceof Error ? e.message : String(e)); throw e; });
+          setRushes(rs => [...rs, ...added]); setSelected(sel => [...sel, ...added.map(a => a.id)]);
+          return Object.fromEntries(added.map(a => [a.id, { duration: a.duration }]));
+        }} /></ThemeProvider>;
     }
   }
 }

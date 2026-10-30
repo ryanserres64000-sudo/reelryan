@@ -1,5 +1,6 @@
 // Offers, free quota and the paywall moment (étude, ch. 8 §1-5 ; décisions de Ryan du 28 octobre :
-// 3,99 €/semaine, 6,99 €/mois, 49,99 €/an au lancement, 3 montages IA offerts à chaque inscription).
+// 4,99 €/semaine, 9,99 €/mois, 69,99 €/an au lancement, 20 montages IA par mois en Pro, 1 montage IA offert à
+// chaque inscription : Ryan, 30 octobre, après le calcul des coûts de l'audit).
 // The server sends this config (GET /api/offres), so prices, order and quotas change without an app
 // update; the defaults below are used when it cannot be reached. On the iPhone, the price shown comes
 // from StoreKit (localised, the one Apple charges) and `prix` here is only the fallback.
@@ -16,15 +17,16 @@ export type Config = {
 export const DEFAULT_CONFIG: Config = {
   version: 1, lancement: true, preselection: "an",
   offres: [
-    { id: "an", produit: "mada.pro.an", prix: "49,99 €", periode: "an", badge: "-40 %" },
-    { id: "mois", produit: "mada.pro.mois", prix: "6,99 €", periode: "mois", badge: null },
-    { id: "semaine", produit: "mada.pro.semaine", prix: "3,99 €", periode: "semaine", badge: null },
+    { id: "an", produit: "mada.pro.an", prix: "69,99 €", periode: "an", badge: "-42 %" },
+    { id: "mois", produit: "mada.pro.mois", prix: "9,99 €", periode: "mois", badge: null },
+    { id: "semaine", produit: "mada.pro.semaine", prix: "4,99 €", periode: "semaine", badge: null },
   ],
-  // ch. 8 §2 : 3 montages on rushes of 90 s at most. Visuals cost about half a montage, so 3 more.
+  // 1 montage on rushes of 90 s at most (Ryan, 30 octobre : « 1 seul montage gratuit », the free users
+  // cost almost as much as the subscribers bring). Visuals cost about half a montage, so 3 more.
   // Voice-overs (étape 5 de la refonte) cost 2 to 5 cents each with ElevenLabs: 3 offered, 30 a month in Pro.
-  gratuit: { montages: 3, visuels: 3, secondes: 90, voix: 3 },
-  // ch. 8 §2 et §5 : 30 montages, 150 retouches a month, rushes of 10 min.
-  pro: { montages: 30, visuels: 60, retouches: 150, secondes: 600, voix: 30 },
+  gratuit: { montages: 1, visuels: 3, secondes: 90, voix: 3 },
+  // 20 montages (Ryan, 30 octobre : at 30 a full month cost more in AI than it brought), 150 retouches a month, rushes of 10 min.
+  pro: { montages: 20, visuels: 60, retouches: 150, secondes: 600, voix: 30 },
 };
 
 const int = (v: unknown, d: number, lo: number, hi: number) => (typeof v === "number" && Number.isInteger(v) ? Math.min(hi, Math.max(lo, v)) : d);
@@ -69,7 +71,7 @@ export function check(kind: Kind, pro: boolean, u: Usage, cfg: Config, now = new
     const k = KEY[kind], cap = cfg.pro[k], used = usage.pro[k] ?? 0;
     return { ok: used < cap, restant: Math.max(0, cap - used), raison: used < cap ? null : "plafond_pro" };
   }
-  // A retouch of a free creation is included (ch. 8 §2 : « Incluses sur les 3 montages »).
+  // A retouch of a free creation is included (ch. 8 §2 : « Incluses sur les montages offerts »).
   const made = usage.gratuit.montages + usage.gratuit.visuels > 0;
   if (kind === "retouche") return { ok: made, restant: made ? 1 : 0, raison: made ? null : "gratuit_epuise" };
   const k = kind === "montage" ? "montages" : kind === "visuel" ? "visuels" : "voix", cap = cfg.gratuit[k], used = usage.gratuit[k] ?? 0;

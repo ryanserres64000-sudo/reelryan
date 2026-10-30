@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { Pressable, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
+import { Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
 import { applyCorrection, learn, type Memory } from "../../../core/corrections";
 import { addCalque, addPassage, addTexte, addVoiceOver, changedPlans, deleteAudio, deleteCalque, deleteCle, deleteEffet, deletePlan, deleteTexte, duplicatePlan, duplicateTexte, isLocked, movePlan, planTimes, push, redo, replaceSource, setAudio, setCalque, setDuo, setLogo, setPlan, setSubtitles, setTexte, splitPlan, startHistory, toDoc, trimPlan, undo, type EditDoc, type History } from "../../../core/edit";
 import { exportPlan, placeOf } from "../../../core/export";
@@ -29,9 +29,12 @@ type Props = {
   // The full-screen player, and the shot it was paused on when « Retoucher ce moment » brought us here.
   onPlay?: (t: TimelineV1) => void; initialShot?: number;
   sources?: () => Promise<Sources>;
+  // Videos and photos picked in the gallery from the editor (Ryan, 30 octobre : « ajouter d'autres
+  // vidéos et photos »): Flow adds them to the Reel's rushes and gives back their ids and lengths.
+  onAddMedia?: () => Promise<Clips>;
 };
-type Tool = keyof typeof fr.editor.tools;
-const TOOLS: [Tool, IconName][] = [["plan", "plan"], ["vitesse", "speed"], ["texte", "text"], ["son", "sound"], ["couleur", "color"], ["marque", "brand"]];
+type Panel = keyof typeof fr.editor.panels;
+type BarItem = { icon: IconName; label: string; onPress: () => void };
 const t = fr.editor;
 const SPEEDS = [0.5, 1, 1.5, 2];
 const LOGO_KEYS = LOGO_POSITIONS;
@@ -41,11 +44,14 @@ const LOGO_KEYS = LOGO_POSITIONS;
 // first through plain rules on the phone; only what they cannot do goes to the AI. « Atelier clair »:
 // six named tools under the frise instead of rows of tabs, one « Demander à Ma DA » field, on a dark
 // ground (Flow nests a dark theme) so the footage is judged as it will be seen.
-export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMemory, onSave, onBack, onChange, onPlay, initialShot = 0, sources }: Props) {
-  const { c } = useTheme();
+export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMemory, onSave, onBack, onChange, onPlay, initialShot = 0, sources, onAddMedia }: Props) {
+  const { c, layout } = useTheme();
+  // The strip runs edge to edge, like in Edits: it cancels the screen's side margins.
+  const { width: ww } = useWindowDimensions();
+  const gutter = ww >= layout.largePhoneWidth ? layout.gutterLarge : layout.gutter;
   const [h, setH] = useState<History>(() => startHistory(toDoc(timeline)));
   const [sel, setSel] = useState(initialShot);
-  const [tool, setTool] = useState<Tool>("plan");
+  const [panel, setPanel] = useState<Panel | null>(null);
   const [ask, setAsk] = useState("");
   const [say, setSay] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -57,7 +63,6 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
   // Removals say what happened and can be undone for five seconds (« Annuler partout »).
   const remove = (next: EditDoc, message: string) => { haptic("warning"); apply(next); toast({ message, action: fr.nav.undo, onAction: () => setH(x => undo(x)) }); };
   useEffect(() => { onChange?.(tl); }, [tl]);
-  const i = Math.min(sel, tl.plans.length - 1), p = tl.plans[i];
   // The preview and the strip (étape 4 de la refonte): one play head for both, the strip in Simple or
   // Complet, a selection that opens its own actions.
   const { height: wh } = useWindowDimensions();
@@ -68,21 +73,26 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
   const [mode, setMode] = useState<Mode>("simple");
   useEffect(() => { loadMode().then(setMode); }, []);
   const [selection, setSelection] = useState<Selection>(null);
+  // The shot the tools act on: the one touched, else the one under the play head.
+  const under = planTimes(tl).findIndex(x => time >= x.start && time < x.end);
+  const i = Math.min(selection?.lane === "plans" ? selection.index : under >= 0 ? under : sel, tl.plans.length - 1), p = tl.plans[i];
   const [dragging, setDragging] = useState(false);
-  const [adding, setAdding] = useState(false);
   const [voicing, setVoicing] = useState(false);
   const [layering, setLayering] = useState<null | "pip" | "detoure">(null);
   const [cropping, setCropping] = useState(false);
   const [passage, setPassage] = useState(false);
   const file = useMemo(() => exportPlan(tl)[0], [tl]);
-  const src = useMemo(() => sources?.() ?? null, []);
+  // Read again when the gallery adds rushes, so the new ones play.
+  const rushKey = Object.keys(clips).join(",");
+  const src = useMemo(() => sources?.() ?? null, [rushKey]);
   const ids = { plans: d.planIds, textes: d.texteIds };
   const { shown, hidden } = laneList(tl, ids, mode);
   const seek = (s: number) => { setTime(s); player.current?.seek(s); };
   const select = (s: Selection) => {
     setSelection(s);
-    if (s?.lane === "plans") { setSel(s.index); if (tool === "texte" || tool === "marque") setTool("plan"); }
-    if (s?.lane === "textes") setTool("texte");
+    setPanel(null);
+    if (s?.lane === "plans") setSel(s.index);
+    if (s?.lane === "textes") setPanel("texte");
     // A layer is moved on the picture: show it.
     if (s?.lane === "calques") { const l = (tl.calques ?? [])[s.index]; if (l && !isOn(l, time)) { setPlaying(false); seek(l.t + 0.05); } }
   };
@@ -109,21 +119,21 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
     else if (s.lane === "effets") remove(deleteEffet(d, s.index), fr.toast.effetRemoved);
   };
   // Texts: chosen on the picture or in the list, added under the play head and chosen at once.
-  const chooseText = (n: number) => { setPlaying(false); setSelection({ lane: "textes", index: n, id: d.texteIds[n] } as Selection); setTool("texte"); };
+  const chooseText = (n: number) => { setPlaying(false); setSelection({ lane: "textes", index: n, id: d.texteIds[n] } as Selection); setPanel("texte"); };
   const newText = () => {
     const next = addTexte(d, t.newText, time);
     apply(next); setPlaying(false);
     const n = next.timeline.textes.length - 1;
     if (n >= 0) setSelection({ lane: "textes", index: n, id: next.texteIds[n] } as Selection);
-    setTool("texte");
+    setPanel("texte");
   };
-  useEffect(() => { if (tool !== "plan") setCropping(false); }, [tool]);
   // Reframing shows the shot being reframed: the play head goes into it.
   const startCrop = () => { setPlaying(false); setSelection(null); const at = planTimes(tl)[i]; if (at && (time < at.start || time >= at.end)) seek(at.start + 0.05); setCropping(true); };
   const ZERO: Reglages = { lumiere: 0, contraste: 0, saturation: 0, chaleur: 0 };
   const textSel = selection?.lane === "textes" && tl.textes[selection.index] ? selection.index : null;
-  // Bigger while a text is chosen or a shot reframed: both happen on the picture itself.
-  const fw = Math.min(wh * (textSel !== null || cropping ? 0.46 : 0.3), tokens.layout.largePhoneWidth) * 9 / 16;
+  // The picture takes the room left by the strip and the bar, like in Edits.
+  const [box, setBox] = useState<{ w: number; h: number } | null>(null);
+  const fw = box ? Math.max(0, Math.min(box.w, box.h * 9 / 16)) : wh * 0.3 * 9 / 16;
   const rushIds = Object.keys(clips);
   const fmt = fr.rush.duration;
 
@@ -151,75 +161,227 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
   };
 
   const times = planTimes(tl);
-  const planTools = tool === "plan" || tool === "vitesse" || tool === "son" || tool === "couleur";
+  const b = t.bar;
+  const undoToast = (message: string) => toast({ message, action: fr.nav.undo, onAction: () => setH(x => undo(x)) });
+  const open = (k: Panel) => { setPlaying(false); setPanel(k); };
+  const toggleMode = () => { const m = mode === "simple" ? "complet" : "simple"; setMode(m); saveMode(m); };
+  const split = () => { const n = splitPlan(d, time); if (n !== d) { apply(n); setSelection(null); undoToast(fr.tracks.split_done); } };
+  // Videos and photos from the gallery: after the shot in hand, or in place of the one touched.
+  const addMedia = async (replace = false) => {
+    if (!onAddMedia) return;
+    setPlaying(false);
+    let added: Clips;
+    try { added = await onAddMedia(); } catch { haptic("warning"); toast({ message: t.mediaError }); return; }
+    const ids = Object.keys(added);
+    if (!ids.length) return;
+    const all = { ...clips, ...added };
+    if (replace) { apply(replaceSource(d, i, ids[0], all)); setPanel(null); undoToast(t.replaced); return; }
+    let next = d;
+    ids.forEach((id, k) => { next = addPassage(next, id, 0, all[id].duration, i + k, all); });
+    if (next === d) return;
+    apply(next); setSelection(null); setPanel(null);
+    seek(planTimes(next.timeline)[i + 1]?.start ?? time);
+    undoToast(t.mediaAdded(ids.length));
+  };
+  const planSel = selection?.lane === "plans" ? selection.index : null;
+  // The bottom bar (Ryan, 30 octobre, d'après Edits): the main tools, or the actions of what is touched.
+  const bar: BarItem[] = cropping ? [{ icon: "check", label: b.done, onPress: () => setCropping(false) }]
+    : planSel !== null ? [
+      { icon: "split", label: b.split, onPress: split },
+      { icon: "speed", label: b.speed, onPress: () => open("vitesse") },
+      { icon: "sound", label: b.volume, onPress: () => open("son") },
+      { icon: "color", label: b.color, onPress: () => open("couleur") },
+      { icon: "crop", label: b.crop, onPress: startCrop },
+      { icon: "swap", label: b.replace, onPress: () => open("remplacer") },
+      ...(planSel > 0 ? [{ icon: "transition", label: b.transition, onPress: () => open("transition") } as BarItem] : []),
+      { icon: "copy", label: b.duplicate, onPress: () => { apply(duplicatePlan(d, planSel)); setSelection(null); toast({ message: fr.tracks.duplicated }); } },
+      { icon: "order", label: b.move, onPress: () => open("ordre") },
+      ...(tl.plans.length > 1 ? [{ icon: "trash", label: b.remove, onPress: removeSelected } as BarItem] : []),
+    ]
+    : textSel !== null ? [
+      { icon: "text", label: b.edit, onPress: () => open("texte") },
+      { icon: "copy", label: b.duplicate, onPress: () => { const next = duplicateTexte(d, textSel); apply(next); setSelection({ lane: "textes", index: textSel + 1, id: next.texteIds[textSel + 1] } as Selection); toast({ message: fr.tracks.duplicated }); } },
+      { icon: "trash", label: b.remove, onPress: removeSelected },
+    ]
+    : selection?.lane === "calques" ? [{ icon: "layers", label: b.edit, onPress: () => open("calque") }, { icon: "trash", label: b.remove, onPress: removeSelected }]
+    : selection ? [{ icon: "trash", label: b.remove, onPress: removeSelected }]
+    : [
+      ...(onAddMedia ? [{ icon: "addMedia", label: b.media, onPress: () => addMedia() } as BarItem] : []),
+      { icon: "text", label: b.text, onPress: newText },
+      { icon: "subtitles", label: b.subtitles, onPress: () => open("sous_titres") },
+      { icon: "sound", label: b.sound, onPress: () => open("son") },
+      { icon: "mic", label: b.voice, onPress: () => { setPlaying(false); setVoicing(true); } },
+      { icon: "split", label: b.split, onPress: split },
+      { icon: "plan", label: b.passage, onPress: () => { setPlaying(false); setPassage(true); } },
+      { icon: "layers", label: b.layer, onPress: () => { setPlaying(false); setLayering("pip"); } },
+      { icon: "cutout", label: b.cutout, onPress: () => { setPlaying(false); setLayering("detoure"); } },
+      { icon: "color", label: b.color, onPress: () => open("couleur") },
+      { icon: "brand", label: b.brand, onPress: () => open("marque") },
+      { icon: "grid", label: mode === "simple" ? b.allTracks : b.fewTracks, onPress: toggleMode },
+      { icon: "spark", label: b.ai, onPress: () => open("ia") },
+    ];
+  // A panel tied to what is touched closes with it.
+  const shown_ = panel === "texte" && textSel === null ? null : panel === "calque" && selection?.lane !== "calques" ? null : panel;
+  const shotPanel = shown_ === "vitesse" || shown_ === "son" || shown_ === "couleur" || shown_ === "remplacer" || shown_ === "transition" || shown_ === "ordre";
+  const title = shown_ ? (shotPanel ? t.panelOf(t.panels[shown_], i + 1) : t.panels[shown_]) : "";
+
   return (
-    <Screen title={t.title} onBack={onBack} scrollEnabled={!dragging}
-      footer={<Button label={t.save} disabled={busy} onPress={() => onSave(tl)} haptic />}>
-      <View style={styles.preview}>
+    <Screen onBack={onBack} scroll={false}
+      right={<Button label={t.saveShort} disabled={busy} onPress={() => onSave(tl)} haptic style={styles.auto} />}>
+      <View style={styles.preview} onLayout={e => { const { width: w, height: hh } = e.nativeEvent.layout; setBox({ w, h: hh }); }}>
         <Frame ref={player} timeline={tl} file={file} sources={src} time={time} playing={playing} onTime={setTime} width={fw}
           onTapPicture={() => { haptic("tap"); setPlaying(x => !x); }}
           selectedLayer={selection?.lane === "calques" ? selection.id : null} onLayerMove={(id, m) => apply(moveLayer(d, id, time, m, clips))} onDragging={setDragging}
           selectedText={textSel} onTextSelect={chooseText} onTextPlace={(n, pl) => apply(setTexte(d, n, { place: pl }))} onTextWrite={(n, v) => apply(setTexte(d, n, { texte: v }))}
           crop={cropping && p ? { index: i, onCadre: cd => apply(setPlan(d, i, { cadre: cd })) } : null} />
-        {onPlay ? <IconButton icon="expand" label={fr.player.open} onPress={() => { setPlaying(false); onPlay(tl); }} /> : null}
       </View>
       <View style={styles.between}>
+        <View style={styles.row}>
+          <IconButton icon={playing ? "pause" : "play"} label={playing ? fr.player.pause : fr.player.play} onPress={() => setPlaying(x => !x)} />
+          <Text variant="mono" tone="textMuted">{fr.player.time(clock(time), clock(tl.duree))}</Text>
+        </View>
         <View style={styles.row}>
           <IconButton icon="undo" label={t.undo} disabled={!h.past.length} onPress={() => setH(undo(h))} />
           <IconButton icon="redo" label={t.redo} disabled={!h.future.length} onPress={() => setH(redo(h))} />
-        </View>
-        <IconButton icon={playing ? "pause" : "play"} label={playing ? fr.player.pause : fr.player.play} onPress={() => setPlaying(x => !x)} />
-        <Text variant="mono" tone="textMuted">{fr.player.time(clock(time), clock(tl.duree))}</Text>
-      </View>
-      <View style={styles.between}>
-        <View style={styles.row} accessibilityRole="radiogroup" accessibilityLabel={fr.tracks.mode}>
-          {(["simple", "complet"] as const).map(m => <Chip key={m} label={fr.tracks.modes[m]} selected={mode === m} onPress={() => { setMode(m); saveMode(m); }} />)}
-        </View>
-        <View style={styles.row}>
-          <IconButton icon="minus" label={fr.tracks.zoomOut} onPress={() => setZoom(z => clampZoom(z / 1.5))} />
-          <IconButton icon="plus" label={fr.tracks.zoomIn} onPress={() => setZoom(z => clampZoom(z * 1.5))} />
+          {onPlay ? <IconButton icon="expand" label={fr.player.open} onPress={() => { setPlaying(false); onPlay(tl); }} /> : null}
         </View>
       </View>
-      <Timeline timeline={tl} lanes={shown} time={time} zoom={zoom} selection={selection}
+      <View style={{ marginHorizontal: -gutter }}>
+      <Timeline timeline={tl} lanes={shown} time={time} zoom={zoom} selection={selection} onAdd={onAddMedia ? () => addMedia() : undefined} addLabel={b.media}
         onSeek={s => { setPlaying(false); setTime(s); player.current?.seek(s); }} onZoom={setZoom} onSelect={select}
         onTrim={trim} onMove={move} onDragging={setDragging}
-        onReorder={(from, to) => { apply(movePlan(d, from, to)); setSel(to); setSelection(null); toast({ message: fr.tracks.moved, action: fr.nav.undo, onAction: () => setH(x => undo(x)) }); }} />
-      {hidden.length ? <Chip label={fr.tracks.hidden(hidden.length)} onPress={() => { setMode("complet"); saveMode("complet"); }} style={styles.start} /> : null}
-      <View style={styles.row}>
-        {selection?.lane === "plans" ? (
-          <>
-            <Chip label={fr.tracks.split} onPress={() => { const n = splitPlan(d, time); if (n !== d) { apply(n); setSelection(null); toast({ message: fr.tracks.split_done, action: fr.nav.undo, onAction: () => setH(x => undo(x)) }); } }} />
-            <Chip label={fr.tracks.duplicate} onPress={() => { apply(duplicatePlan(d, selection.index)); setSelection(null); toast({ message: fr.tracks.duplicated }); }} />
-            {tl.plans.length > 1 ? <Chip label={fr.tracks.remove} onPress={removeSelected} /> : null}
-          </>
-        ) : selection ? (
-          <>
-            {selection.lane === "textes" ? <Chip label={fr.tracks.edit} onPress={() => setTool("texte")} /> : null}
-            <Chip label={fr.tracks.remove} onPress={removeSelected} />
-          </>
-        ) : (
-          <>
-            <Chip label={fr.tracks.split} onPress={() => { const n = splitPlan(d, time); if (n !== d) { apply(n); toast({ message: fr.tracks.split_done, action: fr.nav.undo, onAction: () => setH(x => undo(x)) }); } }} />
-            <Chip label={`+ ${fr.tracks.add}`} onPress={() => setAdding(true)} />
-          </>
-        )}
+        onReorder={(from, to) => { apply(movePlan(d, from, to)); setSel(to); setSelection(null); undoToast(fr.tracks.moved); }} />
       </View>
-      <Sheet visible={adding} onClose={() => setAdding(false)} title={fr.tracks.addTitle}>
-        <AddChoice icon="text" title={fr.tracks.addText} why={fr.tracks.addTextWhy} onPress={() => { setAdding(false); newText(); }} />
-        <AddChoice icon="layers" title={fr.tracks.addLayer} why={fr.tracks.addLayerWhy} onPress={() => { setAdding(false); setPlaying(false); setLayering("pip"); }} />
-        <AddChoice icon="cutout" title={fr.tracks.addCutout} why={fr.tracks.addCutoutWhy} onPress={() => { setAdding(false); setPlaying(false); setLayering("detoure"); }} />
-        <AddChoice icon="voice" title={fr.tracks.addVoice} why={fr.tracks.addVoiceWhy} onPress={() => { setAdding(false); setPlaying(false); setVoicing(true); }} />
-      </Sheet>
-      <LayerAdd kind={layering} onClose={() => setLayering(null)} clips={clips} at={time} duree={tl.duree}
-        onAdd={l => {
-          const next = addCalque(d, l, clips);
-          if (next === d) { haptic("warning"); toast({ message: fr.layers.full }); return; }
-          setLayering(null); apply(next);
-          const added = next.timeline.calques!.findIndex(c => !(tl.calques ?? []).some(x => x.id === c.id));
-          if (mode === "simple") { setMode("complet"); saveMode("complet"); }
-          if (added >= 0) setSelection({ lane: "calques", index: added, id: next.timeline.calques![added].id } as Selection);
-          toast({ message: fr.layers.added, action: fr.nav.undo, onAction: () => setH(x => undo(x)) });
-        }} />
+
+      {shown_ ? (
+        <View style={[styles.panel, { borderColor: c.line, maxHeight: wh * 0.42 }]}>
+          <View style={styles.between}>
+            <Text variant="headline">{title}</Text>
+            <IconButton icon="check" label={t.close} onPress={() => setPanel(null)} />
+          </View>
+          <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.panelBody}>
+            {shown_ === "vitesse" && p ? <Group label={t.speed}>{SPEEDS.map(v => <Chip key={v} label={t.speedValue(v)} selected={p.vitesse === v} onPress={() => apply(setPlan(d, i, { vitesse: v }))} />)}</Group> : null}
+            {shown_ === "transition" && p ? <Group label={t.transition}>{TRANSITIONS.map(x => <Chip key={x} label={t.transitions[x]} selected={p.transition === x} onPress={() => apply(setPlan(d, i, { transition: x }))} />)}</Group> : null}
+            {shown_ === "ordre" && p ? (
+              <View style={styles.row}>
+                <Chip label={t.moveBefore} disabled={i === 0} onPress={() => { apply(movePlan(d, i, i - 1)); setSel(i - 1); setSelection(null); }} />
+                <Chip label={t.moveAfter} disabled={i === tl.plans.length - 1} onPress={() => { apply(movePlan(d, i, i + 1)); setSel(i + 1); setSelection(null); }} />
+              </View>
+            ) : null}
+            {shown_ === "remplacer" && p ? (
+              <>
+                {onAddMedia ? <Button variant="secondary" label={t.fromGallery} onPress={() => addMedia(true)} /> : null}
+                <Group label={t.source}>{rushIds.map((id, k) => <Chip key={id} label={t.sourceName(k + 1)} selected={p.source === id} onPress={() => apply(replaceSource(d, i, id, clips))} />)}</Group>
+              </>
+            ) : null}
+            {shown_ === "couleur" && p ? (
+              <>
+                <Group label={t.grade}>{ETALONNAGES.map(x => <Chip key={x} label={t.grades[x]} selected={p.etalonnage === x} onPress={() => apply(setPlan(d, i, { etalonnage: x }))} />)}</Group>
+                <Text variant="caption" tone="textMuted">{fr.fine.title}</Text>
+                {REGLAGES.map(k => {
+                  const r = p.reglages ?? ZERO, v = r[k], name = fr.fine.names[k];
+                  const step = (dv: number) => apply(setPlan(d, i, { reglages: { ...r, [k]: Math.max(-1, Math.min(1, v + dv)) } }));
+                  return (
+                    <View key={k} style={styles.between}>
+                      <Text variant="body">{name}</Text>
+                      <View style={styles.row}>
+                        <Chip label="−" accessibilityLabel={fr.fine.less(name)} disabled={v <= -1} onPress={() => step(-0.25)} />
+                        <Text variant="mono" tone={v ? "text" : "textMuted"} style={styles.value}>{fr.fine.value(v)}</Text>
+                        <Chip label="+" accessibilityLabel={fr.fine.more(name)} disabled={v >= 1} onPress={() => step(0.25)} />
+                      </View>
+                    </View>
+                  );
+                })}
+                <View style={styles.row}>
+                  {p.reglages ? <Chip label={fr.fine.reset} onPress={() => apply(setPlan(d, i, { reglages: undefined }))} /> : null}
+                  {tl.plans.length > 1 ? <Chip label={fr.fine.all} onPress={() => {
+                    let next = d;
+                    tl.plans.forEach((_, j) => { next = setPlan(next, j, { etalonnage: p.etalonnage, reglages: p.reglages }); });
+                    apply(next); undoToast(fr.fine.applied);
+                  }} /> : null}
+                </View>
+              </>
+            ) : null}
+            {shown_ === "son" && p ? (
+              <>
+                <Group label={t.sound}>
+                  <Chip label={t.on} selected={p.garder_son} onPress={() => apply(setPlan(d, i, { garder_son: true }))} />
+                  <Chip label={t.off} selected={!p.garder_son} onPress={() => apply(setPlan(d, i, { garder_son: false }))} />
+                </Group>
+                {p.garder_son ? <Group label={fr.volume.title}>{[0.5, 1, 1.5].map(v => <Chip key={v} label={fr.volume.value(v)} selected={(p.volume ?? 1) === v} onPress={() => apply(setPlan(d, i, { volume: v }))} />)}</Group> : null}
+                <Group label={t.effets}>
+                  {(tl.effets ?? []).map((e, k) => <Chip key={`${e.type}${e.t}`} label={t.effet(t.effetNames[e.type], t.seconds(e.t))} onPress={() => remove(deleteEffet(d, k), fr.toast.effetRemoved)} />)}
+                </Group>
+                <Text variant="caption" tone="textMuted">{(tl.effets ?? []).length ? t.effetsWhy : t.effetsNone}</Text>
+              </>
+            ) : null}
+            {shown_ === "texte" && textSel !== null ? (
+              <TextPanel x={tl.textes[textSel]} n={textSel + 1} timeline={tl} locked={isLocked(d, d.texteIds[textSel])}
+                set={patch => apply(setTexte(d, textSel, patch))} />
+            ) : null}
+            {shown_ === "sous_titres" ? (
+              <>
+                <Group label={t.subtitles}>
+                  <Chip label={t.on} selected={tl.sous_titres.actifs} onPress={() => apply(setSubtitles(d, true))} />
+                  <Chip label={t.off} selected={!tl.sous_titres.actifs} onPress={() => apply(setSubtitles(d, false))} />
+                </Group>
+                <Text variant="caption" tone="textMuted">{fr.textEdit.hint}</Text>
+                {tl.textes.map((x, j) => (
+                  <Pressable key={d.texteIds[j]} accessibilityRole="button" accessibilityLabel={fr.textEdit.grip(x.texte)} accessibilityHint={fr.textEdit.choose}
+                    onPress={() => { haptic("tap"); seek(x.debut + 0.05); chooseText(j); }}
+                    style={({ pressed }) => [styles.choice, { backgroundColor: pressed ? c.surfaceRaised : c.surface }]}>
+                    <Icon name="text" tone="textMuted" />
+                    <View style={[styles.flex, styles.shrink]}>
+                      <Text variant="bodyStrong" numberOfLines={1}>{x.texte}</Text>
+                      <Text variant="caption" tone="textMuted">{[t.text(j + 1), fr.textEdit.at(clock(x.debut)), x.impose ? t.imposed : isLocked(d, d.texteIds[j]) ? t.locked : ""].filter(Boolean).join(" · ")}</Text>
+                    </View>
+                  </Pressable>
+                ))}
+                <Button variant="secondary" label={fr.textEdit.add} onPress={newText} />
+              </>
+            ) : null}
+            {shown_ === "marque" ? (
+              <>
+                <Group label={t.logo}>{LOGO_KEYS.map(k => <Chip key={k} label={t.logoPositions[k]} selected={(tl.charte.logo?.position ?? "aucun") === k} onPress={() => apply(setLogo(d, k))} />)}</Group>
+                <Group label={t.duo}>
+                  {DUOS.map(x => <Chip key={x.id} label={x.nom} selected={tl.charte.duo === x.id} onPress={() => apply(setDuo(d, x.id))} />)}
+                  <Chip label={t.noDuo} selected={!tl.charte.duo} onPress={() => apply(setDuo(d, null))} />
+                </Group>
+                {tl.charte.duo ? <View style={[styles.sample, { backgroundColor: c.media }]}><DuoTitle duo={duoById(tl.charte.duo)} texte={t.duoSample.titre} accent={t.duoSample.accent} /></View> : null}
+                <Text variant="caption" tone="textMuted">{t.duoWhy}</Text>
+              </>
+            ) : null}
+            {shown_ === "calque" && selection?.lane === "calques" && (tl.calques ?? [])[selection.index] ? (
+              <LayerPanel layer={(tl.calques ?? [])[selection.index]} n={selection.index + 1} time={time}
+                set={patch => apply(setCalque(d, selection.id, patch, clips))}
+                place={pl => apply(placeAt(d, selection.id, pl, clips))}
+                move={m => apply(moveLayer(d, selection.id, time, m, clips))}
+                key_={() => apply(addKey(d, selection.id, time, clips))}
+                dropKey={k => remove(deleteCle(d, selection.id, k, clips), fr.layers.keyRemoved)}
+                seek={s => { setPlaying(false); seek(s); }} />
+            ) : null}
+            {shown_ === "ia" ? (
+              <View style={styles.field}>
+                <View style={styles.askRow}>
+                  <TextInput value={ask} onChangeText={setAsk} onSubmitEditing={() => correct(ask)} placeholder={t.correctionPlaceholder} placeholderTextColor={c.textMuted}
+                    accessibilityLabel={t.ask} maxLength={300} returnKeyType="send" editable={!busy} autoFocus
+                    style={[typeStyle("body"), styles.input, styles.flex, styles.shrink, { color: c.text, borderColor: c.line, backgroundColor: c.surface }]} />
+                  <Button variant="secondary" label={fr.corrections.send} disabled={!ask.trim() || busy} onPress={() => correct(ask)} style={styles.auto} />
+                </View>
+                {!say ? <View style={styles.row}>{fr.corrections.suggestions.map(x => <Chip key={x} kind="ai" label={x} disabled={busy} onPress={() => correct(x)} />)}</View> : null}
+                {say ? <MadaSays text={say} /> : null}
+              </View>
+            ) : null}
+          </ScrollView>
+        </View>
+      ) : (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} accessibilityRole="toolbar" accessibilityLabel={t.toolsLabel} style={styles.fixed}
+          contentContainerStyle={[styles.tools, { borderColor: c.line }]}>
+          {selection || cropping ? <BarButton icon="back" label={b.deselect} onPress={() => { setSelection(null); setCropping(false); }} /> : null}
+          {bar.map(x => <BarButton key={x.label} {...x} />)}
+        </ScrollView>
+      )}
+
       <PassageSheet visible={passage} onClose={() => setPassage(false)} timeline={tl} clips={clips} sources={src} after={i} source={p?.source}
         onAdd={(source, debut, length) => {
           const next = addPassage(d, source, debut, length, i, clips);
@@ -227,7 +389,17 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
           if (next === d) return;
           apply(next); setSel(i + 1); setSelection(null);
           seek(planTimes(next.timeline)[i + 1]?.start ?? time);
-          toast({ message: fr.passage.added, action: fr.nav.undo, onAction: () => setH(x => undo(x)) });
+          undoToast(fr.passage.added);
+        }} />
+      <LayerAdd kind={layering} onClose={() => setLayering(null)} clips={clips} at={time} duree={tl.duree}
+        onAdd={l => {
+          const next = addCalque(d, l, clips);
+          if (next === d) { haptic("warning"); toast({ message: fr.layers.full }); return; }
+          setLayering(null); apply(next);
+          const added = next.timeline.calques!.findIndex(x => !(tl.calques ?? []).some(y => y.id === x.id));
+          if (mode === "simple") { setMode("complet"); saveMode("complet"); }
+          if (added >= 0) setSelection({ lane: "calques", index: added, id: next.timeline.calques![added].id } as Selection);
+          undoToast(fr.layers.added);
         }} />
       <VoiceSheet visible={voicing} onClose={() => setVoicing(false)} at={time} duree={tl.duree} brief={brief} ducking={tl.musique.ducking_voix}
         onPlace={(a, lines, ducking) => {
@@ -235,169 +407,29 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
           setVoicing(false);
           if (next === d) return;
           apply(next); if (mode === "simple" && !laneList(next.timeline, { plans: next.planIds, textes: next.texteIds }, "simple").shown.some(l => l.key === "voix")) { setMode("complet"); saveMode("complet"); }
-          toast({ message: fr.voice.placed, action: fr.nav.undo, onAction: () => setH(x => undo(x)) });
+          undoToast(fr.voice.placed);
         }} />
-
-      {selection?.lane === "calques" && (tl.calques ?? [])[selection.index] ? (
-        <LayerPanel layer={(tl.calques ?? [])[selection.index]} n={selection.index + 1} time={time}
-          set={patch => apply(setCalque(d, selection.id, patch, clips))}
-          place={p => apply(placeAt(d, selection.id, p, clips))}
-          move={m => apply(moveLayer(d, selection.id, time, m, clips))}
-          key_={() => apply(addKey(d, selection.id, time, clips))}
-          dropKey={k => remove(deleteCle(d, selection.id, k, clips), fr.layers.keyRemoved)}
-          seek={s => { setPlaying(false); seek(s); }} />
-      ) : null}
-
-      <View style={styles.field}>
-        <View style={styles.row}>
-          <Icon name="spark" tone="ai" />
-          <Text variant="bodyStrong" tone="ai" nativeID="ask-label">{t.ask}</Text>
-        </View>
-        <View style={styles.askRow}>
-          <TextInput value={ask} onChangeText={setAsk} onSubmitEditing={() => correct(ask)} placeholder={t.correctionPlaceholder} placeholderTextColor={c.textMuted}
-            accessibilityLabelledBy="ask-label" maxLength={300} returnKeyType="send" editable={!busy}
-            style={[typeStyle("body"), styles.input, styles.flex, styles.shrink, { color: c.text, borderColor: c.line, backgroundColor: c.surface }]} />
-          <Button variant="secondary" label={fr.corrections.send} disabled={!ask.trim() || busy} onPress={() => correct(ask)} style={styles.auto} />
-        </View>
-        {!say ? <View style={styles.row}>{fr.corrections.suggestions.map(x => <Chip key={x} kind="ai" label={x} disabled={busy} onPress={() => correct(x)} />)}</View> : null}
-        {say ? <MadaSays text={say} /> : null}
-      </View>
-
-      <View style={[styles.tools, { borderColor: c.line }]} accessibilityRole="tablist" accessibilityLabel={t.toolsLabel}>
-        {TOOLS.map(([k, icon]) => (
-          <Pressable key={k} onPress={() => setTool(k)} accessibilityRole="tab" accessibilityState={{ selected: tool === k }} style={styles.tool}>
-            <Icon name={icon} tone={tool === k ? "text" : "textMuted"} />
-            <Text variant="caption" tone={tool === k ? "text" : "textMuted"}>{t.tools[k]}</Text>
-            <View style={[styles.toolMark, { backgroundColor: tool === k ? c.text : "transparent" }]} />
-          </Pressable>
-        ))}
-      </View>
-
-      {planTools && p ? (
-        <View style={styles.between}>
-          <Text variant="headline">{t.planTitle(i + 1, t.seconds(times[i].end - times[i].start))}</Text>
-          {isLocked(d, d.planIds[i]) ? <Text variant="caption" tone="actionStrong">{t.locked}</Text> : null}
-        </View>
-      ) : null}
-
-      {tool === "plan" && p ? (
-        <Card>
-          <View style={styles.row}>
-            <Chip label={t.moveBefore} disabled={i === 0} onPress={() => { apply(movePlan(d, i, i - 1)); setSel(i - 1); }} />
-            <Chip label={t.moveAfter} disabled={i === tl.plans.length - 1} onPress={() => { apply(movePlan(d, i, i + 1)); setSel(i + 1); }} />
-          </View>
-          <Group label={t.source}>{rushIds.map((id, k) => <Chip key={id} label={t.sourceName(k + 1)} selected={p.source === id} onPress={() => apply(replaceSource(d, i, id, clips))} />)}</Group>
-          {i > 0 ? <Group label={t.transition}>{TRANSITIONS.map(x => <Chip key={x} label={t.transitions[x]} selected={p.transition === x} onPress={() => apply(setPlan(d, i, { transition: x }))} />)}</Group> : null}
-          <Group label={fr.crop.title}>
-            <Chip label={cropping ? fr.crop.done : fr.crop.open} selected={cropping} onPress={() => (cropping ? setCropping(false) : startCrop())} />
-            {p.cadre ? <Chip label={fr.crop.reset} onPress={() => apply(setPlan(d, i, { cadre: undefined }))} /> : null}
-            {p.cadre ? <Text variant="caption" tone="textMuted">{fr.crop.zoom(p.cadre.z)}</Text> : null}
-          </Group>
-          {cropping ? <Text variant="caption" tone="textMuted">{fr.crop.gesture}</Text> : null}
-          <Button variant="secondary" label={fr.passage.open} onPress={() => { setPlaying(false); setPassage(true); }} />
-          {tl.plans.length > 1
-            ? <Button variant="secondary" label={t.deletePlan} onPress={() => { remove(deletePlan(d, i), fr.toast.planRemoved); setSel(Math.max(0, i - 1)); }} />
-            : <Text variant="caption" tone="textMuted">{t.lastPlan}</Text>}
-        </Card>
-      ) : null}
-
-      {tool === "vitesse" && p ? (
-        <Card><Group label={t.speed}>{SPEEDS.map(v => <Chip key={v} label={t.speedValue(v)} selected={p.vitesse === v} onPress={() => apply(setPlan(d, i, { vitesse: v }))} />)}</Group></Card>
-      ) : null}
-
-      {tool === "couleur" && p ? (
-        <Card>
-          <Group label={t.grade}>{ETALONNAGES.map(x => <Chip key={x} label={t.grades[x]} selected={p.etalonnage === x} onPress={() => apply(setPlan(d, i, { etalonnage: x }))} />)}</Group>
-          <Text variant="caption" tone="textMuted">{fr.fine.title}</Text>
-          {REGLAGES.map(k => {
-            const r = p.reglages ?? ZERO, v = r[k], name = fr.fine.names[k];
-            const step = (dv: number) => apply(setPlan(d, i, { reglages: { ...r, [k]: Math.max(-1, Math.min(1, v + dv)) } }));
-            return (
-              <View key={k} style={styles.between}>
-                <Text variant="body">{name}</Text>
-                <View style={styles.row}>
-                  <Chip label="−" accessibilityLabel={fr.fine.less(name)} disabled={v <= -1} onPress={() => step(-0.25)} />
-                  <Text variant="mono" tone={v ? "text" : "textMuted"} style={styles.value}>{fr.fine.value(v)}</Text>
-                  <Chip label="+" accessibilityLabel={fr.fine.more(name)} disabled={v >= 1} onPress={() => step(0.25)} />
-                </View>
-              </View>
-            );
-          })}
-          <View style={styles.row}>
-            {p.reglages ? <Chip label={fr.fine.reset} onPress={() => apply(setPlan(d, i, { reglages: undefined }))} /> : null}
-            {tl.plans.length > 1 ? <Chip label={fr.fine.all} onPress={() => {
-              let next = d;
-              tl.plans.forEach((_, j) => { next = setPlan(next, j, { etalonnage: p.etalonnage, reglages: p.reglages }); });
-              apply(next); toast({ message: fr.fine.applied, action: fr.nav.undo, onAction: () => setH(x => undo(x)) });
-            }} /> : null}
-          </View>
-        </Card>
-      ) : null}
-
-      {tool === "son" && p ? (
-        <Card>
-          <Group label={t.sound}>
-            <Chip label={t.on} selected={p.garder_son} onPress={() => apply(setPlan(d, i, { garder_son: true }))} />
-            <Chip label={t.off} selected={!p.garder_son} onPress={() => apply(setPlan(d, i, { garder_son: false }))} />
-          </Group>
-          {p.garder_son ? <Group label={fr.volume.title}>{[0.5, 1, 1.5].map(v => <Chip key={v} label={fr.volume.value(v)} selected={(p.volume ?? 1) === v} onPress={() => apply(setPlan(d, i, { volume: v }))} />)}</Group> : null}
-          <Group label={t.effets}>
-            {(tl.effets ?? []).map((e, k) => <Chip key={`${e.type}${e.t}`} label={t.effet(t.effetNames[e.type], t.seconds(e.t))} onPress={() => remove(deleteEffet(d, k), fr.toast.effetRemoved)} />)}
-          </Group>
-          <Text variant="caption" tone="textMuted">{(tl.effets ?? []).length ? t.effetsWhy : t.effetsNone}</Text>
-        </Card>
-      ) : null}
-
-      {tool === "texte" && textSel !== null ? (
-        <TextPanel x={tl.textes[textSel]} n={textSel + 1} timeline={tl} locked={isLocked(d, d.texteIds[textSel])}
-          set={patch => apply(setTexte(d, textSel, patch))}
-          duplicate={() => { const next = duplicateTexte(d, textSel); apply(next); setSelection({ lane: "textes", index: textSel + 1, id: next.texteIds[textSel + 1] } as Selection); toast({ message: fr.tracks.duplicated }); }}
-          remove={() => { setSelection(null); remove(deleteTexte(d, textSel), fr.toast.textRemoved); }}
-          done={() => setSelection(null)} />
-      ) : tool === "texte" ? (
-        <View style={styles.field}>
-          <Card>
-            <Group label={t.subtitles}>
-              <Chip label={t.on} selected={tl.sous_titres.actifs} onPress={() => apply(setSubtitles(d, true))} />
-              <Chip label={t.off} selected={!tl.sous_titres.actifs} onPress={() => apply(setSubtitles(d, false))} />
-            </Group>
-          </Card>
-          <Text variant="caption" tone="textMuted">{fr.textEdit.hint}</Text>
-          {tl.textes.map((x, j) => (
-            <Pressable key={d.texteIds[j]} accessibilityRole="button" accessibilityLabel={fr.textEdit.grip(x.texte)} accessibilityHint={fr.textEdit.choose}
-              onPress={() => { haptic("tap"); seek(x.debut + 0.05); chooseText(j); }}
-              style={({ pressed }) => [styles.choice, { backgroundColor: pressed ? c.surfaceRaised : c.surface }]}>
-              <Icon name="text" tone="textMuted" />
-              <View style={[styles.flex, styles.shrink]}>
-                <Text variant="bodyStrong" numberOfLines={1}>{x.texte}</Text>
-                <Text variant="caption" tone="textMuted">{[t.text(j + 1), fr.textEdit.at(clock(x.debut)), x.impose ? t.imposed : isLocked(d, d.texteIds[j]) ? t.locked : ""].filter(Boolean).join(" · ")}</Text>
-              </View>
-            </Pressable>
-          ))}
-          <Button variant="secondary" label={fr.textEdit.add} onPress={newText} />
-        </View>
-      ) : null}
-
-      {tool === "marque" ? (
-        <Card>
-          <Group label={t.logo}>{LOGO_KEYS.map(k => <Chip key={k} label={t.logoPositions[k]} selected={(tl.charte.logo?.position ?? "aucun") === k} onPress={() => apply(setLogo(d, k))} />)}</Group>
-          <Group label={t.duo}>
-            {DUOS.map(x => <Chip key={x.id} label={x.nom} selected={tl.charte.duo === x.id} onPress={() => apply(setDuo(d, x.id))} />)}
-            <Chip label={t.noDuo} selected={!tl.charte.duo} onPress={() => apply(setDuo(d, null))} />
-          </Group>
-          {tl.charte.duo ? <View style={[styles.sample, { backgroundColor: c.media }]}><DuoTitle duo={duoById(tl.charte.duo)} texte={t.duoSample.titre} accent={t.duoSample.accent} /></View> : null}
-          <Text variant="caption" tone="textMuted">{t.duoWhy}</Text>
-        </Card>
-      ) : null}
     </Screen>
+  );
+}
+
+// One tool of the bottom bar: its picture and its name, like Edits and CapCut.
+function BarButton({ icon, label, onPress }: BarItem) {
+  const { opacity } = useTheme();
+  return (
+    <Pressable onPress={() => { haptic("tap"); onPress(); }} accessibilityRole="button" accessibilityLabel={label}
+      style={({ pressed }) => [styles.tool, { opacity: pressed ? opacity.pressed : 1 }]}>
+      <Icon name={icon} />
+      <Text variant="caption" tone="textMuted" numberOfLines={1}>{label}</Text>
+    </Pressable>
   );
 }
 
 // The chosen text: what it says, its font, colour, background, alignment, entrance and size. Moving,
 // pinching and turning happen on the picture (TextGrip); everything here is one tap, and undoable.
-function TextPanel({ x, n, timeline, locked, set, duplicate, remove, done }: {
+function TextPanel({ x, n, timeline, locked, set }: {
   x: Texte; n: number; timeline: TimelineV1; locked: boolean;
-  set: (p: Partial<Pick<Texte, "texte" | "accent" | "position" | "place" | "look">>) => void; duplicate: () => void; remove: () => void; done: () => void;
+  set: (p: Partial<Pick<Texte, "texte" | "accent" | "position" | "place" | "look">>) => void;
 }) {
   const e = fr.textEdit, look = x.look ?? defaultLook(x.style), place = x.place;
   const setLook = (patch: Partial<TextLook>) => set({ look: { ...look, ...patch } });
@@ -410,11 +442,8 @@ function TextPanel({ x, n, timeline, locked, set, duplicate, remove, done }: {
   ];
   const title = x.style === "accroche" || x.style === "titre";
   return (
-    <Card>
-      <View style={styles.between}>
-        <Text variant="headline">{t.text(n)}</Text>
-        {x.impose || locked ? <Text variant="caption" tone="actionStrong">{x.impose ? t.imposed : t.locked}</Text> : null}
-      </View>
+    <View style={styles.field}>
+      {x.impose || locked ? <Text variant="caption" tone="actionStrong">{t.text(n)} · {x.impose ? t.imposed : t.locked}</Text> : null}
       <Text variant="caption" tone="textMuted">{e.gesture}</Text>
       <TextField value={x.texte} label={t.text(n)} onDone={v => set({ texte: v })} />
       {title ? (
@@ -435,12 +464,7 @@ function TextPanel({ x, n, timeline, locked, set, duplicate, remove, done }: {
       </Group>
       {sizeOf(x.style, place) < MIN_SIZE ? <Text variant="caption" tone="actionStrong">{e.tooSmall}</Text> : null}
       <Group label={t.position}>{TEXT_POSITIONS.map(pos => <Chip key={pos} label={t.positions[pos]} selected={!place && x.position === pos} onPress={() => set({ position: pos, place: undefined })} />)}</Group>
-      <View style={styles.row}>
-        <Chip label={e.duplicate} onPress={duplicate} />
-        <Chip label={t.deleteText} onPress={remove} />
-        <Chip label={e.done} onPress={done} />
-      </View>
-    </Card>
+    </View>
   );
 }
 
@@ -518,19 +542,6 @@ function IconButton({ icon, label, disabled, onPress }: { icon: IconName; label:
   );
 }
 
-function AddChoice({ icon, title, why, onPress }: { icon: IconName; title: string; why: string; onPress: () => void }) {
-  const { c } = useTheme();
-  return (
-    <Pressable accessibilityRole="button" onPress={() => { haptic("tap"); onPress(); }} style={({ pressed }) => [styles.choice, { backgroundColor: pressed ? c.surfaceRaised : c.surface }]}>
-      <Icon name={icon} tone="actionStrong" />
-      <View style={styles.flex}>
-        <Text variant="bodyStrong">{title}</Text>
-        <Text variant="caption" tone="textMuted">{why}</Text>
-      </View>
-    </Pressable>
-  );
-}
-
 function Group({ label, children }: { label: string; children: ReactNode }) {
   return (
     <View style={styles.group}>
@@ -561,11 +572,13 @@ const styles = StyleSheet.create({
   shrink: { minWidth: 0 },
   auto: { alignSelf: "auto" },
   start: { alignSelf: "flex-start" },
-  tools: { flexDirection: "row", justifyContent: "space-between", borderTopWidth: tokens.size.border, borderBottomWidth: tokens.size.border, paddingTop: tokens.space.xs },
-  tool: { flex: 1, alignItems: "center", gap: tokens.space.xxs, minHeight: tokens.size.touch },
-  toolMark: { height: tokens.size.selection, alignSelf: "stretch", marginHorizontal: tokens.space.xs, borderRadius: tokens.radius.full },
+  tools: { flexDirection: "row", gap: tokens.space.xxs, borderTopWidth: tokens.size.border, paddingTop: tokens.space.xs },
+  tool: { alignItems: "center", justifyContent: "center", gap: tokens.space.xxs, minWidth: tokens.size.touch * 1.4, minHeight: tokens.size.button, paddingHorizontal: tokens.space.xxs },
+  panel: { borderTopWidth: tokens.size.border, paddingTop: tokens.space.xs, gap: tokens.space.xs },
+  fixed: { flexGrow: 0 },
+  panelBody: { gap: tokens.space.sm, paddingBottom: tokens.space.sm },
   iconButton: { width: tokens.size.touch, height: tokens.size.touch, borderRadius: tokens.radius.full, borderWidth: tokens.size.border, alignItems: "center", justifyContent: "center" },
-  preview: { flexDirection: "row", alignItems: "flex-end", justifyContent: "center", gap: tokens.space.sm },
+  preview: { flex: 1, minHeight: tokens.size.button * 3, alignItems: "center", justifyContent: "center" },
   choice: { flexDirection: "row", alignItems: "center", gap: tokens.space.sm, padding: tokens.space.sm, borderRadius: tokens.radius.card, minHeight: tokens.size.button },
   value: { minWidth: tokens.size.touch, textAlign: "center" },
   sample: { borderRadius: tokens.radius.card, paddingVertical: tokens.space.lg, paddingHorizontal: tokens.space.md, alignItems: "center" },

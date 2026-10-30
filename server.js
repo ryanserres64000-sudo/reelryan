@@ -4,7 +4,7 @@ import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { handleGenerate, readJson } from "./lib/claude.js";
-import { handleMontage } from "./lib/montage.js";
+import { handleMontage, handleTravail } from "./lib/montage.js";
 import { handleAdn } from "./lib/adn.js";
 import { handleEntretien } from "./lib/entretien.js";
 import { handleRetouche } from "./lib/retouche.js";
@@ -62,6 +62,7 @@ http.createServer(async (req, res) => {
     if (req.method === "POST") { try { body = await readJson(req, 6_000_000); } catch { res.statusCode = 413; return res.end(); } }
     return handleInstagram(req, res, body);
   }
+  if (url.pathname === "/api/montage" && req.method === "GET") return handleTravail(req, res, url.searchParams.get("travail"));
   if (url.pathname === "/api/generate" || url.pathname === "/api/montage" || url.pathname === "/api/adn" || url.pathname === "/api/entretien" || url.pathname === "/api/retouche" || url.pathname === "/api/legende" || url.pathname === "/api/visuel" || url.pathname === "/api/voix") {
     if (req.method !== "POST") { res.statusCode = 405; return res.end(); }
     let body;

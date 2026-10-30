@@ -41,8 +41,15 @@ enum Composer {
     let aa = comp.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)
     let ab = comp.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)
     let plan = RenderPlan(size: size)
-    let filler = try await Filler.clip()
+    // Only photos (and photo layers) need the black filler clip.
+    var fillerClip: (asset: AVURLAsset, track: AVAssetTrack, duration: CMTime)?
+    func filler() async throws -> (asset: AVURLAsset, track: AVAssetTrack, duration: CMTime) {
+      if let fillerClip { return fillerClip }
+      do { let f = try await Filler.clip(); fillerClip = f; return f } catch { throw RenderError.step("fond noir des photos", explain(error)) }
+    }
     var at = 0.0, voice: [(Double, Double)] = []
+    // The source assets, alive until the composition is built (a track holds its asset weakly).
+    var keep: [AVAsset] = []
     // The level of each shot's own sound, on the audio track it went to.
     var levels: [CMPersistentTrackID: [(Double, Float)]] = [:]
 
@@ -57,23 +64,38 @@ enum Composer {
       if isImage(uri) {
         // A photo: the filler clip keeps time on the track, the compositor draws the photo instead.
         guard let image = CIImage(contentsOf: uri, options: [.applyOrientationProperty: true]) else { throw RenderError.unreadable(p.source) }
-        try insertFiller(filler.track, length: filler.duration, into: track, range: target)
+        let f = try await filler()
+        try insertFiller(f.track, length: f.duration, into: track, range: target)
         plan.shots.append(Shot(index: i, start: start, end: start + length, plan: p, track: track.trackID, still: image, orient: .up, size: image.extent.size))
       } else {
-        let asset = AVURLAsset(url: uri)
-        guard let src = try await asset.loadTracks(withMediaType: .video).first else { throw RenderError.unreadable(p.source) }
-        let (natural, transform) = try await src.load(.naturalSize, .preferredTransform)
-        let range = CMTimeRange(start: time(p.debut), end: time(p.fin))
-        try track.insertTimeRange(range, of: src, at: target.start)
-        if speed != 1 { track.scaleTimeRange(CMTimeRange(start: target.start, duration: range.duration), toDuration: target.duration) }
-        if p.garder_son, let audioTrack, let srcAudio = try await asset.loadTracks(withMediaType: .audio).first {
-          try audioTrack.insertTimeRange(range, of: srcAudio, at: target.start)
-          if speed != 1 { audioTrack.scaleTimeRange(CMTimeRange(start: target.start, duration: range.duration), toDuration: target.duration) }
-          voice.append((start, start + length))
-          levels[audioTrack.trackID, default: []].append((start, Float(min(2, max(0, p.volume ?? 1)))))
+        do {
+          let asset = AVURLAsset(url: uri)
+          keep.append(asset)
+          guard let src = try await asset.loadTracks(withMediaType: .video).first else { throw RenderError.unreadable(p.source) }
+          let (natural, transform, available) = try await src.load(.naturalSize, .preferredTransform, .timeRange)
+          // The shot as asked, inside what the file really holds: a length rounded up by the photo picker
+          // must not reach past the last frame. The few missing frames are stretched to keep the timing.
+          let range = clamp(CMTimeRange(start: time(p.debut), end: time(p.fin)), to: available)
+          guard range.duration.seconds > 0.02 else { throw RenderError.tooShort(p.source) }
+          try track.insertTimeRange(range, of: src, at: target.start)
+          if range.duration != target.duration { track.scaleTimeRange(CMTimeRange(start: target.start, duration: range.duration), toDuration: target.duration) }
+          if p.garder_son, let audioTrack, let srcAudio = try await asset.loadTracks(withMediaType: .audio).first {
+            let heard = clamp(range, to: try await srcAudio.load(.timeRange))
+            if heard.duration.seconds > 0.02 {
+              let at = target.start + (heard.start - range.start)
+              let scaled = CMTimeMultiplyByFloat64(heard.duration, multiplier: target.duration.seconds / range.duration.seconds)
+              try audioTrack.insertTimeRange(heard, of: srcAudio, at: at)
+              if heard.duration != scaled { audioTrack.scaleTimeRange(CMTimeRange(start: at, duration: heard.duration), toDuration: scaled) }
+            }
+            voice.append((start, start + length))
+            levels[audioTrack.trackID, default: []].append((start, Float(min(2, max(0, p.volume ?? 1)))))
+          }
+          let shown = CGRect(origin: .zero, size: natural).applying(transform)
+          plan.shots.append(Shot(index: i, start: start, end: start + length, plan: p, track: track.trackID, still: nil, orient: orientation(transform), size: CGSize(width: abs(shown.width), height: abs(shown.height))))
+        } catch let e as RenderError { throw e } catch {
+          // Which shot and which file: « Plan 8, rush p17…mov (4,2–5,8 s) : AVFoundationErrorDomain -11800 … ».
+          throw RenderError.step("plan \(i + 1), rush \(p.source) \(uri.lastPathComponent) (\(p.debut)–\(p.fin) s)", explain(error))
         }
-        let shown = CGRect(origin: .zero, size: natural).applying(transform)
-        plan.shots.append(Shot(index: i, start: start, end: start + length, plan: p, track: track.trackID, still: nil, orient: orientation(transform), size: CGSize(width: abs(shown.width), height: abs(shown.height))))
       }
       at = start + length
     }
@@ -91,17 +113,24 @@ enum Composer {
       let target = CMTimeRange(start: time(c.t), duration: time(length))
       if isImage(uri) {
         guard let image = CIImage(contentsOf: uri, options: [.applyOrientationProperty: true]) else { continue }
-        try insertFiller(filler.track, length: filler.duration, into: track, range: target)
+        let f = try await filler()
+        try insertFiller(f.track, length: f.duration, into: track, range: target)
         plan.layers.append(Layer(calque: c, start: c.t, end: c.t + length, track: track.trackID, still: image, orient: .up))
       } else {
         let asset = AVURLAsset(url: uri)
+        keep.append(asset)
         guard let src = try await asset.loadTracks(withMediaType: .video).first else { continue }
-        let transform = try await src.load(.preferredTransform)
-        try track.insertTimeRange(CMTimeRange(start: time(c.debut), duration: time(length)), of: src, at: target.start)
+        let (transform, available) = try await src.load(.preferredTransform, .timeRange)
+        let range = clamp(CMTimeRange(start: time(c.debut), duration: time(length)), to: available)
+        guard range.duration.seconds > 0.05 else { continue }
+        do { try track.insertTimeRange(range, of: src, at: target.start) } catch { throw RenderError.step("calque \(c.id) (\(uri.lastPathComponent))", explain(error)) }
         plan.layers.append(Layer(calque: c, start: c.t, end: c.t + length, track: track.trackID, still: nil, orient: orientation(transform)))
         if c.volume > 0, let srcAudio = try await asset.loadTracks(withMediaType: .audio).first,
            let audio = comp.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {
-          try audio.insertTimeRange(CMTimeRange(start: time(c.debut), duration: time(length)), of: srcAudio, at: target.start)
+          let heard = clamp(range, to: try await srcAudio.load(.timeRange))
+          if heard.duration.seconds > 0.05 {
+            do { try audio.insertTimeRange(heard, of: srcAudio, at: target.start + (heard.start - range.start)) } catch { throw RenderError.step("son du calque \(c.id)", explain(error)) }
+          }
           let p = AVMutableAudioMixInputParameters(track: audio); p.setVolume(Float(min(2, c.volume)), at: .zero)
           layerSound.append(p)
         }
@@ -113,13 +142,17 @@ enum Composer {
     var params: [AVMutableAudioMixInputParameters] = layerSound
     for a in t.audios ?? [] where a.t < duration && a.fin > a.debut {
       guard let uri = sources.audios?[a.id], let url = URL(string: uri),
-            let src = try await AVURLAsset(url: url).loadTracks(withMediaType: .audio).first,
+            let sound = try await soundOf(url, "voix \(a.id)"),
             let track = comp.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) else { continue }
+      let src = sound.track
+      keep.append(sound.asset)
       let full = try await src.load(.timeRange).duration.seconds
       let length = min(a.fin, full) - a.debut
       let kept = min(length, duration - a.t)
       guard kept > 0.05 else { continue }
-      try track.insertTimeRange(CMTimeRange(start: time(a.debut), duration: time(kept)), of: src, at: time(a.t))
+      let range = clamp(CMTimeRange(start: time(a.debut), duration: time(kept)), to: try await src.load(.timeRange))
+      guard range.duration.seconds > 0.05 else { continue }
+      do { try track.insertTimeRange(range, of: src, at: time(a.t)) } catch { throw RenderError.step("voix \(a.id) (\(url.lastPathComponent))", explain(error)) }
       let p = AVMutableAudioMixInputParameters(track: track), v = Float(min(2, max(0, a.volume)))
       p.setVolume(v, at: .zero)
       if a.fondu_entree > 0 { p.setVolumeRamp(fromStartVolume: 0, toEndVolume: v, timeRange: CMTimeRange(start: time(a.t), duration: time(min(a.fondu_entree, kept)))) }
@@ -135,10 +168,14 @@ enum Composer {
       if let last = out.last, r.0 <= last.1 + 0.5 { out[out.count - 1].1 = max(last.1, r.1) } else { out.append(r) }
     }
     if t.musique.mode == "fichier", let m = sources.music, let url = URL(string: m.uri),
-       let srcMusic = try await AVURLAsset(url: url).loadTracks(withMediaType: .audio).first,
+       let sound = try await soundOf(url, "musique"),
        let music = comp.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid) {
-      let length = min(m.fin - m.debut, duration)
-      try music.insertTimeRange(CMTimeRange(start: time(m.debut), duration: time(length)), of: srcMusic, at: .zero)
+      // The passage inside what the sound file really holds (its length measured by the app may be rounded).
+      let srcMusic = sound.track
+      keep.append(sound.asset)
+      let range = clamp(CMTimeRange(start: time(m.debut), duration: time(min(m.fin - m.debut, duration))), to: try await srcMusic.load(.timeRange))
+      let length = range.duration.seconds
+      do { try music.insertTimeRange(range, of: srcMusic, at: .zero) } catch { throw RenderError.step("musique (\(url.lastPathComponent), \(m.debut)–\(m.fin) s)", explain(error)) }
       let p = AVMutableAudioMixInputParameters(track: music), v = Float(t.musique.volume)
       p.setVolume(v, at: .zero)
       if t.musique.ducking_voix {
@@ -157,11 +194,14 @@ enum Composer {
       var free = 0.0
       for e in effets.sorted(by: { $0.t < $1.t }) where e.t >= free && e.t < duration {
         guard let uri = files[e.type], let url = URL(string: uri),
-              let src = try await AVURLAsset(url: url).loadTracks(withMediaType: .audio).first else { continue }
-        let full = try await src.load(.timeRange).duration.seconds
-        let length = min(full, duration - e.t)
-        try sfx.insertTimeRange(CMTimeRange(start: .zero, duration: time(length)), of: src, at: time(e.t))
-        free = e.t + length
+              let sound = try await soundOf(url, "bruitage \(e.type)") else { continue }
+        let src = sound.track
+        keep.append(sound.asset)
+        let available = try await src.load(.timeRange)
+        let range = clamp(CMTimeRange(start: available.start, duration: time(min(available.duration.seconds, duration - e.t))), to: available)
+        guard range.duration.seconds > 0.05 else { continue }
+        do { try sfx.insertTimeRange(range, of: src, at: time(e.t)) } catch { throw RenderError.step("bruitage \(e.type) à \(e.t) s", explain(error)) }
+        free = e.t + range.duration.seconds
       }
       let p = AVMutableAudioMixInputParameters(track: sfx); p.setVolume(0.7, at: .zero)
       params.append(p)
@@ -179,13 +219,16 @@ enum Composer {
     video.renderSize = size
     video.frameDuration = CMTime(value: 1, timescale: CMTimeScale(file.fps))
     // The instructions cover the whole composition (AVFoundation refuses gaps); the file is cut later.
-    video.instructions = instructions(plan, duration: at)
+    // They end exactly where the composition ends, to the tick: each shot's time is rounded on its
+    // own, and an instruction a 600th of a second short or long makes AVFoundation refuse the edit.
+    video.instructions = instructions(plan, duration: at, end: comp.duration)
+    withExtendedLifetime((keep, fillerClip)) {}
     return Built(composition: comp, video: video, audio: mix, duration: time(duration))
   }
 
   // One instruction per span where the same shots and layers are on screen: one shot, or two during
   // a transition, and the layers playing then.
-  static func instructions(_ plan: RenderPlan, duration: Double) -> [MadaInstruction] {
+  static func instructions(_ plan: RenderPlan, duration: Double, end: CMTime? = nil) -> [MadaInstruction] {
     var cuts = Set<Double>([0, duration])
     for s in plan.shots { cuts.insert(min(s.start, duration)); cuts.insert(min(s.end, duration)) }
     for l in plan.layers { cuts.insert(min(l.start, duration)); cuts.insert(min(l.end, duration)) }
@@ -196,6 +239,9 @@ enum Composer {
       let on = plan.shots.filter { $0.start <= mid && mid < $0.end }
       let layers = plan.layers.filter { $0.start <= mid && mid < $0.end }
       out.append(MadaInstruction(range: CMTimeRange(start: time(a), end: time(b)), shots: on, layers: layers, plan: plan))
+    }
+    if let end, end > .zero, let last = out.last, last.timeRange.end != end, end > last.timeRange.start {
+      out[out.count - 1] = MadaInstruction(range: CMTimeRange(start: last.timeRange.start, end: end), shots: last.shots, layers: last.layers, plan: plan)
     }
     return out
   }
@@ -220,30 +266,75 @@ func orientation(_ t: CGAffineTransform) -> CGImagePropertyOrientation {
 
 func time(_ s: Double) -> CMTime { CMTime(seconds: max(0, s), preferredTimescale: 600) }
 
+// « AVFoundationErrorDomain -11841 : … | dessous : NSOSStatusErrorDomain -12780 » : enough to find the line.
+func explain(_ e: Error) -> String {
+  let n = e as NSError
+  var s = "\(n.domain) \(n.code) : \(n.localizedDescription)"
+  if let r = n.localizedFailureReason { s += " | \(r)" }
+  if let u = n.userInfo[NSUnderlyingErrorKey] as? NSError { s += " | dessous : \(u.domain) \(u.code)" }
+  return s
+}
+
+// The sound track of a music, voice or effect file, or the reason it cannot be read, named.
+// An AVAssetTrack only holds its asset weakly: the asset is returned too and kept alive by the
+// caller until the track is inserted, or the insert fails with -11800 / -12780 (found on the Mac bench).
+func soundOf(_ url: URL, _ what: String) async throws -> (asset: AVURLAsset, track: AVAssetTrack)? {
+  do {
+    guard FileManager.default.fileExists(atPath: url.path) else { throw RenderError.step(what, "fichier introuvable : \(url.lastPathComponent)") }
+    let asset = AVURLAsset(url: url)
+    guard let track = try await asset.loadTracks(withMediaType: .audio).first else { return nil }
+    return (asset, track)
+  } catch let e as RenderError { throw e } catch { throw RenderError.step("\(what) (\(url.lastPathComponent))", explain(error)) }
+}
+
+func clamp(_ r: CMTimeRange, to available: CMTimeRange) -> CMTimeRange {
+  let start = max(r.start, available.start), end = min(r.end, available.end)
+  return end > start ? CMTimeRange(start: start, end: end) : CMTimeRange(start: start, duration: .zero)
+}
+
 func isImage(_ url: URL) -> Bool {
   guard let type = UTType(filenameExtension: url.pathExtension) else { return false }
   return type.conforms(to: .image)
 }
 
 enum RenderError: LocalizedError {
-  case composition, missingRush(String), unreadable(String), export(String)
+  case composition, missingRush(String), unreadable(String), tooShort(String), export(String), step(String, String), cancelled
   var errorDescription: String? {
     switch self {
     case .composition: return "Composition impossible."
     case .missingRush(let id): return "Rush introuvable : \(id)."
     case .unreadable(let id): return "Rush illisible : \(id)."
+    case .tooShort(let id): return "Plan hors du rush \(id) : il commence après la fin de la vidéo."
     case .export(let why): return "Export impossible : \(why)."
+    case .cancelled: return "Export annulé."
+    case .step(let what, let why): return "\(what) : \(why)"
     }
   }
 }
 
 // A 2 s black 1080 × 1920 clip, written once to the cache: photos need a track segment to exist.
+// Written by one build at a time: the preview of two versions at once raced on the same file.
+actor FillerFile {
+  static let shared = FillerFile()
+  private var job: Task<URL, Error>?
+  func url() async throws -> URL {
+    if let job, let url = try? await job.value, FileManager.default.fileExists(atPath: url.path) { return url }
+    let next = Task { () throws -> URL in
+      let url = FileManager.default.temporaryDirectory.appendingPathComponent("mada-filler-v1.mp4")
+      if !FileManager.default.fileExists(atPath: url.path) { try await Filler.write(url) }
+      return url
+    }
+    job = next
+    return try await next.value
+  }
+}
+
 enum Filler {
-  static func clip() async throws -> (track: AVAssetTrack, duration: CMTime) {
-    let url = FileManager.default.temporaryDirectory.appendingPathComponent("mada-filler-v1.mp4")
-    if !FileManager.default.fileExists(atPath: url.path) { try await write(url) }
-    guard let track = try await AVURLAsset(url: url).loadTracks(withMediaType: .video).first else { throw RenderError.composition }
-    return (track, try await track.load(.timeRange).duration)
+  static func clip() async throws -> (asset: AVURLAsset, track: AVAssetTrack, duration: CMTime) {
+    let url = try await FillerFile.shared.url()
+    let asset = AVURLAsset(url: url)
+    guard let track = try await asset.loadTracks(withMediaType: .video).first else { throw RenderError.composition }
+    return (asset, track, try await track.load(.timeRange).duration)
   }
 
   static func write(_ url: URL) async throws {

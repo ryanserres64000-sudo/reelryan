@@ -11,6 +11,7 @@ import { noteError } from "../diag";
 import { toMusique } from "../music/musique";
 import { composeBrief } from "./brief";
 import type { Brief, Music, Rush, Triaged } from "./types";
+import { keepMedia } from "../media/keep";
 
 // Triage on the iPhone with Vision (app/modules/mada-vision measures, core/triage.ts decides), then
 // the body of POST /api/montage. Without the compiled module the app keeps its sample data.
@@ -57,7 +58,8 @@ async function thumbnail(r: Rush): Promise<string | null> {
   try {
     src = r.photo ? r.uri : (await VideoThumbnails.getThumbnailAsync(r.uri, { time: Math.min(300, r.duration * 500), quality: 0.7 })).uri;
     const out = await (await ImageManipulator.manipulate(src).resize({ width: THUMB_PX }).renderAsync()).saveAsync({ format: SaveFormat.JPEG, compress: 0.7 });
-    return out.uri;
+    // Kept beside the rush: the cache folder is emptied by iOS, and the cover went black.
+    return keepMedia(out.uri, `${r.id}-vignette`);
   } catch (e) {
     noteError("miniature", e instanceof Error ? e.message : String(e));
     return src;

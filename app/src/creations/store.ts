@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { Refusals } from "../../../core/week";
 import type { TimelineV1 } from "../../../core/timeline";
 import type { Rush } from "../flow/types";
+import { liveRush } from "../media/keep";
 
 // The person's Reels, on the iPhone only like the visuals (étude, ch. 9). A Reel is saved as soon as a
 // version is kept, edited or exported, with the rushes it needs to open again.
@@ -15,7 +16,7 @@ async function write(key: string, v: unknown) {
   try { await AsyncStorage.setItem(key, JSON.stringify(v)); } catch { /* full storage: it stays on screen */ }
 }
 
-export const loadReels = () => read<SavedReel[]>(REELS, []);
+export const loadReels = () => read<SavedReel[]>(REELS, []).then(rs => rs.map(r => ({ ...r, rushes: r.rushes.map(liveRush) })));
 export async function saveReel(r: Omit<SavedReel, "rushes"> & { rushes: Rush[] }): Promise<SavedReel[]> {
   const list = [{ ...r, rushes: r.rushes.map(({ triage, ...x }) => x) }, ...(await loadReels()).filter(x => x.id !== r.id)].slice(0, MAX);
   await write(REELS, list);

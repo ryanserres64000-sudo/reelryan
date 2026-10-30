@@ -95,7 +95,7 @@ export function Flow() {
   // Once the saved Reels and the draft are known, the rush files none of them uses are cleared.
   useEffect(() => {
     Promise.all([loadReels(), loadDraft()]).then(([rs, d]) => {
-      sweepMedia([...rs.flatMap(r => r.rushes.map(x => x.uri)), ...(d?.data.rushes ?? []).map(x => x.uri)].filter((u): u is string => !!u));
+      sweepMedia([...rs.flatMap(r => r.rushes), ...(d?.data.rushes ?? [])].flatMap(x => [x.uri, x.thumb]).filter((u): u is string => !!u));
     });
   }, []);
   // Créations and Idées (étape 2 de la refonte): the saved Reels, the ideas refused for a month, the

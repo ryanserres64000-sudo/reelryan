@@ -26,6 +26,22 @@ export function keepMedia(uri: string, id: string): string {
   }
 }
 
+// iOS may move the app's data folder when the app is updated (a new TestFlight build): a path saved by
+// an older build then points at the old folder, and the Reel looked empty (black covers, no video).
+// A kept file is looked up again by its name in today's folder.
+const KEPT = "/mada-rushes/";
+export function liveUri(uri: string): string {
+  if (Platform.OS === "web" || !uri.startsWith("file:") || !uri.includes(KEPT)) return uri;
+  try {
+    const f = new File(dir(), decodeURIComponent(uri.slice(uri.lastIndexOf(KEPT) + KEPT.length)));
+    return f.exists ? f.uri : uri;
+  } catch (e) { noteError("fichiers", e instanceof Error ? e.message : String(e)); return uri; }
+}
+export function liveRush<T extends { uri?: string; thumb?: string | null }>(r: T): T {
+  return { ...r, ...(r.uri ? { uri: liveUri(r.uri) } : {}), ...(r.thumb ? { thumb: liveUri(r.thumb) } : {}) };
+}
+const nameOf = (uri: string) => decodeURIComponent(uri.slice(uri.lastIndexOf("/") + 1));
+
 // Whether a rush file is still there (a draft from before this fix, a file iOS removed).
 export function mediaExists(uri: string | undefined): boolean {
   if (!uri || Platform.OS === "web" || !uri.startsWith("file:")) return !!uri;
@@ -36,11 +52,12 @@ export function mediaExists(uri: string | undefined): boolean {
 // in this session). Returns how many were removed.
 export function sweepMedia(used: Iterable<string>, now = Date.now()): number {
   if (Platform.OS === "web") return 0;
-  const keep = new Set(used);
+  // By name: a path saved before an update names the same file under the old folder.
+  const keep = new Set([...used].filter(u => u.includes(KEPT)).map(nameOf));
   let removed = 0;
   try {
     for (const f of dir().list()) {
-      if (!(f instanceof File) || keep.has(f.uri)) continue;
+      if (!(f instanceof File) || keep.has(nameOf(f.uri))) continue;
       if (now - (f.modificationTime ?? now) < OLD_MS) continue;
       f.delete(); removed++;
     }

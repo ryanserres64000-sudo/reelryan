@@ -7,7 +7,7 @@ const plural = (n: number, one: string, many: string) => `${n} ${n > 1 ? many : 
 // What a sign-up question can say about the person (app/src/screens/QuestionsScreen.tsx): her name, the
 // place her profile names, and whether she ticked an option before.
 export type Ctx = { nom: string; profil: Profil; chez: string; has: (q: string, option: string) => boolean };
-const short = (v: string) => (v.length > 48 ? `${v.slice(0, 46).trimEnd()}…` : v);
+const short = (v: string, max = 48) => (v.length > max ? `${v.slice(0, max - 2).trimEnd()}…` : v);
 const secondes = (s: number) => `${Math.round(s)} seconde${Math.round(s) > 1 ? "s" : ""}`;
 
 export const fr = {
@@ -498,7 +498,7 @@ export const fr = {
         },
         regles: { title: "Les règles de ta charte", why: "Je les appliquerai sans exception : logo, mentions, couleurs interdites…", placeholder: "Logo toujours en bas à droite, jamais de rouge…", after: () => "Noté, sans exception. Je te montrerai chaque fois où je les applique." },
         public: {
-          title: (x: Ctx) => (["restaurant", "commerce", "beaute"].includes(x.profil) ? `Qui vient chez ${x.nom || "toi"} ?` : x.profil === "ecole" ? "Tu t'adresses à qui ?" : x.profil === "grande-entreprise" ? "Qui doit voir vos vidéos ?" : "Tes clients idéaux, c'est qui ?"),
+          title: (x: Ctx) => (["restaurant", "commerce", "beaute"].includes(x.profil) ? `Qui vient chez ${x.nom || "toi"} ?` : x.profil === "ecole" ? "Tu t'adresses à qui ?" : x.profil === "grande-entreprise" ? "Qui doit voir vos vidéos ?" : x.profil === "createur" || x.profil === "debutant" ? "Qui te regarde, ou qui tu veux toucher ?" : "Tes clients idéaux, c'est qui ?"),
           why: "On n'écrit pas pareil pour des étudiants et pour des retraités.",
           placeholder: {
             restaurant: "Les gens du quartier et les bureaux le midi", commerce: "Des femmes de 30 à 50 ans qui aiment offrir", beaute: "Des actives pressées, 25 à 45 ans",
@@ -506,13 +506,13 @@ export const fr = {
             "petite-entreprise": "Des particuliers propriétaires, 35 à 60 ans", "grande-entreprise": "Les jeunes actifs, et nos futurs collaborateurs",
             ecole: "Les étudiants de l'école et les futurs inscrits", createur: "Les étudiants qui cuisinent peu", debutant: "Les gens qui aiment les bijoux faits main",
           },
-          after: (_: Ctx, v: string) => `J'écrirai pour « ${short(v)} » : leurs mots, leur rythme.`,
+          after: (_: Ctx, v: string) => `J'écrirai pour « ${short(v, 90)} » : leurs mots, leur rythme.`,
         },
         objectifs: {
-          title: (x: Ctx) => `Tes vidéos doivent apporter quoi à ${x.chez} ?`,
+          title: (x: Ctx) => (x.profil === "createur" || x.profil === "debutant" ? "Qu'est-ce que tu attends de tes vidéos ?" : `Tes vidéos doivent apporter quoi à ${x.chez} ?`),
           why: "Je choisis l'accroche et la phrase de fin selon ce que tu veux obtenir.",
-          options: { clients: "Faire venir du monde", reservations: "Avoir des réservations", ventes: "Vendre en ligne", notoriete: "Me faire connaître", recrutement: "Recruter", communaute: "Fédérer une communauté", evenements: "Remplir mes événements", inscriptions: "Avoir des inscriptions" },
-          after: (x: Ctx) => (x.has("objectifs", "reservations") ? "Des réservations : je finirai tes vidéos par une invitation claire à réserver." : x.has("objectifs", "ventes") ? "Vendre : je montrerai le produit tôt, et le prix sans détour." : x.has("objectifs", "recrutement") ? "Recruter : on montrera l'équipe et l'ambiance, c'est ce qui attire." : "Compris. Chaque vidéo aura un seul but, pas trois."),
+          options: { clients: "Faire venir du monde", reservations: "Avoir des réservations", ventes: "Vendre en ligne", notoriete: "Me faire connaître", recrutement: "Recruter", communaute: "Fédérer une communauté", evenements: "Remplir mes événements", inscriptions: "Avoir des inscriptions", devis: "Avoir des demandes de devis", abonnes: "Gagner des abonnés", partenariats: "Travailler avec des marques", revenus: "Vivre de mon contenu" },
+          after: (x: Ctx) => (x.has("objectifs", "reservations") ? "Des réservations : je finirai tes vidéos par une invitation claire à réserver." : x.has("objectifs", "ventes") ? "Vendre : je montrerai le produit tôt, et le prix sans détour." : x.has("objectifs", "recrutement") ? "Recruter : on montrera l'équipe et l'ambiance, c'est ce qui attire." : x.has("objectifs", "partenariats") ? "Les marques regardent la qualité et la régularité : on soignera les deux." : x.has("objectifs", "abonnes") ? "Des abonnés : une accroche forte dès la première seconde, et une vraie raison de te suivre." : "Compris. Chaque vidéo aura un seul but, pas trois."),
         },
         creneaux: {
           title: "Quels moments veux-tu remplir en priorité ?", why: "Je te proposerai des stories juste avant ces moments-là.",
@@ -530,7 +530,7 @@ export const fr = {
         visage: {
           title: (x: Ctx) => (x.has("frein", "camera") ? "Sans te filmer, qu'est-ce qu'on montre ?" : "Qui ou quoi on voit dans tes vidéos ?"),
           why: "Je construis mes idées autour de ce que tu es prête ou prêt à filmer.",
-          options: { moi: "Moi, face caméra", mains: "Mes mains au travail", equipe: "Mon équipe", clients: "Mes clients, avec leur accord", produits: "Mes produits ou mes plats" },
+          options: { moi: "Moi, face caméra", mains: "Mes mains au travail", equipe: "Mon équipe", clients: "Mes clients, avec leur accord", produits: "Mes produits ou mes plats", lieux: "Les lieux que je montre", proches: "Mes proches ou mes invités" },
           after: (x: Ctx) => (x.has("visage", "mains") ? "Les mains au travail, c'est souvent ce qui se regarde le plus longtemps." : x.has("visage", "moi") ? "Face caméra, je couperai les silences et je mettrai ta phrase en bas." : "Parfait, mes idées partiront de là."),
         },
         valeurs: {
@@ -539,7 +539,7 @@ export const fr = {
           after: (_: Ctx, v: string) => `${v} : je m'en sers comme boussole à chaque montage.`,
         },
         ton: {
-          title: (x: Ctx) => (x.profil === "grande-entreprise" || x.profil === "ecole" ? "Votre ton sur les réseaux ?" : "Comment tu parles à tes clients ?"), why: "Je l'applique à tous tes textes et à tes légendes.",
+          title: (x: Ctx) => (x.profil === "grande-entreprise" || x.profil === "ecole" ? "Votre ton sur les réseaux ?" : x.profil === "createur" || x.profil === "debutant" ? "Comment tu parles à ceux qui te suivent ?" : "Comment tu parles à tes clients ?"), why: "Je l'applique à tous tes textes et à tes légendes.",
           options: { chaleureux: "Chaleureux", expert: "Expert", drole: "Avec humour", chic: "Chic", energique: "Énergique", direct: "Simple et direct" },
           after: (_: Ctx, v: string) => `${v} : ce sera la voix de tes textes et de tes légendes.`,
         },

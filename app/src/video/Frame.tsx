@@ -12,7 +12,7 @@ import { CropGrip } from "../editor/CropGrip";
 import { TextGrip } from "../editor/TextGrip";
 import { Player, type PlayerHandle } from "./Player";
 import { ShotStill } from "./Still";
-import { TextOverlay, fontOf } from "./TextOverlay";
+import { TextOverlay, familyOf } from "./TextOverlay";
 import type { Sources } from "./sources";
 
 type Props = {
@@ -98,9 +98,9 @@ function InlineWrite({ x, timeline, k, onDone }: { x: PlacedText; timeline: Time
   const [v, setV] = useState(x.texte);
   const size = x.taille * k, color = x.rendu.couleur ?? timeline.charte.couleurs.texte ?? RENDER.ink;
   return (
-    <TextInput value={v} onChangeText={setV} autoFocus multiline submitBehavior="blurAndSubmit" returnKeyType="done" maxLength={140}
+    <TextInput value={v} onChangeText={setV} autoFocus multiline autoCapitalize={x.rendu.majuscules ? "characters" : "sentences"} submitBehavior="blurAndSubmit" returnKeyType="done" maxLength={140}
       onBlur={() => onDone(v)} accessibilityLabel={fr.textEdit.write} selectionColor={c.action}
-      style={[styles.write, { left: x.box.x * k, top: x.box.y * k, width: x.box.w * k, minHeight: x.box.h * k, borderColor: c.action, color, fontFamily: fontOf(timeline, x.rendu.role), fontSize: size, lineHeight: size * RENDER.lineHeight, textAlign: x.rendu.align === "gauche" ? "left" : x.rendu.align === "droite" ? "right" : "center" }]} />
+      style={[styles.write, { left: x.box.x * k, top: x.box.y * k, width: x.box.w * k, minHeight: x.box.h * k, borderColor: c.action, color, fontFamily: familyOf(timeline, x.rendu), fontSize: size, letterSpacing: (x.rendu.espace ?? 0) * size, lineHeight: size * RENDER.lineHeight, textAlign: x.rendu.align === "gauche" ? "left" : x.rendu.align === "droite" ? "right" : "center" }]} />
   );
 }
 

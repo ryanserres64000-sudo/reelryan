@@ -173,3 +173,12 @@ test("several passages of one rush by hand, reframing and fine colour", () => {
   assert.equal("cadre" in d.timeline.plans[0], false);
   assert.equal("reglages" in d.timeline.plans[0], false);
 });
+
+test("a « nom et rôle » text sits small on the left of the low third, for 3 s, and survives a reload", () => {
+  const d = addTexte(doc(), "Marie — trésorière du BDE", 2, "nom");
+  const x = d.timeline.textes.at(-1)!;
+  assert.deepEqual([x.debut, x.fin, x.style, x.look?.align, x.place?.y], [2, 5, "info", "gauche", 0.78]);
+  const again = sanitizeTimeline(d.timeline, clips).timeline.textes.at(-1)!;
+  assert.deepEqual(again.look, x.look);
+  assert.deepEqual(again.place, x.place);
+});

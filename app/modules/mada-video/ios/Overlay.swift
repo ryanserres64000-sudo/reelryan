@@ -52,12 +52,16 @@ struct Overlay {
       let base: CGFloat = x.style == "accroche" ? 92 : x.style == "titre" ? 76 : x.style == "signature" ? 58 : 50
       let size = CGFloat(x.taille ?? Double(base))
       let title = look.role == "titre"
-      let name = look.role == "titre" ? titleFont : look.role == "accent" ? (accentFont ?? textFont) : textFont
+      // A text's own font (core/textlook.ts `police`) before its brand role's; the key is fontKey in sources.ts.
+      let own = look.police.flatMap { sources.polices?["\($0):\(look.role == "titre" ? 700 : 400)"] }.flatMap(registerFont)
+      let name = own ?? (look.role == "titre" ? titleFont : look.role == "accent" ? (accentFont ?? textFont) : textFont)
       let font = UIFont(name: name ?? "", size: size) ?? .systemFont(ofSize: size, weight: title ? .heavy : .semibold)
       let color = UIColor(hex: look.couleur) ?? ink
       let plate = look.fond == "plein" || look.fond == "arrondi" ? plateColor : nil
       let free = x.libre ?? false
-      let text = title ? casse(x.texte, file.duo?.titre.casse) : x.texte
+      let cased = title ? casse(x.texte, file.duo?.titre.casse) : x.texte
+      let text = look.majuscules == true ? cased.uppercased(with: Locale(identifier: "fr_FR")) : cased
+      let wordColor = UIColor(hex: look.motCouleur) ?? UIColor(hex: t.charte.couleurs.principale) ?? UIColor(hex: "#FFD23F")!
       var pictures: [CGImage] = []
       if title, let accent = x.accent, !accent.isEmpty, let duo = file.duo {
         let small = UIFont(name: accentFont ?? textFont ?? "", size: size * CGFloat(duo.echelle)) ?? .systemFont(ofSize: size * CGFloat(duo.echelle))
@@ -65,9 +69,9 @@ struct Overlay {
       } else if look.anim == "mots" {
         // One picture per word shown, as the preview writes them out.
         let words = text.split(separator: " ", omittingEmptySubsequences: true)
-        pictures = (1...max(1, words.count)).map { n in drawText(words.prefix(n).joined(separator: " "), font: font, color: color, look: look, plate: plate, box: x.box, free: free, scale: k) }
+        pictures = (1...max(1, words.count)).map { n in drawText(words.prefix(n).joined(separator: " "), font: font, color: color, look: look, plate: plate, box: x.box, free: free, scale: k, wordColor: wordColor) }
       } else {
-        pictures = [drawText(text, font: font, color: color, look: look, plate: plate, box: x.box, free: free, scale: k)]
+        pictures = [drawText(text, font: font, color: color, look: look, plate: plate, box: x.box, free: free, scale: k, wordColor: wordColor)]
       }
       // A text moved by hand is centred on its box's centre; the others fill their box.
       let cx = (x.box.x + x.box.w / 2) * Double(k), cy = (H - x.box.y - x.box.h / 2) * Double(k)
@@ -87,7 +91,7 @@ struct Overlay {
 
   // The text, wrapped in its box's width with its alignment and background. A text in a slot shrinks
   // until it fits its box; a text moved by hand keeps its size and the picture takes its height.
-  static func drawText(_ text: String, font: UIFont, color: UIColor, look: ExportFile.Rendu, plate: UIColor?, box: Box, free: Bool, scale: CGFloat = 1) -> CGImage {
+  static func drawText(_ text: String, font: UIFont, color: UIColor, look: ExportFile.Rendu, plate: UIColor?, box: Box, free: Bool, scale: CGFloat = 1, wordColor: UIColor? = nil) -> CGImage {
     let framed = plate != nil || look.fond == "contour"
     let padX: CGFloat = framed ? 32 : 0, padY: CGFloat = framed ? 16 : 0
     let style = NSMutableParagraphStyle(); style.lineBreakMode = .byWordWrapping
@@ -95,10 +99,15 @@ struct Overlay {
     let shadow = NSShadow(); shadow.shadowColor = UIColor.black.withAlphaComponent(look.fond == "ombre" ? 0.35 : 0); shadow.shadowBlurRadius = 8; shadow.shadowOffset = CGSize(width: 0, height: 2)
     let width = CGFloat(box.w), inner = width - 2 * padX
     var f = font, attrs: [NSAttributedString.Key: Any] = [:], bounds = CGRect.zero
+    // The accent word (core/textlook.ts wordRange), found whatever its capitals.
+    let hit = look.mot.flatMap { m in m.isEmpty ? nil : text.range(of: m, options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "fr_FR")) }
+    var rich = NSMutableAttributedString(string: text)
     repeat {
       style.minimumLineHeight = f.pointSize * 1.2; style.maximumLineHeight = f.pointSize * 1.2
-      attrs = [.font: f, .foregroundColor: color, .paragraphStyle: style, .shadow: shadow]
-      bounds = (text as NSString).boundingRect(with: CGSize(width: inner, height: .greatestFiniteMagnitude), options: [.usesLineFragmentOrigin], attributes: attrs, context: nil)
+      attrs = [.font: f, .foregroundColor: color, .paragraphStyle: style, .shadow: shadow, .kern: CGFloat(look.espace ?? 0) * f.pointSize]
+      rich = NSMutableAttributedString(string: text, attributes: attrs)
+      if let hit, let wordColor { rich.addAttribute(.foregroundColor, value: wordColor, range: NSRange(hit, in: text)) }
+      bounds = rich.boundingRect(with: CGSize(width: inner, height: .greatestFiniteMagnitude), options: [.usesLineFragmentOrigin], context: nil)
       if free || bounds.height <= CGFloat(box.h) - 2 * padY || f.pointSize < 28 { break }
       f = f.withSize(f.pointSize * 0.92)
     } while true
@@ -119,7 +128,7 @@ struct Overlay {
           let path = UIBezierPath(rect: rect.insetBy(dx: 1.5, dy: 1.5)); path.lineWidth = 3; path.stroke()
         }
       }
-      (text as NSString).draw(with: textRect, options: [.usesLineFragmentOrigin], attributes: attrs, context: nil)
+      rich.draw(with: textRect, options: [.usesLineFragmentOrigin], context: nil)
     }.cgImage!
   }
 

@@ -210,9 +210,13 @@ export function setTexte(d: EditDoc, i: number, patch: Partial<Pick<Texte, "text
   return withTextes(d, d.timeline.textes.map((x, j) => (j === i ? next : x)), d.texteIds, lock(d, d.texteIds[i]));
 }
 
-export function addTexte(d: EditDoc, texte: string, at = 0): EditDoc {
-  const end = Math.min(d.timeline.duree, at + 2);
-  const t: Texte = { texte: texte.slice(0, 140), debut: round(Math.max(0, end - 2)), fin: round(end), position: "bas", style: "titre", impose: false, accent: "", place: { x: 0.5, y: 0.5, w: 0.8, s: 1, r: 0 } };
+// `nom`: a lower third « Marie — trésorière du BDE », small, on the left, in the low third, that slides
+// in for 3 s (Ryan's palace vlog, 30 octobre).
+export function addTexte(d: EditDoc, texte: string, at = 0, kind: "texte" | "nom" = "texte"): EditDoc {
+  const len = kind === "nom" ? 3 : 2, end = Math.min(d.timeline.duree, at + len);
+  const t: Texte = kind === "nom"
+    ? { texte: texte.slice(0, 140), debut: round(Math.max(0, end - len)), fin: round(end), position: "bas", style: "info", impose: false, accent: "", place: { x: 0.38, y: 0.78, w: 0.6, s: 1, r: 0 }, look: { role: "texte", couleur: null, fond: "ombre", align: "gauche", anim: "glisse" } }
+    : { texte: texte.slice(0, 140), debut: round(Math.max(0, end - 2)), fin: round(end), position: "bas", style: "titre", impose: false, accent: "", place: { x: 0.5, y: 0.5, w: 0.8, s: 1, r: 0 } };
   const id = newId("t");
   return withTextes(d, [...d.timeline.textes, t], [...d.texteIds, id], lock(d, id));
 }
@@ -257,6 +261,11 @@ export function setSubtitles(d: EditDoc, actifs: boolean): EditDoc {
 
 export function setVolume(d: EditDoc, volume: number): EditDoc {
   return { ...d, locked: lock(d, "musique"), timeline: { ...d.timeline, musique: { ...d.timeline.musique, volume: round(clamp(volume, 0, 1)) } } };
+}
+
+// The music's fade at the end, 0 to 3 s (Edits' « Fondu audio »).
+export function setMusicFade(d: EditDoc, fondu_sortie: number): EditDoc {
+  return { ...d, locked: lock(d, "musique"), timeline: { ...d.timeline, musique: { ...d.timeline.musique, fondu_sortie: round(clamp(fondu_sortie, 0, 3)) } } };
 }
 
 export const isLocked = (d: EditDoc, id: string) => d.locked.includes(id);

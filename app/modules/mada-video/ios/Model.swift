@@ -61,7 +61,12 @@ struct Box: Decodable { let x: Double; let y: Double; let w: Double; let h: Doub
 
 struct ExportFile: Decodable {
   // A text's look (core/textlook.ts): font role, colour, background, alignment, entrance.
-  struct Rendu: Decodable { let role: String; let couleur: String?; let fond: String; let align: String; let anim: String }
+  // `police`, `majuscules`, `espace`, `mot`: a text's own font, capitals, letter spacing (em) and
+  // accent word (core/textlook.ts); absent on texts made before them.
+  struct Rendu: Decodable {
+    let role: String; let couleur: String?; let fond: String; let align: String; let anim: String
+    var police: String? = nil; var majuscules: Bool? = nil; var espace: Double? = nil; var mot: String? = nil; var motCouleur: String? = nil
+  }
   // `taille` in px on the 1080 frame, `rotation` in degrees (clockwise), `libre`: moved by hand, so
   // centred on its box's centre at the size chosen, never shrunk.
   struct Texte: Decodable {
@@ -85,6 +90,7 @@ struct Sources: Decodable {
   struct Music: Decodable { let uri: String; let debut: Double; let fin: Double }
   struct Fonts: Decodable { let titre: String?; let texte: String?; let accent: String? }
   let rushes: [String: String]; let logo: String?; let music: Music?; let fonts: Fonts?; let effets: [String: String]?; let audios: [String: String]?
+  let polices: [String: String]?
 }
 
 func decode<T: Decodable>(_ type: T.Type, _ value: Any) throws -> T {

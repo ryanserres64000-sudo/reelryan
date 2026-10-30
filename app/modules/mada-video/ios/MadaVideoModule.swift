@@ -76,15 +76,6 @@ final class Running: @unchecked Sendable {
   func cancel() { lock.lock(); let s = session; lock.unlock(); s?.cancelExport() }
 }
 
-// « AVFoundationErrorDomain -11841 : … | dessous : NSOSStatusErrorDomain -12780 » : enough to find the line.
-func explain(_ e: Error) -> String {
-  let n = e as NSError
-  var s = "\(n.domain) \(n.code) : \(n.localizedDescription)"
-  if let r = n.localizedFailureReason { s += " | \(r)" }
-  if let u = n.userInfo[NSUnderlyingErrorKey] as? NSError { s += " | dessous : \(u.domain) \(u.code)" }
-  return s
-}
-
 // Common identifiers, so the keys land where each file type keeps them (core/export.ts, provenance).
 func metadata(_ m: [String: String]) -> [AVMetadataItem] {
   m.compactMap { key, value in

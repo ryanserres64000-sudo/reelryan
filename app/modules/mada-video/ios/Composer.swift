@@ -41,7 +41,12 @@ enum Composer {
     let aa = comp.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)
     let ab = comp.addMutableTrack(withMediaType: .audio, preferredTrackID: kCMPersistentTrackID_Invalid)
     let plan = RenderPlan(size: size)
-    let filler = try await Filler.clip()
+    // Only photos (and photo layers) need the black filler clip.
+    var fillerClip: (track: AVAssetTrack, duration: CMTime)?
+    func filler() async throws -> (track: AVAssetTrack, duration: CMTime) {
+      if let fillerClip { return fillerClip }
+      do { let f = try await Filler.clip(); fillerClip = f; return f } catch { throw RenderError.step("fond noir des photos", explain(error)) }
+    }
     var at = 0.0, voice: [(Double, Double)] = []
     // The level of each shot's own sound, on the audio track it went to.
     var levels: [CMPersistentTrackID: [(Double, Float)]] = [:]
@@ -57,31 +62,37 @@ enum Composer {
       if isImage(uri) {
         // A photo: the filler clip keeps time on the track, the compositor draws the photo instead.
         guard let image = CIImage(contentsOf: uri, options: [.applyOrientationProperty: true]) else { throw RenderError.unreadable(p.source) }
-        try insertFiller(filler.track, length: filler.duration, into: track, range: target)
+        let f = try await filler()
+        try insertFiller(f.track, length: f.duration, into: track, range: target)
         plan.shots.append(Shot(index: i, start: start, end: start + length, plan: p, track: track.trackID, still: image, orient: .up, size: image.extent.size))
       } else {
-        let asset = AVURLAsset(url: uri)
-        guard let src = try await asset.loadTracks(withMediaType: .video).first else { throw RenderError.unreadable(p.source) }
-        let (natural, transform, available) = try await src.load(.naturalSize, .preferredTransform, .timeRange)
-        // The shot as asked, inside what the file really holds: a length rounded up by the photo picker
-        // must not reach past the last frame. The few missing frames are stretched to keep the timing.
-        let range = clamp(CMTimeRange(start: time(p.debut), end: time(p.fin)), to: available)
-        guard range.duration.seconds > 0.02 else { throw RenderError.tooShort(p.source) }
-        try track.insertTimeRange(range, of: src, at: target.start)
-        if range.duration != target.duration { track.scaleTimeRange(CMTimeRange(start: target.start, duration: range.duration), toDuration: target.duration) }
-        if p.garder_son, let audioTrack, let srcAudio = try await asset.loadTracks(withMediaType: .audio).first {
-          let heard = clamp(range, to: try await srcAudio.load(.timeRange))
-          if heard.duration.seconds > 0.02 {
-            let at = target.start + (heard.start - range.start)
-            let scaled = CMTimeMultiplyByFloat64(heard.duration, multiplier: target.duration.seconds / range.duration.seconds)
-            try audioTrack.insertTimeRange(heard, of: srcAudio, at: at)
-            if heard.duration != scaled { audioTrack.scaleTimeRange(CMTimeRange(start: at, duration: heard.duration), toDuration: scaled) }
+        do {
+          let asset = AVURLAsset(url: uri)
+          guard let src = try await asset.loadTracks(withMediaType: .video).first else { throw RenderError.unreadable(p.source) }
+          let (natural, transform, available) = try await src.load(.naturalSize, .preferredTransform, .timeRange)
+          // The shot as asked, inside what the file really holds: a length rounded up by the photo picker
+          // must not reach past the last frame. The few missing frames are stretched to keep the timing.
+          let range = clamp(CMTimeRange(start: time(p.debut), end: time(p.fin)), to: available)
+          guard range.duration.seconds > 0.02 else { throw RenderError.tooShort(p.source) }
+          try track.insertTimeRange(range, of: src, at: target.start)
+          if range.duration != target.duration { track.scaleTimeRange(CMTimeRange(start: target.start, duration: range.duration), toDuration: target.duration) }
+          if p.garder_son, let audioTrack, let srcAudio = try await asset.loadTracks(withMediaType: .audio).first {
+            let heard = clamp(range, to: try await srcAudio.load(.timeRange))
+            if heard.duration.seconds > 0.02 {
+              let at = target.start + (heard.start - range.start)
+              let scaled = CMTimeMultiplyByFloat64(heard.duration, multiplier: target.duration.seconds / range.duration.seconds)
+              try audioTrack.insertTimeRange(heard, of: srcAudio, at: at)
+              if heard.duration != scaled { audioTrack.scaleTimeRange(CMTimeRange(start: at, duration: heard.duration), toDuration: scaled) }
+            }
+            voice.append((start, start + length))
+            levels[audioTrack.trackID, default: []].append((start, Float(min(2, max(0, p.volume ?? 1)))))
           }
-          voice.append((start, start + length))
-          levels[audioTrack.trackID, default: []].append((start, Float(min(2, max(0, p.volume ?? 1)))))
+          let shown = CGRect(origin: .zero, size: natural).applying(transform)
+          plan.shots.append(Shot(index: i, start: start, end: start + length, plan: p, track: track.trackID, still: nil, orient: orientation(transform), size: CGSize(width: abs(shown.width), height: abs(shown.height))))
+        } catch let e as RenderError { throw e } catch {
+          // Which shot and which file: « Plan 8, rush p17…mov (4,2–5,8 s) : AVFoundationErrorDomain -11800 … ».
+          throw RenderError.step("plan \(i + 1), rush \(p.source) \(uri.lastPathComponent) (\(p.debut)–\(p.fin) s)", explain(error))
         }
-        let shown = CGRect(origin: .zero, size: natural).applying(transform)
-        plan.shots.append(Shot(index: i, start: start, end: start + length, plan: p, track: track.trackID, still: nil, orient: orientation(transform), size: CGSize(width: abs(shown.width), height: abs(shown.height))))
       }
       at = start + length
     }
@@ -99,7 +110,8 @@ enum Composer {
       let target = CMTimeRange(start: time(c.t), duration: time(length))
       if isImage(uri) {
         guard let image = CIImage(contentsOf: uri, options: [.applyOrientationProperty: true]) else { continue }
-        try insertFiller(filler.track, length: filler.duration, into: track, range: target)
+        let f = try await filler()
+        try insertFiller(f.track, length: f.duration, into: track, range: target)
         plan.layers.append(Layer(calque: c, start: c.t, end: c.t + length, track: track.trackID, still: image, orient: .up))
       } else {
         let asset = AVURLAsset(url: uri)
@@ -233,6 +245,15 @@ func orientation(_ t: CGAffineTransform) -> CGImagePropertyOrientation {
 
 func time(_ s: Double) -> CMTime { CMTime(seconds: max(0, s), preferredTimescale: 600) }
 
+// « AVFoundationErrorDomain -11841 : … | dessous : NSOSStatusErrorDomain -12780 » : enough to find the line.
+func explain(_ e: Error) -> String {
+  let n = e as NSError
+  var s = "\(n.domain) \(n.code) : \(n.localizedDescription)"
+  if let r = n.localizedFailureReason { s += " | \(r)" }
+  if let u = n.userInfo[NSUnderlyingErrorKey] as? NSError { s += " | dessous : \(u.domain) \(u.code)" }
+  return s
+}
+
 func clamp(_ r: CMTimeRange, to available: CMTimeRange) -> CMTimeRange {
   let start = max(r.start, available.start), end = min(r.end, available.end)
   return end > start ? CMTimeRange(start: start, end: end) : CMTimeRange(start: start, duration: .zero)
@@ -244,7 +265,7 @@ func isImage(_ url: URL) -> Bool {
 }
 
 enum RenderError: LocalizedError {
-  case composition, missingRush(String), unreadable(String), tooShort(String), export(String), cancelled
+  case composition, missingRush(String), unreadable(String), tooShort(String), export(String), step(String, String), cancelled
   var errorDescription: String? {
     switch self {
     case .composition: return "Composition impossible."
@@ -253,15 +274,31 @@ enum RenderError: LocalizedError {
     case .tooShort(let id): return "Plan hors du rush \(id) : il commence après la fin de la vidéo."
     case .export(let why): return "Export impossible : \(why)."
     case .cancelled: return "Export annulé."
+    case .step(let what, let why): return "\(what) : \(why)"
     }
   }
 }
 
 // A 2 s black 1080 × 1920 clip, written once to the cache: photos need a track segment to exist.
+// Written by one build at a time: the preview of two versions at once raced on the same file.
+actor FillerFile {
+  static let shared = FillerFile()
+  private var job: Task<URL, Error>?
+  func url() async throws -> URL {
+    if let job, let url = try? await job.value, FileManager.default.fileExists(atPath: url.path) { return url }
+    let next = Task { () throws -> URL in
+      let url = FileManager.default.temporaryDirectory.appendingPathComponent("mada-filler-v1.mp4")
+      if !FileManager.default.fileExists(atPath: url.path) { try await Filler.write(url) }
+      return url
+    }
+    job = next
+    return try await next.value
+  }
+}
+
 enum Filler {
   static func clip() async throws -> (track: AVAssetTrack, duration: CMTime) {
-    let url = FileManager.default.temporaryDirectory.appendingPathComponent("mada-filler-v1.mp4")
-    if !FileManager.default.fileExists(atPath: url.path) { try await write(url) }
+    let url = try await FillerFile.shared.url()
     guard let track = try await AVURLAsset(url: url).loadTracks(withMediaType: .video).first else { throw RenderError.composition }
     return (track, try await track.load(.timeRange).duration)
   }

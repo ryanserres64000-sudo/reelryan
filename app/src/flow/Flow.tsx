@@ -267,7 +267,14 @@ export function Flow() {
           return streamMontage(url, await montageBody(ready, brief, music, brand ?? null, brand?.memory?.rules.map(r => r.text) ?? []), onStep, signal);
         })();
       }}
-      onDone={(r, s) => { if (plans) updatePlans(record(plans, "montage")); setKeptVersion(null); setReelId(Date.now().toString(36)); setResult({ r, s }); setStep("result"); }} onCancel={() => setStep("music")} onManual={manual} />;
+      onDone={(r, s) => {
+        if (plans) updatePlans(record(plans, "montage"));
+        const id = Date.now().toString(36);
+        setKeptVersion(null); setReelId(id); setResult({ r, s }); setStep("result");
+        // In Créations at once (Ryan's test of build 19): « Retour » never loses a finished edit; the
+        // version kept later replaces it under the same id.
+        if (r.variantes[0]) saveReel({ id, at: new Date().toISOString(), timeline: r.variantes[0].timeline, byAi: !r.manuel, rushes: chosen, selected }).then(setReels);
+      }} onCancel={() => setStep("music")} onManual={manual} />;
     case "result": return result ? <ResultScreen result={result.r} seconds={result.s} onBack={() => setStep("brief")} onRestart={() => { setResult(null); setEditorTl(null); clearDraft(); setStep("home"); }}
       sources={i => videoSources(result.r.variantes[i].timeline, chosen, brand ?? null, music)}
       onEdit={i => { setEditing(i); setFocusShot(0); setStep("editor"); }} onPlay={i => { setEditing(i); play("result"); }} onExport={i => { setEditing(i); keepReel(result.r.variantes[i].timeline); setStep("export"); }}

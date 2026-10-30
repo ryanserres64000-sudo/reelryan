@@ -9,7 +9,7 @@ export function VideoBroken({ message }: { message: string }) {
   return (
     <View style={[StyleSheet.absoluteFill, styles.box, { backgroundColor: c.media }]} accessibilityRole="alert">
       <Text variant="headline" tone="onMedia" style={styles.center}>{fr.player.broken}</Text>
-      <Text variant="caption" tone="onMedia" style={styles.center} numberOfLines={4}>{message}</Text>
+      <Text variant="caption" tone="onMedia" style={styles.center} numberOfLines={10} selectable>{message}</Text>
       <Text variant="caption" tone="onMedia" style={styles.center}>{fr.player.brokenHelp}</Text>
     </View>
   );

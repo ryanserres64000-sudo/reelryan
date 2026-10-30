@@ -46,7 +46,19 @@ export function BriefScreen({ brief, onChange, onBack, onNext }: Props) {
       </View>
 
       <Group label={fr.brief.goal}>{fr.brief.goals.map((g, i) => <Chip key={g} label={g} selected={brief.goal === i} onPress={() => toggle("goal", i)} />)}</Group>
-      <Group label={fr.brief.duration}>{fr.brief.durations.map(d => <Chip key={d} label={fr.brief.durationValue(d)} selected={brief.duration === d} onPress={() => set({ duration: d })} />)}</Group>
+      <Group label={fr.brief.duration}>
+        {fr.brief.durations.map(d => <Chip key={d} label={fr.brief.durationValue(d)} selected={brief.duration === d} onPress={() => set({ duration: d })} />)}
+      </Group>
+      {/* Any length from 5 to 90 s, second by second (Ryan's test of build 19). */}
+      <View style={styles.row} accessibilityRole="adjustable" accessibilityLabel={fr.brief.durationOwn(brief.duration)}
+        accessibilityActions={[{ name: "increment" }, { name: "decrement" }]}
+        onAccessibilityAction={e => set({ duration: step(brief.duration, e.nativeEvent.actionName === "increment" ? 1 : -1) })}>
+        <Chip label={fr.brief.durationLess} onPress={() => set({ duration: step(brief.duration, -5) })} />
+        <Chip label={fr.brief.durationMinus} onPress={() => set({ duration: step(brief.duration, -1) })} />
+        <Text variant="bodyStrong">{fr.brief.durationOwn(brief.duration)}</Text>
+        <Chip label={fr.brief.durationPlus} onPress={() => set({ duration: step(brief.duration, 1) })} />
+        <Chip label={fr.brief.durationMore} onPress={() => set({ duration: step(brief.duration, 5) })} />
+      </View>
       {more ? <>
         <Group label={fr.brief.tone}>{fr.brief.tones.map((g, i) => <Chip key={g} label={g} selected={brief.tone === i} onPress={() => toggle("tone", i)} />)}</Group>
         <Group label={fr.brief.cta}>{fr.brief.ctas.map((g, i) => <Chip key={g} label={g} selected={brief.cta === i} onPress={() => toggle("cta", i)} />)}</Group>
@@ -54,6 +66,9 @@ export function BriefScreen({ brief, onChange, onBack, onNext }: Props) {
     </Screen>
   );
 }
+
+// The server takes 5 to 90 s (lib/montage.js).
+const step = (d: number, by: number) => Math.min(90, Math.max(5, Math.round(d) + by));
 
 function Group({ label, children }: { label: string; children: ReactNode }) {
   return (

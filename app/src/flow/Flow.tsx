@@ -47,6 +47,7 @@ import type { Photo, VisualResult } from "../visual/api";
 import { deleteVisual, loadVisuals, saveVisual, type SavedVisual } from "../visual/store";
 import { SAMPLE_RUSHES, fakeMontage } from "./fake";
 import { jobState, streamMontage, waitForJob } from "./api";
+import { pickMedia } from "../media/pick";
 import { forgetJob, newJobId, pendingFor, rememberJob, signatureOf } from "./pending";
 import { LIMITS, mapLimit } from "../../../core/progress";
 import { aiUrl } from "./server";
@@ -60,6 +61,7 @@ import type { Draft } from "../../../core/draft";
 import type { TimelineV1 } from "../../../core/timeline";
 import { tokens, useToast } from "../design";
 import type { Brief, MontageResult, Music, Rush, Trade } from "./types";
+import { LIMITS as RUSHES } from "./types";
 
 type Step = "home" | "creations" | "ideas" | "player" | "brand" | "import" | "brief" | "music" | "generation" | "result" | "editor" | "catalogue" | "visual" | "visual-editor" | "export" | "paywall" | "consent" | "settings" | "stats";
 // The brief's trade chips (lot 2) start from the sign-up profile.
@@ -349,7 +351,13 @@ export function Flow() {
         onMemory={m => { if (!brand) return; const b = { ...brand, memory: m }; setBrand(b); saveBrand(b); }}
         // Back keeps the retouches (audit, phase 10 : « ne jamais rien perdre ») ; « Annuler » in the editor undoes them.
         onBack={() => { if (editorTl && editorTl !== v.timeline) { saveEdit(editorTl); toast({ message: fr.editor.keptOnBack }); } else { setEditorTl(null); setStep("result"); } }}
-        onSave={saveEdit} /></ThemeProvider>;
+        onSave={saveEdit}
+        onAddMedia={async () => {
+          // Added to the Reel's rushes, so they are kept with it and play in the preview at once.
+          const added = await pickMedia(RUSHES.maxRushes).catch(e => { noteError("galerie", e instanceof Error ? e.message : String(e)); throw e; });
+          setRushes(rs => [...rs, ...added]); setSelected(sel => [...sel, ...added.map(a => a.id)]);
+          return Object.fromEntries(added.map(a => [a.id, { duration: a.duration }]));
+        }} /></ThemeProvider>;
     }
   }
 }

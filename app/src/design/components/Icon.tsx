@@ -32,6 +32,17 @@ const PATHS = {
   cutout: <><Circle cx={12} cy={8} r={3.5} /><Path d="M5 21c.8-4 3.6-6 7-6s6.2 2 7 6" /><Path d="M3 3h3M18 3h3M3 3v3M21 3v3" /></>,
   chart: <Path d="M4 20V10M10 20V4M16 20v-7M22 20H2" />,
   voice: <Path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 11v2" />,
+  // The editor's bottom bar (Ryan, 30 octobre, d'après Edits).
+  split: <Path d="M12 3v18M8 8l-4 4 4 4M16 8l4 4-4 4" />,
+  trash: <Path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6" />,
+  copy: <><Rect x={8} y={8} width={12} height={12} rx={2} /><Path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" /></>,
+  crop: <Path d="M6 2v14a2 2 0 0 0 2 2h14M2 6h14a2 2 0 0 1 2 2v14" />,
+  swap: <Path d="M4 8h14l-4-4M20 16H6l4 4" />,
+  transition: <><Rect x={3} y={6} width={8} height={12} rx={1.5} /><Rect x={13} y={6} width={8} height={12} rx={1.5} /></>,
+  addMedia: <><Rect x={3} y={6} width={13} height={14} rx={2} /><Path d="M19 2v6M16 5h6M6 17l3-4 3 3 2-2" /></>,
+  back: <Path d="M15 5l-7 7 7 7" />,
+  subtitles: <><Rect x={3} y={5} width={18} height={14} rx={2} /><Path d="M7 12h4M13 12h4M7 15h10" /></>,
+  order: <Path d="M7 4v16M3 8l4-4 4 4M17 20V4M13 16l4 4 4-4" />,
   // The profiles of sign-up (core/brand.ts PROFILS).
   restaurant: <Path d="M7 3v8M5 3v5a2 2 0 0 0 4 0V3M7 11v10M17 21V3c-2 1.5-3 4-3 7v3h3" />,
   shop: <><Path d="M5 8h14l-1 12H6z" /><Path d="M9 10V7a3 3 0 0 1 6 0v3" /></>,

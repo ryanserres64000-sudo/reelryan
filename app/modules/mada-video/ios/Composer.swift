@@ -244,7 +244,7 @@ func isImage(_ url: URL) -> Bool {
 }
 
 enum RenderError: LocalizedError {
-  case composition, missingRush(String), unreadable(String), tooShort(String), export(String)
+  case composition, missingRush(String), unreadable(String), tooShort(String), export(String), cancelled
   var errorDescription: String? {
     switch self {
     case .composition: return "Composition impossible."
@@ -252,6 +252,7 @@ enum RenderError: LocalizedError {
     case .unreadable(let id): return "Rush illisible : \(id)."
     case .tooShort(let id): return "Plan hors du rush \(id) : il commence après la fin de la vidéo."
     case .export(let why): return "Export impossible : \(why)."
+    case .cancelled: return "Export annulé."
     }
   }
 }

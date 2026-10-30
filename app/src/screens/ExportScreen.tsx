@@ -1,17 +1,18 @@
 import * as Clipboard from "expo-clipboard";
-import { useEffect, useMemo, useState } from "react";
-import { StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { AppState, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
 import { HASHTAGS_MAX, QUALITES, captionFor, exportPlan, trendTip, withQuality, type ExportFile, type Qualite } from "../../../core/export";
 import type { TimelineV1 } from "../../../core/timeline";
 import type { Brand } from "../brand/types";
 import { fr } from "../copy/fr";
-import { Button, Card, Chip, MadaSays, Screen, Text, tokens, typeStyle, useTheme } from "../design";
+import { Button, Card, Chip, Gradient, MadaSays, Screen, Text, tokens, typeStyle, useTheme } from "../design";
 import { aiCaption } from "../flow/legende";
 import { aiUrl } from "../flow/server";
 import { VideoPreview } from "../video/Preview";
 import { ShotStill } from "../video/Still";
 import { noteError } from "../diag";
-import { canExportVideo, exportVideos, failureOf, type Exported } from "../export/video";
+import { cancelExport, canExportVideo, exportVideos, failureOf, type Exported } from "../export/video";
 import { exportDone } from "../publish/notify";
 import { afterExport } from "../publish/review";
 import { shareTo } from "../publish/share";
@@ -56,22 +57,35 @@ export function ExportScreen({ timeline, brief, brand, style, sources, onBack, b
     await Clipboard.setStringAsync(captionFor(timeline, f.plateforme, legende));
     setSay(t.copied(t.names[f.plateforme]));
   };
+  // The encoder's own progress, 0 to 1; null when nothing is being written.
+  const [progress, setProgress] = useState<number | null>(null);
+  // Left the app during the export: iOS stops the encoder; it starts again on the way back.
+  const resume = useRef(false);
   const save = async () => {
-    setBusy(true);
+    setBusy(true); setProgress(0); resume.current = false;
     await Clipboard.setStringAsync(captionFor(timeline, plan[0].plateforme, legende));
-    if (!canExportVideo()) { setSay(t.native); setBusy(false); return; }
+    if (!canExportVideo()) { setSay(t.native); setBusy(false); setProgress(null); return; }
+    // The screen stays on while the file is written.
+    await activateKeepAwakeAsync("export").catch(e => noteError("export", `écran allumé : ${e instanceof Error ? e.message : String(e)}`));
     try {
-      const uris = await exportVideos(timeline, plan.map(f => withQuality(f, qualite)), await src, i => setSay(t.saving(i + 1, plan.length)));
+      const uris = await exportVideos(timeline, plan.map(f => withQuality(f, qualite)), await src, i => setSay(t.saving(i + 1, plan.length)), setProgress);
       setFiles(uris); setSay(uris[0] && !uris[0].photos ? t.noPhotos : null);
       // No Photos access: the share sheet, where « Enregistrer la vidéo » is.
       if (uris[0] && !uris[0].photos) await shareTo("tiktok", uris[0]);
       exportDone(); afterExport(true);
     } catch (e) {
-      noteError("export", e instanceof Error ? e.message : String(e));
-      setSay(t.errors[failureOf(e)]); afterExport(false);
+      const why = failureOf(e);
+      if (why !== "cancelled") noteError("export", e instanceof Error ? e.message : String(e));
+      if (why === "interrupted") resume.current = true;
+      setSay(t.errors[why]); if (why !== "cancelled" && why !== "interrupted") afterExport(false);
     }
-    finally { setBusy(false); }
+    finally { setBusy(false); setProgress(null); deactivateKeepAwake("export"); }
   };
+  const latest = useRef(save); latest.current = save;
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", s => { if (s === "active" && resume.current) { resume.current = false; latest.current(); } });
+    return () => sub.remove();
+  }, []);
 
   // The end screen (étape 7): the files are in Photos, one tap per platform copies its caption and
   // opens the app on the video.
@@ -110,7 +124,16 @@ export function ExportScreen({ timeline, brief, brand, style, sources, onBack, b
     <Screen title={t.title} detail={t.detail} onBack={onBack}
       footer={<>
         {say ? <MadaSays text={say} /> : null}
-        <Button label={t.save} disabled={busy} onPress={save} haptic />
+        {progress !== null ? (
+          <View style={styles.field} accessible accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: Math.round(progress * 100) }}>
+            <Text variant="headline">{t.progress(Math.round(progress * 100))}</Text>
+            <View style={[styles.track, { backgroundColor: c.surfaceRaised }]}>
+              <View style={[styles.fill, { width: `${Math.max(2, Math.min(100, progress * 100))}%` }]}><Gradient /></View>
+            </View>
+          </View>
+        ) : null}
+        {busy ? <Button variant="secondary" label={t.cancel} onPress={() => { cancelExport().catch(e => noteError("export", `annuler : ${e instanceof Error ? e.message : String(e)}`)); }} />
+          : <Button label={t.save} onPress={save} haptic />}
       </>}>
       <View style={styles.previewRow}>
         <VideoPreview timeline={timeline} file={plan[0]} sources={src} style={[styles.preview, { width: frame, height: frame * 16 / 9, backgroundColor: c.media }]}
@@ -162,5 +185,7 @@ const styles = StyleSheet.create({
   field: { gap: tokens.space.xs },
   step: { flexDirection: "row", gap: tokens.space.sm, alignItems: "flex-start" },
   flex: { flex: 1 },
+  track: { height: tokens.size.textBar, borderRadius: tokens.radius.full, overflow: "hidden" },
+  fill: { height: tokens.size.textBar, borderRadius: tokens.radius.full, overflow: "hidden" },
   input: { borderWidth: tokens.size.border, borderRadius: tokens.radius.button, paddingHorizontal: tokens.space.md, paddingVertical: tokens.space.sm, minHeight: tokens.size.button * 2, textAlignVertical: "top" },
 });

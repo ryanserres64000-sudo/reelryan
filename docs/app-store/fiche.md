@@ -21,7 +21,7 @@
 
 ## Texte promotionnel (170, modifiable sans nouvelle version)
 
-Tes rushes et une phrase : Ma DA monte ton Reel à tes couleurs, avec tes polices et ton logo, prêt pour Instagram, TikTok et YouTube Shorts. 3 montages IA offerts.
+Tes rushes et une phrase : Ma DA monte ton Reel à tes couleurs, avec tes polices et ton logo, prêt pour Instagram, TikTok et YouTube Shorts. 1 montage IA offert.
 
 ## Description (4 000)
 
@@ -51,7 +51,7 @@ Un export par plateforme : Reels, TikTok et YouTube Shorts, en 1080 × 1920, tex
 
 GRATUIT POUR COMMENCER
 • Montage à la main gratuit, sans limite.
-• 3 montages IA et 3 visuels IA offerts.
+• 1 montage IA et 3 visuels IA offerts.
 • Ma DA Pro : 3,99 € par semaine, 6,99 € par mois ou 49,99 € par an.
 
 L'IA, EN CLAIR

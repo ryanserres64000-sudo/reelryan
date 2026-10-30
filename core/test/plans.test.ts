@@ -21,10 +21,11 @@ test("a remote config is checked: bad offers dropped, quotas bounded", () => {
   assert.deepEqual(sanitizeConfig(null).offres, DEFAULT_CONFIG.offres);
 });
 
-test("3 free montages for life, retouches included on them; Pro counts per month", () => {
+test("1 free montage for life, retouches included on them; Pro counts per month", () => {
   let u = emptyUsage("2026-11");
   assert.equal(check("retouche", false, u, DEFAULT_CONFIG, now).ok, false, "rien créé : pas de retouche offerte");
-  for (let i = 0; i < 3; i++) { assert.ok(check("montage", false, u, DEFAULT_CONFIG, now).ok); u = consume("montage", false, u, now); }
+  assert.equal(DEFAULT_CONFIG.gratuit.montages, 1, "Ryan, 30 octobre : 1 seul montage gratuit");
+  assert.ok(check("montage", false, u, DEFAULT_CONFIG, now).ok); u = consume("montage", false, u, now);
   assert.deepEqual(check("montage", false, u, DEFAULT_CONFIG, now), { ok: false, restant: 0, raison: "gratuit_epuise" });
   assert.ok(check("retouche", false, u, DEFAULT_CONFIG, now).ok);
   assert.ok(check("visuel", false, u, DEFAULT_CONFIG, now).ok, "les visuels ont leur propre compteur");

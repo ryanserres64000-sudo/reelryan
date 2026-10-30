@@ -4,6 +4,8 @@ import type { StyleProp, ViewStyle } from "react-native";
 import type { ExportFile } from "../../../core/export";
 import type { TimelineV1 } from "../../../core/timeline";
 import { noteError } from "../diag";
+import { fr } from "../copy/fr";
+import { VideoBroken } from "./Broken";
 import type { Sources } from "./sources";
 
 // The engine of the full-screen player: the native AVPlayer on the export's composition when the
@@ -19,8 +21,11 @@ type Props = { timeline: TimelineV1; file: ExportFile; sources: Promise<Sources>
 
 export const Player = forwardRef<PlayerHandle, Props>(function Player({ timeline, file, sources, duration, playing, onTime, style, fallback }, ref) {
   const [ready, setReady] = useState<Sources | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<string | null>(null);
   useEffect(() => { let on = true; sources?.then(s => on && setReady(s)); return () => { on = false; }; }, [sources]);
+  // A new edit gets a new try.
+  const edit = JSON.stringify([timeline, file]);
+  useEffect(() => setFailed(null), [edit]);
   const native = useRef<NativeRef | null>(null);
   const time = useRef(0);
   const live = !!Native && !!ready && !failed;
@@ -40,8 +45,11 @@ export const Player = forwardRef<PlayerHandle, Props>(function Player({ timeline
     mute: m => { native.current?.setMuted(m).catch(() => {}); },
   }), [onTime]);
 
+  // The still per shot only stands in while the files load, or where there is no native module (web,
+  // simulator); a native failure is shown as such, never as a slideshow.
+  if (Native && failed) return <VideoBroken message={failed} />;
   if (!live || !Native) return <>{fallback}</>;
-  return <Native ref={native} source={{ timeline, file, sources: ready! }} style={style} onError={e => { noteError("Aperçu", e.nativeEvent?.message ?? "erreur inconnue"); setFailed(true); }}
+  return <Native ref={native} source={{ timeline, file, sources: ready! }} style={style} onError={e => { const m = e.nativeEvent?.message ?? fr.player.unknown; noteError("Aperçu", m); setFailed(m); }}
     onTime={e => {
       const t = e.nativeEvent.time;
       // Loops like a Reel.

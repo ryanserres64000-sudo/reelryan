@@ -62,13 +62,21 @@ enum Composer {
       } else {
         let asset = AVURLAsset(url: uri)
         guard let src = try await asset.loadTracks(withMediaType: .video).first else { throw RenderError.unreadable(p.source) }
-        let (natural, transform) = try await src.load(.naturalSize, .preferredTransform)
-        let range = CMTimeRange(start: time(p.debut), end: time(p.fin))
+        let (natural, transform, available) = try await src.load(.naturalSize, .preferredTransform, .timeRange)
+        // The shot as asked, inside what the file really holds: a length rounded up by the photo picker
+        // must not reach past the last frame. The few missing frames are stretched to keep the timing.
+        let range = clamp(CMTimeRange(start: time(p.debut), end: time(p.fin)), to: available)
+        guard range.duration.seconds > 0.02 else { throw RenderError.tooShort(p.source) }
         try track.insertTimeRange(range, of: src, at: target.start)
-        if speed != 1 { track.scaleTimeRange(CMTimeRange(start: target.start, duration: range.duration), toDuration: target.duration) }
+        if range.duration != target.duration { track.scaleTimeRange(CMTimeRange(start: target.start, duration: range.duration), toDuration: target.duration) }
         if p.garder_son, let audioTrack, let srcAudio = try await asset.loadTracks(withMediaType: .audio).first {
-          try audioTrack.insertTimeRange(range, of: srcAudio, at: target.start)
-          if speed != 1 { audioTrack.scaleTimeRange(CMTimeRange(start: target.start, duration: range.duration), toDuration: target.duration) }
+          let heard = clamp(range, to: try await srcAudio.load(.timeRange))
+          if heard.duration.seconds > 0.02 {
+            let at = target.start + (heard.start - range.start)
+            let scaled = CMTimeMultiplyByFloat64(heard.duration, multiplier: target.duration.seconds / range.duration.seconds)
+            try audioTrack.insertTimeRange(heard, of: srcAudio, at: at)
+            if heard.duration != scaled { audioTrack.scaleTimeRange(CMTimeRange(start: at, duration: heard.duration), toDuration: scaled) }
+          }
           voice.append((start, start + length))
           levels[audioTrack.trackID, default: []].append((start, Float(min(2, max(0, p.volume ?? 1)))))
         }
@@ -179,13 +187,15 @@ enum Composer {
     video.renderSize = size
     video.frameDuration = CMTime(value: 1, timescale: CMTimeScale(file.fps))
     // The instructions cover the whole composition (AVFoundation refuses gaps); the file is cut later.
-    video.instructions = instructions(plan, duration: at)
+    // They end exactly where the composition ends, to the tick: each shot's time is rounded on its
+    // own, and an instruction a 600th of a second short or long makes AVFoundation refuse the edit.
+    video.instructions = instructions(plan, duration: at, end: comp.duration)
     return Built(composition: comp, video: video, audio: mix, duration: time(duration))
   }
 
   // One instruction per span where the same shots and layers are on screen: one shot, or two during
   // a transition, and the layers playing then.
-  static func instructions(_ plan: RenderPlan, duration: Double) -> [MadaInstruction] {
+  static func instructions(_ plan: RenderPlan, duration: Double, end: CMTime? = nil) -> [MadaInstruction] {
     var cuts = Set<Double>([0, duration])
     for s in plan.shots { cuts.insert(min(s.start, duration)); cuts.insert(min(s.end, duration)) }
     for l in plan.layers { cuts.insert(min(l.start, duration)); cuts.insert(min(l.end, duration)) }
@@ -196,6 +206,9 @@ enum Composer {
       let on = plan.shots.filter { $0.start <= mid && mid < $0.end }
       let layers = plan.layers.filter { $0.start <= mid && mid < $0.end }
       out.append(MadaInstruction(range: CMTimeRange(start: time(a), end: time(b)), shots: on, layers: layers, plan: plan))
+    }
+    if let end, end > .zero, let last = out.last, last.timeRange.end != end, end > last.timeRange.start {
+      out[out.count - 1] = MadaInstruction(range: CMTimeRange(start: last.timeRange.start, end: end), shots: last.shots, layers: last.layers, plan: plan)
     }
     return out
   }
@@ -220,18 +233,24 @@ func orientation(_ t: CGAffineTransform) -> CGImagePropertyOrientation {
 
 func time(_ s: Double) -> CMTime { CMTime(seconds: max(0, s), preferredTimescale: 600) }
 
+func clamp(_ r: CMTimeRange, to available: CMTimeRange) -> CMTimeRange {
+  let start = max(r.start, available.start), end = min(r.end, available.end)
+  return end > start ? CMTimeRange(start: start, end: end) : CMTimeRange(start: start, duration: .zero)
+}
+
 func isImage(_ url: URL) -> Bool {
   guard let type = UTType(filenameExtension: url.pathExtension) else { return false }
   return type.conforms(to: .image)
 }
 
 enum RenderError: LocalizedError {
-  case composition, missingRush(String), unreadable(String), export(String)
+  case composition, missingRush(String), unreadable(String), tooShort(String), export(String)
   var errorDescription: String? {
     switch self {
     case .composition: return "Composition impossible."
     case .missingRush(let id): return "Rush introuvable : \(id)."
     case .unreadable(let id): return "Rush illisible : \(id)."
+    case .tooShort(let id): return "Plan hors du rush \(id) : il commence après la fin de la vidéo."
     case .export(let why): return "Export impossible : \(why)."
     }
   }

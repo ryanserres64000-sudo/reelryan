@@ -128,3 +128,17 @@ test("a photo added by hand: under the texts, inside the frame, locked, and kept
   assert.ok(sanitizeDesign(next, d.w, d.h, [id]).layers.some(l => l.type === "image" && l.asset === id));
   assert.equal(nextPhotoId(["img1", "img2", "img3", "img4", "img5", "img6", "img7", "img8", "img9"]), null);
 });
+
+test("un nouveau montage garde le son des vidéos et ne répète pas les photos", () => {
+  const clips = { affiche: { duration: 4 }, v1: { duration: 6 }, v2: { duration: 6 } };
+  const shot = (source: string) => ({ source, debut: 0, fin: 1.5, transition: "coupe", garder_son: false, mouvement: "aucun" });
+  const { timeline: base } = sanitizeTimeline({ plans: [shot("affiche"), shot("v1"), shot("affiche"), shot("v2"), shot("affiche")], textes: [], musique: { mode: "aucune" } }, clips);
+  const { timeline: t, fixes } = naturalTimeline(base, { photos: ["affiche"], sons: ["v1", "v2"], brief: "Soirée samedi" });
+  assert.deepEqual(t.plans.map(p => p.source), ["affiche", "v1", "v2"]);
+  assert.deepEqual(t.plans.map(p => p.garder_son), [false, true, true]);
+  assert.equal(t.duree, 4.5);
+  assert.ok(fixes[0].startsWith("Tes vidéos sont courtes"), fixes.join(" | "));
+  assert.ok(fixes.includes("J'ai gardé le son d'origine de tes vidéos."));
+  assert.equal(naturalTimeline(base, { photos: ["affiche"], sons: ["v1"], brief: "sans le son" }).timeline.plans[1].garder_son, false, "le silence demandé est respecté");
+  assert.equal(naturalTimeline(base, { photos: ["affiche"] }).timeline.plans.length, 5, "une retouche garde les plans choisis");
+});

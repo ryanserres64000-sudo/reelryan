@@ -96,7 +96,7 @@ struct Overlay {
     let padX: CGFloat = framed ? 32 : 0, padY: CGFloat = framed ? 16 : 0
     let style = NSMutableParagraphStyle(); style.lineBreakMode = .byWordWrapping
     style.alignment = look.align == "gauche" ? .left : look.align == "droite" ? .right : .center
-    let shadow = NSShadow(); shadow.shadowColor = UIColor.black.withAlphaComponent(look.fond == "ombre" ? 0.35 : 0); shadow.shadowBlurRadius = 8; shadow.shadowOffset = CGSize(width: 0, height: 2)
+    let shadow = NSShadow(); shadow.shadowColor = UIColor.black.withAlphaComponent(look.fond == "ombre" ? 0.55 : 0); shadow.shadowBlurRadius = 10; shadow.shadowOffset = CGSize(width: 0, height: 2)
     let width = CGFloat(box.w), inner = width - 2 * padX
     var f = font, attrs: [NSAttributedString.Key: Any] = [:], bounds = CGRect.zero
     // The accent word (core/textlook.ts wordRange), found whatever its capitals.

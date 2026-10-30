@@ -105,6 +105,6 @@ export function animAt(anim: TextLook["anim"], t: number, len: number, words: nu
 }
 
 // The drawing constants shared by the preview and Overlay.swift, in px on the 1080 frame.
-export const RENDER = { ink: "#FFFFFF", plate: "#121212", shadow: "rgba(0,0,0,0.35)", shadowBlur: 8, shadowY: 2, padX: 32, padY: 16, radius: 18, border: 3, lineHeight: 1.2, word: "#FFD23F" } as const;
+export const RENDER = { ink: "#FFFFFF", plate: "#121212", shadow: "rgba(0,0,0,0.55)", shadowBlur: 10, shadowY: 2, padX: 32, padY: 16, radius: 18, border: 3, lineHeight: 1.2, word: "#FFD23F" } as const;
 // The plain colours offered next to the brand's: white, black, and the two accent colours of a word.
 export const SWATCHES = { blanc: "#FFFFFF", noir: "#111111", jaune: "#FFD23F", orange: "#FF7A1A" } as const;

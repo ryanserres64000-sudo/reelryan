@@ -52,7 +52,7 @@ Un export par plateforme : Reels, TikTok et YouTube Shorts, en 1080 × 1920, tex
 GRATUIT POUR COMMENCER
 • Montage à la main gratuit, sans limite.
 • 1 montage IA et 3 visuels IA offerts.
-• Ma DA Pro : 3,99 € par semaine, 6,99 € par mois ou 49,99 € par an.
+• Ma DA Pro : 4,99 € par semaine, 9,99 € par mois ou 69,99 € par an.
 
 L'IA, EN CLAIR
 Ma DA te demande ton accord avant d'envoyer quoi que ce soit à l'IA. Seules quelques images réduites de tes rushes partent, jamais la vidéo entière, et Ma DA ne les garde pas. Tu peux couper l'IA à tout moment dans Réglages et continuer à la main. Chaque export porte la mention « Montage assisté par IA ». Pas de compte à créer, et tu supprimes tes données depuis l'appli.
@@ -88,9 +88,9 @@ Groupe « Ma DA Pro », un seul niveau, trois durées. Les identifiants doivent 
 
 | Référence | Identifiant produit | Durée | Prix France |
 | --- | --- | --- | --- |
-| Ma DA Pro annuel | `mada.pro.an` | 1 an | 49,99 € |
-| Ma DA Pro mensuel | `mada.pro.mois` | 1 mois | 6,99 € |
-| Ma DA Pro hebdo | `mada.pro.semaine` | 1 semaine | 3,99 € |
+| Ma DA Pro annuel | `mada.pro.an` | 1 an | 69,99 € |
+| Ma DA Pro mensuel | `mada.pro.mois` | 1 mois | 9,99 € |
+| Ma DA Pro hebdo | `mada.pro.semaine` | 1 semaine | 4,99 € |
 
 Pour chacun : nom affiché « Ma DA Pro », description « Montages et visuels IA sans attendre », une capture du paywall pour la relecture. Les abonnements doivent être joints à la version 1.0 au moment de la soumission (section « In-App Purchases and Subscriptions » de la version), sinon Apple les ignore.
 

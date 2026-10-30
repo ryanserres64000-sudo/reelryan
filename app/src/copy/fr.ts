@@ -241,8 +241,8 @@ export const fr = {
   paywall: {
     title: "Tu as aimé ? Garde ta DA.",
     titleBlocked: "Un autre montage avec ta DA ?",
-    detail: "30 montages IA par mois, ton style qui s'affine, sans engagement.",
-    benefits: ["30 montages IA par mois, sur 10 min de rushes", "Ton style qui s'affine à chaque correction", "Tes affiches, posts et stories en une phrase"],
+    detail: "20 montages IA par mois, ton style qui s'affine, sans engagement.",
+    benefits: ["20 montages IA par mois, sur 10 min de rushes", "Ton style qui s'affine à chaque correction", "Tes affiches, posts et stories en une phrase"],
     blocked: (n: number) => `Tes ${plural(n, "création IA offerte est utilisée", "créations IA offertes sont utilisées")}. Le montage à la main et l'export restent gratuits.`,
     periods: { an: { label: "À l'année", per: "par an" }, mois: { label: "Au mois", per: "par mois" }, semaine: { label: "À la semaine", per: "par semaine" } },
     perMonth: (eur: string) => `soit ${eur} par mois`,

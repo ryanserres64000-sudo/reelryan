@@ -5,7 +5,7 @@ import { DEFAULT_CONFIG, check, consume, emptyUsage, paywallFor, perMonth, sanit
 const now = new Date("2026-11-03T10:00:00Z");
 
 test("the launch offers: weekly, monthly, yearly preselected; the month stays the better deal than the week", () => {
-  assert.deepEqual(DEFAULT_CONFIG.offres.map(o => [o.id, o.prix]), [["an", "49,99 €"], ["mois", "6,99 €"], ["semaine", "3,99 €"]]);
+  assert.deepEqual(DEFAULT_CONFIG.offres.map(o => [o.id, o.prix]), [["an", "69,99 €"], ["mois", "9,99 €"], ["semaine", "4,99 €"]]);
   assert.equal(DEFAULT_CONFIG.preselection, "an");
   assert.equal(perMonth("3,99 €", "semaine"), 17.29);
   assert.equal(perMonth("49,99 €", "an"), 4.17);
@@ -30,7 +30,7 @@ test("1 free montage for life, retouches included on them; Pro counts per month"
   assert.ok(check("retouche", false, u, DEFAULT_CONFIG, now).ok);
   assert.ok(check("visuel", false, u, DEFAULT_CONFIG, now).ok, "les visuels ont leur propre compteur");
   let p = emptyUsage("2026-10");
-  for (let i = 0; i < 30; i++) p = consume("montage", true, p, now);
+  for (let i = 0; i < 20; i++) p = consume("montage", true, p, now);
   assert.equal(check("montage", true, p, DEFAULT_CONFIG, now).raison, "plafond_pro");
   assert.ok(check("montage", true, p, DEFAULT_CONFIG, new Date("2026-12-01T00:00:00Z")).ok, "le compteur Pro repart chaque mois");
 });

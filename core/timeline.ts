@@ -4,6 +4,7 @@
 // Plain TypeScript with erasable syntax only, so Node runs it as is and Metro bundles it.
 import { DUO_IDS, type DuoId } from "./typo.ts";
 import { sanitizeLook, sanitizePlace, type TextLook, type TextPlace } from "./textlook.ts";
+import { RECETTES, onCuts, recipeLook, wordIn, type RecetteId } from "./recipes.ts";
 
 export const TRANSITIONS = ["coupe", "fondu", "glisse", "zoom"] as const;
 export const TEXT_POSITIONS = ["haut", "centre", "bas"] as const;
@@ -109,6 +110,8 @@ export type TimelineV1 = {
   format: { w: 1080; h: 1920; fps: 30 }; duree: number; plans: Plan[]; textes: Texte[];
   sous_titres: { actifs: boolean; style: OneOf<typeof SOUS_TITRES_STYLES>; position: "bas" | "centre" };
   musique: Musique; effets: Effet[]; charte: Charte; style_utilise: string[];
+  // The edit recipe the AI picked (core/recipes.ts); absent: edited the usual way.
+  recette?: RecetteId;
   exports: { plateforme: Plateforme; duree_max: number }[];
   relecture: { corrections: string[]; plans_a_tourner: string[] };
   legende: { texte: string; hashtags: string[] };
@@ -134,6 +137,12 @@ export function imposedTexts(brief = ""): string[] {
 const norm = (s: string) => s.normalize("NFC").replace(/[\p{Extended_Pictographic}️‍]/gu, "").replace(/\s+/g, " ").trim().toLowerCase();
 
 // Final duration of the edit once transitions overlap consecutive shots.
+// Where each shot after the first starts in the edit (a transition starts early).
+export function cutsOf(plans: Pick<Plan, "debut" | "fin" | "transition" | "vitesse">[]): number[] {
+  let at = 0;
+  return plans.map((p, i) => { const start = Math.max(0, at - (i && p.transition !== "coupe" ? TRANSITION_SECONDS : 0)); at = start + (p.fin - p.debut) / (p.vitesse || 1); return Math.round(start * 100) / 100; }).slice(1);
+}
+
 export function timelineDuration(plans: Pick<Plan, "debut" | "fin" | "transition" | "vitesse">[]): number {
   return plans.reduce((t, p, i) => t + (p.fin - p.debut) / (p.vitesse || 1) - (i && p.transition !== "coupe" ? TRANSITION_SECONDS : 0), 0);
 }
@@ -192,7 +201,9 @@ function sanitizePlans(raw: unknown, clips: Clips, beat: number, maxDuration: nu
   return plans;
 }
 
-function sanitizeTextes(raw: unknown, duration: number, brief: string | undefined, warnings: string[]): Texte[] {
+// A text the AI writes in a recipe gets the recipe's look (core/recipes.ts); a text with its own look
+// (moved or styled by hand, saved by the app) keeps it.
+function sanitizeTextes(raw: unknown, duration: number, brief: string | undefined, warnings: string[], recette?: RecetteId, charte?: Charte): Texte[] {
   const imposed = imposedTexts(brief).map(norm);
   const textes = arr(raw).map(r => {
     const t = obj(r), texte = str(t.texte, 140), style = pick(t.style, TEXT_STYLES, "titre");
@@ -204,7 +215,10 @@ function sanitizeTextes(raw: unknown, duration: number, brief: string | undefine
       accent: style === "accroche" || style === "titre" ? str(t.accent, 30) : "",
       ...(t.lie ? { lie: str(t.lie, 40) } : {}),
     };
-    const place = sanitizePlace(t.place), look = sanitizeLook(t.look, style);
+    const own = sanitizeLook(t.look, style), mot = wordIn(texte, t.mot);
+    const styled = !own && recette && charte ? recipeLook(recette, style, charte, mot) : null;
+    const place = sanitizePlace(t.place) ?? styled?.place;
+    const look = own ?? styled?.look ?? (mot ? { ...sanitizeLook({}, style)!, mot } : undefined);
     return { ...base, ...(place ? { place } : {}), ...(look ? { look } : {}) };
   }).filter(t => t.texte && t.fin - t.debut >= MIN_TEXT);
   for (const [i, t] of imposedTexts(brief).entries()) if (!textes.some(x => norm(x.texte) === imposed[i])) warnings.push(`Texte demandé absent du montage : « ${t} »`);
@@ -322,18 +336,23 @@ export function sanitizeTimeline(raw: unknown, clips: Clips, opts: SanitizeOptio
   if (!plans.length) throw new Error("Timeline invalide : aucun plan utilisable.");
   const duration = round(timelineDuration(plans));
   const st = obj(r.sous_titres), rel = obj(r.relecture), leg = obj(r.legende);
+  const recette = (RECETTES as readonly unknown[]).includes(r.recette) ? (r.recette as RecetteId) : undefined;
+  const charte = sanitizeCharte(r.charte);
+  const textes = sanitizeTextes(r.textes, duration, opts.brief, warnings, recette, charte);
   const timeline: TimelineV1 = {
     version: 1, titre: str(r.titre, 80) || "Montage", intention: str(r.intention, 300),
     variante: r.variante ? pick(r.variante, VARIANTES, "accroche-forte") : null,
     format: { w: 1080, h: 1920, fps: 30 }, duree: duration, plans,
-    textes: sanitizeTextes(r.textes, duration, opts.brief, warnings),
+    // Teaser: the words land on the cuts, which sit on the beat.
+    textes: recette === "teaser" ? onCuts(textes, cutsOf(plans)) : textes,
     sous_titres: { actifs: !!st.actifs, style: pick(st.style, SOUS_TITRES_STYLES, "marque"), position: st.position === "centre" ? "centre" : "bas" },
-    musique, effets: sanitizeEffets(r.effets, duration, warnings), charte: sanitizeCharte(r.charte),
+    musique, effets: sanitizeEffets(r.effets, duration, warnings), charte,
     style_utilise: arr(r.style_utilise).map(x => str(x, 120)).filter(Boolean).slice(0, 10),
     exports: sanitizeExports(r.exports, duration, warnings),
     relecture: { corrections: arr(rel.corrections).map(x => str(x, 200)).filter(Boolean).slice(0, 6), plans_a_tourner: arr(rel.plans_a_tourner).map(x => str(x, 200)).filter(Boolean).slice(0, 3) },
     legende: { texte: str(leg.texte, 2200), hashtags: [...new Set(arr(leg.hashtags).map(h => "#" + str(h, 60).replace(/^#+/, "").replace(/\s+/g, "")).filter(h => h.length > 1))].slice(0, 30) },
   };
+  if (recette) timeline.recette = recette;
   if (Array.isArray(r.audios) && r.audios.length) timeline.audios = sanitizeAudios(r.audios, duration);
   if (Array.isArray(r.calques) && r.calques.length) timeline.calques = sanitizeCalques(r.calques, clips, duration, warnings);
   return { timeline, duration, warnings };
@@ -349,6 +368,7 @@ export const AI_TIMELINE_SCHEMA = object({
   titre: field("string", "Nom court du montage"),
   intention: field("string", "Pourquoi ce montage, en une ou deux phrases adressées à la personne (tutoiement) : l'idée et pourquoi elle colle au brief"),
   variante: field("string", "Le parti pris de cette version", { enum: VARIANTES }),
+  recette: field("string", "La recette de montage suivie (consigne « RECETTES DE MONTAGE »), ou « aucune »", { enum: [...RECETTES, "aucune"] }),
   plans: list(object({
     source: field("string", "Identifiant du rush, par exemple clip02"),
     debut: field("number", "Début dans le rush, en secondes"),
@@ -368,6 +388,7 @@ export const AI_TIMELINE_SCHEMA = object({
     position: field("string", "Place à l'écran", { enum: TEXT_POSITIONS }),
     style: field("string", "Rôle du texte", { enum: TEXT_STYLES }),
     accent: field("string", "Mot d'accent du titre en duo, 1 ou 2 mots, seulement si la consigne « TITRE EN DUO » le permet ; sinon vide"),
+    mot: field("string", "Mot du texte mis en couleur, écrit comme dans le texte (consigne « MOT EN COULEUR ») ; sinon vide"),
   })),
   effets: list(object({
     t: field("number", "Moment dans le montage final, en secondes"),

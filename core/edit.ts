@@ -2,8 +2,10 @@
 // limite » ; Ryan, 28 octobre : « donner la main à l'utilisateur »). Pure functions on a timeline v1:
 // the phone applies them instantly, without AI. Every shot and text gets a stable id, and what the
 // person changes by hand is locked, so a later AI retouch cannot overwrite it.
-import { LOGO_POSITIONS, sanitizeCadre, sanitizeReglages, MAX_CALQUES_SIMULTANES, TRANSITION_SECONDS, sanitizeAudios, sanitizeCalques, timelineDuration, type AudioClip, type Calque, type Cle, type Clips, type Plan, type Texte, type TimelineV1 } from "./timeline.ts";
+import { LOGO_POSITIONS, sanitizeCadre, sanitizeReglages, MAX_CALQUES_SIMULTANES, TRANSITION_SECONDS, sanitizeAudios, sanitizeCalques, timelineDuration, cutsOf, type AudioClip, type Calque, type Cle, type Clips, type Plan, type Texte, type TimelineV1 } from "./timeline.ts";
 import type { DuoId } from "./typo.ts";
+import { onCuts, recipeLook, type RecetteId } from "./recipes.ts";
+import { defaultLook } from "./textlook.ts";
 
 export type EditDoc = { timeline: TimelineV1; planIds: string[]; texteIds: string[]; locked: string[] };
 export type History = { past: EditDoc[]; present: EditDoc; future: EditDoc[] };
@@ -266,6 +268,25 @@ export function setVolume(d: EditDoc, volume: number): EditDoc {
 // The music's fade at the end, 0 to 3 s (Edits' « Fondu audio »).
 export function setMusicFade(d: EditDoc, fondu_sortie: number): EditDoc {
   return { ...d, locked: lock(d, "musique"), timeline: { ...d.timeline, musique: { ...d.timeline.musique, fondu_sortie: round(clamp(fondu_sortie, 0, 3)) } } };
+}
+
+// Another recipe in one gesture (plan, « l'IA choisit, tu peux changer ») : the texts take its look and
+// place, keeping their words and their word in colour; what was styled by hand (locked) stays.
+// `null`: back to the plain look. The rhythm of the shots stays: changing it is a retouche.
+export function applyRecipe(t: TimelineV1, id: RecetteId | null, keep: (i: number) => boolean = () => false): TimelineV1 {
+  const textes = t.textes.map((x, i) => {
+    if (keep(i)) return x;
+    const { look: _l, place: _p, ...plain } = x;
+    if (!id) return x.look?.mot ? { ...plain, look: { ...defaultLook(x.style), mot: x.look.mot } } : plain;
+    const r = recipeLook(id, x.style, t.charte, x.look?.mot);
+    return { ...plain, look: r.look, ...(r.place ? { place: r.place } : {}) };
+  });
+  const { recette: _r, ...rest } = t;
+  return { ...rest, ...(id ? { recette: id } : {}), textes: id === "teaser" ? onCuts(textes, cutsOf(t.plans)).map(x => ({ ...x, fin: Math.min(x.fin, t.duree) })) : textes };
+}
+
+export function setRecipe(d: EditDoc, id: RecetteId | null): EditDoc {
+  return { ...d, timeline: applyRecipe(d.timeline, id, i => d.locked.includes(d.texteIds[i])) };
 }
 
 export const isLocked = (d: EditDoc, id: string) => d.locked.includes(id);

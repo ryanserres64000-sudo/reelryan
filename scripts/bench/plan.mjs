@@ -3,6 +3,7 @@
 // exportPlan of the app. Usage:
 //   node scripts/bench/plan.mjs <probe.json> <plan.json> [--gonfle] [--muet] [--duree 30] [--plateforme reels]
 //     [--effets] [--musique <fichier audio> [--passage 10]] [--textes]
+// --recette teaser|vlog|recit restyles the texts with that edit recipe (core/recipes.ts).
 // --textes adds texts with their own font, capitals, letter spacing, an accent word and a « nom — rôle ».
 // --gonfle adds 0.05 s to each rush's length, as a rounded duration from the photo picker would.
 import { readFileSync, writeFileSync } from "node:fs";
@@ -10,6 +11,7 @@ import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { sanitizeTimeline } from "../../core/timeline.ts";
 import { exportPlan } from "../../core/export.ts";
+import { applyRecipe } from "../../core/edit.ts";
 
 const [probePath, outPath, ...rest] = process.argv.slice(2);
 if (!probePath || !outPath) { console.error("usage : node scripts/bench/plan.mjs <probe.json> <plan.json> [--gonfle] [--muet] [--duree 30]"); process.exit(1); }
@@ -57,7 +59,8 @@ const raw = {
   musique: value("--musique") ? { mode: "fichier", bpm: 110, source: { type: "fichier", empreinte: "banc", droits_confirmes_le: "2026-10-30" }, passage: { debut: Number(value("--passage", "0")), fin: Number(value("--passage", "0")) + target + 5 }, volume: 0.8, ducking_voix: true, fondu_sortie: 1.5 } : { mode: "aucune", bpm: 110 },
   charte: {}, exports: [{ plateforme }], style_utilise: [], relecture: { corrections: [], plans_a_tourner: [] }, legende: { texte: "Banc", hashtags: [] },
 };
-const { timeline, warnings } = sanitizeTimeline(raw, clips, { maxDuration: 90 });
+const clean = sanitizeTimeline(raw, clips, { maxDuration: 90 }), warnings = clean.warnings;
+const timeline = value("--recette") ? applyRecipe(clean.timeline, value("--recette")) : clean.timeline;
 const file = exportPlan(timeline)[0];
 const sources = {
   rushes: Object.fromEntries(ids.map(id => [id, probe[id].uri])), logo: null,

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
 import { applyCorrection, learn, type Memory } from "../../../core/corrections";
-import { addCalque, addPassage, addTexte, addVoiceOver, changedPlans, deleteAudio, deleteCalque, deleteCle, deleteEffet, deletePlan, deleteTexte, duplicatePlan, setMusicFade, setVolume, duplicateTexte, isLocked, movePlan, planTimes, push, redo, replaceSource, setAudio, setCalque, setDuo, setLogo, setPlan, setSubtitles, setTexte, splitPlan, startHistory, toDoc, trimPlan, undo, type EditDoc, type History } from "../../../core/edit";
+import { addCalque, addPassage, addTexte, addVoiceOver, changedPlans, deleteAudio, deleteCalque, deleteCle, deleteEffet, deletePlan, deleteTexte, duplicatePlan, setMusicFade, setRecipe, setVolume, duplicateTexte, isLocked, movePlan, planTimes, push, redo, replaceSource, setAudio, setCalque, setDuo, setLogo, setPlan, setSubtitles, setTexte, splitPlan, startHistory, toDoc, trimPlan, undo, type EditDoc, type History } from "../../../core/edit";
 import { exportPlan, placeOf } from "../../../core/export";
 import { FONT_FAMILIES, MIN_SIZE, PLACE_LIMITS, SPACINGS, SWATCHES, TEXT_ALIGNS, TEXT_ANIMS, TEXT_FONDS, TEXT_FONTS, TEXT_ROLES, defaultLook, sizeOf, type FontFamily, type TextFont, type TextLook } from "../../../core/textlook";
 import { PRESETS, addKey, isOn, moveLayer, newLayer, placeAt, presetOf, type Preset } from "../../../core/layers";
@@ -20,6 +20,7 @@ import { Button, Card, Chip, Icon, MadaSays, Screen, Sheet, Text, haptic, tokens
 import { aiRetouche } from "../flow/retouche";
 import { DuoTitle } from "../video/DuoTitle";
 import { face, useVisualFonts } from "../visual/fonts";
+import { RECETTES } from "../../../core/recipes";
 import { VoiceSheet } from "../voice/VoiceSheet";
 
 type Props = {
@@ -360,6 +361,9 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
             ) : null}
             {shown_ === "marque" ? (
               <>
+                <Group label={fr.recipes.title}>{[...RECETTES, null].map(id => <Chip key={id ?? "aucune"} label={fr.recipes.names[id ?? "aucune"]} selected={(tl.recette ?? null) === id}
+                  onPress={() => { apply(setRecipe(d, id)); toast({ message: fr.recipes.applied(fr.recipes.names[id ?? "aucune"]) }); }} />)}</Group>
+                <Text variant="caption" tone="textMuted">{fr.recipes.why}</Text>
                 <Group label={t.logo}>{LOGO_KEYS.map(k => <Chip key={k} label={t.logoPositions[k]} selected={(tl.charte.logo?.position ?? "aucun") === k} onPress={() => apply(setLogo(d, k))} />)}</Group>
                 <Group label={t.duo}>
                   {DUOS.map(x => <Chip key={x.id} label={x.nom} selected={tl.charte.duo === x.id} onPress={() => apply(setDuo(d, x.id))} />)}

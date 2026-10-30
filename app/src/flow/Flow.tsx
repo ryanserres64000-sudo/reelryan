@@ -5,7 +5,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { fr } from "../copy/fr";
 import type { Profil } from "../../../core/brand";
 import { emptyMemory } from "../../../core/corrections";
-import { manualTimeline } from "../../../core/edit";
+import { applyRecipe, manualTimeline } from "../../../core/edit";
 import { paywallFor } from "../../../core/plans";
 import { sanitizeTimeline } from "../../../core/timeline";
 import { aiAllowed, consent, loadConsent, setConsent } from "../consent";
@@ -299,6 +299,11 @@ export function Flow() {
       }} onCancel={() => setStep("music")} onManual={manual} />;
     case "result": return result ? <ResultScreen result={result.r} seconds={result.s} onBack={() => setStep("brief")} onRestart={() => { setResult(null); setEditorTl(null); clearDraft(); setStep("home"); }}
       sources={i => videoSources(result.r.variantes[i].timeline, chosen, brand ?? null, music)}
+      onRecipe={(i, id) => {
+        const tl = applyRecipe(result.r.variantes[i].timeline, id);
+        setResult({ ...result, r: { ...result.r, variantes: result.r.variantes.map((x, j) => (j === i ? { ...x, timeline: tl } : x)) } });
+        if (keptVersion === i) keepReel(tl);
+      }}
       onEdit={i => { setEditing(i); setFocusShot(0); setStep("editor"); }} onPlay={i => { setEditing(i); play("result"); }} onExport={i => { setEditing(i); keepReel(result.r.variantes[i].timeline); setStep("export"); }}
       kept={keptVersion} onKeep={i => {
         setKeptVersion(i); keepReel(result.r.variantes[i].timeline);

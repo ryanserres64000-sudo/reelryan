@@ -748,6 +748,16 @@ export const fr = {
     at: (s: string) => `à ${s}`,
   },
 
+  // Les recettes de montage (core/recipes.ts) : l'IA en choisit une, la personne peut en changer.
+  recipes: {
+    title: "Recette de montage",
+    chosen: (nom: string) => `J'ai suivi la recette « ${nom} ».`,
+    noneChosen: "Je n'ai suivi aucune recette : montage sur mesure.",
+    names: { teaser: "Teaser d'événement", vlog: "Vlog élégant", recit: "Récit sous-titré", aucune: "Sur mesure" } as Record<string, string>,
+    why: "Change de recette : les textes prennent son style tout de suite. Pour changer aussi le rythme des plans, demande-le à Ma DA.",
+    applied: (nom: string) => `Recette « ${nom} » appliquée`,
+  },
+
   // Étape 4 du parcours : plusieurs passages d'une vidéo, recadrage au doigt, couleur fine, volume.
   passage: {
     open: "Un autre passage d'une vidéo",

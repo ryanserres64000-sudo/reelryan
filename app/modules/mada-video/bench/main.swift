@@ -54,7 +54,10 @@ func render(_ planPath: String, _ outPath: String) async throws {
   let last = built.video.instructions.last?.timeRange.end.seconds ?? 0
   say("composition \(String(format: "%.4f", compDuration)) s · instructions jusqu'à \(String(format: "%.4f", last)) s · export demandé \(String(format: "%.4f", built.duration.seconds)) s · \(built.video.instructions.count) instructions")
   let checker = Checker()
-  let valid = built.video.isValid(for: built.composition, timeRange: CMTimeRange(start: .zero, duration: built.composition.duration), validationDelegate: checker)
+  // Xcode 27's SDK made the check async and throwing.
+  var valid = false
+  do { valid = try await built.video.isValid(for: built.composition, timeRange: CMTimeRange(start: .zero, duration: built.composition.duration), validationDelegate: checker) }
+  catch { checker.problems.append(detail(error)) }
   say(valid ? "composition valide" : "COMPOSITION INVALIDE : \(checker.problems.joined(separator: " ; "))")
   guard let export = AVAssetExportSession(asset: built.composition, presetName: AVAssetExportPresetHighestQuality) else { say("ÉCHEC : pas de session d'export"); exit(3) }
   let out = URL(fileURLWithPath: outPath)

@@ -2,8 +2,10 @@
 // limite » ; Ryan, 28 octobre : « donner la main à l'utilisateur »). Pure functions on a timeline v1:
 // the phone applies them instantly, without AI. Every shot and text gets a stable id, and what the
 // person changes by hand is locked, so a later AI retouch cannot overwrite it.
-import { LOGO_POSITIONS, sanitizeCadre, sanitizeReglages, MAX_CALQUES_SIMULTANES, TRANSITION_SECONDS, sanitizeAudios, sanitizeCalques, timelineDuration, type AudioClip, type Calque, type Cle, type Clips, type Plan, type Texte, type TimelineV1 } from "./timeline.ts";
+import { LOGO_POSITIONS, sanitizeCadre, sanitizeReglages, MAX_CALQUES_SIMULTANES, TRANSITION_SECONDS, sanitizeAudios, sanitizeCalques, timelineDuration, cutsOf, musicOf, type AudioClip, type Calque, type Cle, type Clips, type Plan, type Texte, type TimelineV1 } from "./timeline.ts";
 import type { DuoId } from "./typo.ts";
+import { onCuts, recipeLook, type RecetteId } from "./recipes.ts";
+import { defaultLook } from "./textlook.ts";
 
 export type EditDoc = { timeline: TimelineV1; planIds: string[]; texteIds: string[]; locked: string[] };
 export type History = { past: EditDoc[]; present: EditDoc; future: EditDoc[] };
@@ -95,8 +97,13 @@ export function planTimes(t: Pick<TimelineV1, "plans">): { start: number; end: n
 
 // Cuts a shot in two at a moment of the edit (« Couper » under the play head). Both halves keep
 // everything; the second starts with a plain cut.
-export function splitPlan(d: EditDoc, at: number): EditDoc {
-  const times = planTimes(d.timeline), i = times.findIndex(x => at > x.start && at < x.end);
+// `shot`: the shot touched (Ryan, 30 octobre : « Diviser ne marche pas » when the play head sat on
+// another shot or on its first frame). It is cut at the play head when the head is on it, else in
+// its middle.
+export function splitPlan(d: EditDoc, at: number, shot?: number): EditDoc {
+  const times = planTimes(d.timeline);
+  if (shot !== undefined && times[shot] && !(at > times[shot].start && at < times[shot].end)) at = (times[shot].start + times[shot].end) / 2;
+  const i = shot !== undefined && times[shot] ? shot : times.findIndex(x => at > x.start && at < x.end);
   if (i < 0) return d;
   const p = d.timeline.plans[i], cut = round(p.debut + (at - times[i].start) * p.vitesse);
   if (cut - p.debut < MIN_SHOT || p.fin - cut < MIN_SHOT) return d;
@@ -210,9 +217,13 @@ export function setTexte(d: EditDoc, i: number, patch: Partial<Pick<Texte, "text
   return withTextes(d, d.timeline.textes.map((x, j) => (j === i ? next : x)), d.texteIds, lock(d, d.texteIds[i]));
 }
 
-export function addTexte(d: EditDoc, texte: string, at = 0): EditDoc {
-  const end = Math.min(d.timeline.duree, at + 2);
-  const t: Texte = { texte: texte.slice(0, 140), debut: round(Math.max(0, end - 2)), fin: round(end), position: "bas", style: "titre", impose: false, accent: "", place: { x: 0.5, y: 0.5, w: 0.8, s: 1, r: 0 } };
+// `nom`: a lower third « Marie — trésorière du BDE », small, on the left, in the low third, that slides
+// in for 3 s (Ryan's palace vlog, 30 octobre).
+export function addTexte(d: EditDoc, texte: string, at = 0, kind: "texte" | "nom" = "texte"): EditDoc {
+  const len = kind === "nom" ? 3 : 2, end = Math.min(d.timeline.duree, at + len);
+  const t: Texte = kind === "nom"
+    ? { texte: texte.slice(0, 140), debut: round(Math.max(0, end - len)), fin: round(end), position: "bas", style: "info", impose: false, accent: "", place: { x: 0.38, y: 0.78, w: 0.6, s: 1, r: 0 }, look: { role: "texte", couleur: null, fond: "ombre", align: "gauche", anim: "glisse" } }
+    : { texte: texte.slice(0, 140), debut: round(Math.max(0, end - 2)), fin: round(end), position: "bas", style: "titre", impose: false, accent: "", place: { x: 0.5, y: 0.5, w: 0.8, s: 1, r: 0 } };
   const id = newId("t");
   return withTextes(d, [...d.timeline.textes, t], [...d.texteIds, id], lock(d, id));
 }
@@ -257,6 +268,37 @@ export function setSubtitles(d: EditDoc, actifs: boolean): EditDoc {
 
 export function setVolume(d: EditDoc, volume: number): EditDoc {
   return { ...d, locked: lock(d, "musique"), timeline: { ...d.timeline, musique: { ...d.timeline.musique, volume: round(clamp(volume, 0, 1)) } } };
+}
+
+// Another music, or none, chosen in the editor; the volume and fade already set stay.
+export function setMusic(d: EditDoc, raw: unknown): EditDoc {
+  const m = musicOf(raw), before = d.timeline.musique;
+  return { ...d, locked: lock(d, "musique"), timeline: { ...d.timeline, musique: m.mode === "aucune" ? m : { ...m, volume: before.volume, fondu_sortie: before.fondu_sortie, ducking_voix: before.ducking_voix } } };
+}
+
+// The music's fade at the end, 0 to 3 s (Edits' « Fondu audio »).
+export function setMusicFade(d: EditDoc, fondu_sortie: number): EditDoc {
+  return { ...d, locked: lock(d, "musique"), timeline: { ...d.timeline, musique: { ...d.timeline.musique, fondu_sortie: round(clamp(fondu_sortie, 0, 3)) } } };
+}
+
+// Another recipe in one gesture (plan, « l'IA choisit, tu peux changer ») : the texts take its look and
+// place, keeping their words and their word in colour; what was styled by hand (locked) stays.
+// `null`: back to the plain look. The rhythm of the shots stays: changing it is a retouche.
+export function applyRecipe(t: TimelineV1, id: RecetteId | null, keep: (i: number) => boolean = () => false): TimelineV1 {
+  const textes = t.textes.map((x, i) => {
+    if (keep(i)) return x;
+    const { look: _l, place: _p, ...plain } = x;
+    if (!id) return x.look?.mot ? { ...plain, look: { ...defaultLook(x.style), mot: x.look.mot, ...(x.look.motCouleur ? { motCouleur: x.look.motCouleur } : {}) } } : plain;
+    const r = recipeLook(id, x.style, t.charte, x.look?.mot);
+    const motCouleur = x.look?.mot && x.look.motCouleur ? { motCouleur: x.look.motCouleur } : {};
+    return { ...plain, look: { ...r.look, ...motCouleur }, ...(r.place ? { place: r.place } : {}) };
+  });
+  const { recette: _r, ...rest } = t;
+  return { ...rest, ...(id ? { recette: id } : {}), textes: id === "teaser" ? onCuts(textes, cutsOf(t.plans)).map(x => ({ ...x, fin: Math.min(x.fin, t.duree) })) : textes };
+}
+
+export function setRecipe(d: EditDoc, id: RecetteId | null): EditDoc {
+  return { ...d, timeline: applyRecipe(d.timeline, id, i => d.locked.includes(d.texteIds[i])) };
 }
 
 export const isLocked = (d: EditDoc, id: string) => d.locked.includes(id);

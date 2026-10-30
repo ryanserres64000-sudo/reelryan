@@ -1,6 +1,10 @@
 import { useRef, useState, type ComponentRef, type ReactNode } from "react";
 import { StyleSheet, TextInput, View } from "react-native";
 import { imposedTexts } from "../../../core/timeline";
+import { AFFICHE_CHAMPS, EMPTY_AFFICHE, countdown, type Affiche } from "../../../core/poster";
+import { pickPoster, readPoster } from "../flow/affiche";
+import { aiUrl } from "../flow/server";
+import { noteError } from "../diag";
 import { fr } from "../copy/fr";
 import { Button, Chip, Screen, Text, tokens, typeStyle, useTheme } from "../design";
 import type { Brief } from "../flow/types";
@@ -64,9 +68,74 @@ export function BriefScreen({ brief, onChange, onBack, onNext }: Props) {
       <TextInput value={brief.ctaText ?? ""} onChangeText={ctaText => set({ ctaText })} placeholder={fr.brief.ctaOwn} placeholderTextColor={c.textMuted}
         accessibilityLabel={fr.brief.ctaOwn} maxLength={80} returnKeyType="done"
         style={[typeStyle("body"), styles.line, { color: c.text, borderColor: c.line, backgroundColor: c.surface }]} />
+      <PosterCard brief={brief} set={set} />
       {more ? <Group label={fr.brief.tone}>{fr.brief.tones.map((g, i) => <Chip key={g} label={g} selected={brief.tone === i} onPress={() => toggle("tone", i)} />)}</Group>
         : <Button variant="secondary" label={fr.brief.more} onPress={() => setMore(true)} />}
     </Screen>
+  );
+}
+
+// The event poster (core/poster.ts): read by the AI, then every line checked or written by hand.
+function PosterCard({ brief, set }: { brief: Brief; set: (p: Partial<Brief>) => void }) {
+  const { c } = useTheme();
+  const p = fr.brief.poster, a = brief.affiche;
+  const [state, setState] = useState<"idle" | "reading" | "failed" | "off">("idle");
+  const [uri, setUri] = useState<string | null>(null);
+  // Typed as a line, so a comma being typed is not swallowed; the list follows it.
+  const [partners, setPartners] = useState(a?.partenaires.join(", ") ?? "");
+  const read = async (from: string) => {
+    if (!aiUrl()) { setState("off"); set({ affiche: brief.affiche ?? EMPTY_AFFICHE }); return; }
+    setState("reading");
+    try { const got = await readPoster(from); setPartners(got.partenaires.join(", ")); set({ affiche: got, afficheCouleurs: brief.afficheCouleurs ?? true }); setState("idle"); }
+    catch (e) { noteError("affiche", e instanceof Error ? e.message : String(e)); setState("failed"); set({ affiche: brief.affiche ?? EMPTY_AFFICHE }); }
+  };
+  const add = async () => {
+    try { const picked = await pickPoster(); if (picked) { setUri(picked); await read(picked); } }
+    catch (e) { noteError("affiche", e instanceof Error ? e.message : String(e)); setState("failed"); }
+  };
+  const edit = (patch: Partial<Affiche>) => a && set({ affiche: { ...a, ...patch } });
+  const j = a ? countdown(a.date_iso, new Date()) : null;
+  if (!a && state !== "reading") return (
+    <View style={styles.group}>
+      <Button variant="secondary" label={p.add} onPress={add} />
+      <Text variant="caption" tone="textMuted">{p.why}</Text>
+    </View>
+  );
+  return (
+    <View style={[styles.poster, { borderColor: c.line, backgroundColor: c.surface }]}>
+      {state === "reading" ? <Text variant="callout" tone="ai">{p.reading}</Text> : null}
+      {state === "failed" ? <Text variant="callout" tone="danger">{p.failed}</Text> : null}
+      {state === "off" ? <Text variant="callout" tone="textMuted">{p.aiOff}</Text> : null}
+      {a ? (
+        <>
+          <Text variant="caption" tone="textMuted">{p.check}</Text>
+          {AFFICHE_CHAMPS.map(k => (
+            <View key={k} style={styles.posterField}>
+              <Text variant="caption" tone="textMuted">{p.fields[k]}</Text>
+              <TextInput value={a[k]} onChangeText={v => edit({ [k]: v })} accessibilityLabel={p.fields[k]} maxLength={120} returnKeyType="done"
+                style={[typeStyle("body"), styles.line, { color: c.text, borderColor: c.line, backgroundColor: c.bg }]} />
+            </View>
+          ))}
+          <View style={styles.posterField}>
+            <Text variant="caption" tone="textMuted">{p.partners}</Text>
+            <TextInput value={partners} onChangeText={v => { setPartners(v); edit({ partenaires: v.split(",").map(x => x.trim()).filter(Boolean).slice(0, 4) }); }} accessibilityLabel={p.partners} maxLength={160}
+              style={[typeStyle("body"), styles.line, { color: c.text, borderColor: c.line, backgroundColor: c.bg }]} />
+          </View>
+          {j ? <Text variant="callout" tone="actionStrong">{p.countdown(j)}</Text> : null}
+          {a.couleurs.length ? (
+            <Group label={p.colors}>
+              {a.couleurs.map(x => <View key={x} style={[styles.swatch, { backgroundColor: x, borderColor: c.line }]} accessibilityLabel={x} />)}
+              <Chip label={p.useColors} selected={brief.afficheCouleurs !== false} onPress={() => set({ afficheCouleurs: true })} />
+              <Chip label={p.ownColors} selected={brief.afficheCouleurs === false} onPress={() => set({ afficheCouleurs: false })} />
+            </Group>
+          ) : null}
+          <View style={styles.row}>
+            {uri && state !== "reading" && state !== "off" ? <Chip label={p.retry} onPress={() => read(uri)} /> : null}
+            <Chip label={p.remove} onPress={() => { setUri(null); setState("idle"); setPartners(""); set({ affiche: undefined, afficheCouleurs: undefined }); }} />
+          </View>
+        </>
+      ) : null}
+    </View>
   );
 }
 
@@ -89,4 +158,7 @@ const styles = StyleSheet.create({
   row: { flexDirection: "row", flexWrap: "wrap", gap: tokens.space.xs, alignItems: "center" },
   kept: { borderWidth: tokens.size.border, borderRadius: tokens.radius.chip, paddingHorizontal: tokens.space.xs },
   group: { gap: tokens.space.xs },
+  poster: { gap: tokens.space.sm, borderWidth: tokens.size.border, borderRadius: tokens.radius.card, padding: tokens.space.md },
+  posterField: { gap: tokens.space.xxs },
+  swatch: { width: tokens.size.touch, height: tokens.size.touch, borderRadius: tokens.radius.full, borderWidth: tokens.size.border },
 });

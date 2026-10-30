@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { addPassage, addTexte, changedPlans, duplicateTexte, passagesOf, deletePlan, deleteTexte, keepLocked, movePlan, push, redo, replaceSource, setLogo, setPlan, setTexte, startHistory, toDoc, trimPlan, undo } from "../edit.ts";
+import { addPassage, addTexte, splitPlan, changedPlans, duplicateTexte, passagesOf, deletePlan, deleteTexte, keepLocked, movePlan, push, redo, replaceSource, setLogo, setPlan, setTexte, startHistory, toDoc, trimPlan, undo } from "../edit.ts";
 import { applyCorrection, emptyMemory, forget, learn } from "../corrections.ts";
 import { sanitizeTimeline, timelineDuration } from "../timeline.ts";
 
@@ -172,4 +172,25 @@ test("several passages of one rush by hand, reframing and fine colour", () => {
   d = setPlan(d, 0, { cadre: { x: 0.5, y: 0.5, z: 1 }, reglages: { lumiere: 0, contraste: 0, saturation: 0, chaleur: 0 } });
   assert.equal("cadre" in d.timeline.plans[0], false);
   assert.equal("reglages" in d.timeline.plans[0], false);
+});
+
+test("a « nom et rôle » text sits small on the left of the low third, for 3 s, and survives a reload", () => {
+  const d = addTexte(doc(), "Marie — trésorière du BDE", 2, "nom");
+  const x = d.timeline.textes.at(-1)!;
+  assert.deepEqual([x.debut, x.fin, x.style, x.look?.align, x.place?.y], [2, 5, "info", "gauche", 0.78]);
+  const again = sanitizeTimeline(d.timeline, clips).timeline.textes.at(-1)!;
+  assert.deepEqual(again.look, x.look);
+  assert.deepEqual(again.place, x.place);
+});
+
+test("« Diviser » cuts the shot touched, at the play head or in its middle, and refuses a too short shot", () => {
+  const d = doc();
+  const mid = splitPlan(d, 0, 1);
+  assert.equal(mid.timeline.plans.length, 4);
+  assert.deepEqual([mid.timeline.plans[1].debut, mid.timeline.plans[1].fin, mid.timeline.plans[2].debut], [1, 2.5, 2.5]);
+  const head = splitPlan(d, 4, 1);
+  assert.equal(head.timeline.plans[1].fin, 2.3, "le plan 2 commence à 2,7 s (fondu) : 4 s tombe à 2,3 s dans le rush");
+  const twice = splitPlan(splitPlan(d, 0, 2), 0, 2);
+  assert.equal(twice.timeline.plans.length, 5);
+  assert.equal(splitPlan(twice, 0, 2), twice, "un plan de 0,5 s ne se coupe plus");
 });

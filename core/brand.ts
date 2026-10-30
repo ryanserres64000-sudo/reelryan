@@ -7,13 +7,13 @@ import { duoFor } from "./typo.ts";
 
 // Who the person creates for (Ryan, 29 octobre : « bien balayer nos segments de clients »). The ids of
 // the first version are kept, so a carnet saved before still opens.
-export const PROFILS = ["restaurant", "commerce", "beaute", "coach", "artisan", "freelance", "petite-entreprise", "grande-entreprise", "ecole", "createur", "debutant"] as const;
+export const PROFILS = ["restaurant", "commerce", "beaute", "coach", "artisan", "freelance", "petite-entreprise", "grande-entreprise", "ecole", "createur", "debutant", "organisateur"] as const;
 export type Profil = (typeof PROFILS)[number];
 // The profile screen shows them in four families, so the list reads as a choice, not a form.
 export const PROFIL_GROUPES = [
   { id: "accueil", profils: ["restaurant", "commerce", "beaute"] },
   { id: "savoir", profils: ["coach", "artisan", "freelance"] },
-  { id: "structure", profils: ["petite-entreprise", "grande-entreprise", "ecole"] },
+  { id: "structure", profils: ["petite-entreprise", "grande-entreprise", "ecole", "organisateur"] },
   { id: "moi", profils: ["createur", "debutant"] },
 ] as const satisfies readonly { id: string; profils: readonly Profil[] }[];
 
@@ -25,7 +25,7 @@ export const FORMATS = ["reel", "story", "post", "carrousel", "affiche"] as cons
 // Default style when the AI is unavailable, and the one the questionnaire starts from.
 export const STYLE_PAR_PROFIL: Record<Profil, StyleMaison> = {
   restaurant: "comptoir", commerce: "vitrine", beaute: "avant-apres", coach: "coach", artisan: "atelier", freelance: "conseil",
-  "petite-entreprise": "coulisses", "grande-entreprise": "temoignage", ecole: "evenement", createur: "coulisses", debutant: "coulisses",
+  "petite-entreprise": "coulisses", "grande-entreprise": "temoignage", ecole: "evenement", createur: "coulisses", debutant: "coulisses", organisateur: "evenement",
 };
 
 // One question per card; every card but the profile can be skipped. `options` are ids, the app
@@ -39,7 +39,7 @@ const VITRINE: Profil[] = ["restaurant", "commerce", "beaute", "artisan", "petit
 export const QUESTIONS: readonly Question[] = [
   { id: "nom", kind: "texte", max: 60 },
   { id: "activite", kind: "texte", max: 200 },
-  { id: "specialite", kind: "texte", max: 200, profils: ["restaurant", "commerce", "beaute", "coach", "artisan", "freelance", "petite-entreprise", "createur"] },
+  { id: "specialite", kind: "texte", max: 200, profils: ["restaurant", "commerce", "beaute", "coach", "artisan", "freelance", "petite-entreprise", "createur", "organisateur"] },
   { id: "envie", kind: "texte", max: 200, profils: ["debutant"] },
   { id: "frein", kind: "multi", options: ["sujet", "camera", "temps", "montage", "idees"], profils: ["debutant", "artisan", "freelance"] },
   { id: "regles", kind: "texte", max: 300, profils: ["grande-entreprise"] },
@@ -54,16 +54,20 @@ export const QUESTIONS: readonly Question[] = [
     "petite-entreprise": ["devis", "clients", "notoriete", "ventes", "recrutement", "evenements"],
     "grande-entreprise": ["notoriete", "ventes", "recrutement", "communaute", "evenements"],
     ecole: ["inscriptions", "evenements", "communaute", "notoriete", "recrutement"],
+    organisateur: ["evenements", "notoriete", "communaute", "partenariats", "recrutement"],
     createur: ["abonnes", "communaute", "partenariats", "revenus", "ventes", "evenements"],
     debutant: ["abonnes", "notoriete", "ventes", "communaute", "partenariats"],
   } },
   { id: "creneaux", kind: "texte", max: 160, si: { q: "objectifs", any: ["reservations"] } },
   { id: "offre", kind: "texte", max: 200, si: { q: "objectifs", any: ["ventes", "inscriptions"] } },
   { id: "postes", kind: "texte", max: 160, si: { q: "objectifs", any: ["recrutement"] } },
-  { id: "evenements", kind: "texte", max: 200, profils: ["ecole"], si: { q: "objectifs", any: ["evenements"] } },
+  { id: "evenements", kind: "texte", max: 200, profils: ["ecole", "organisateur"], si: { q: "objectifs", any: ["evenements"] } },
+  // Event organisers (plan du 30 octobre : promoteurs, BDE, salles) : where tickets sell, and who partners.
+  { id: "billetterie", kind: "texte", max: 120, profils: ["organisateur"] },
+  { id: "partenaires", kind: "texte", max: 160, profils: ["organisateur"] },
   { id: "visage", kind: "multi", options: ["moi", "mains", "equipe", "clients", "produits", "lieux", "proches"], parProfil: {
     createur: ["moi", "lieux", "produits", "proches", "mains"], debutant: ["moi", "mains", "produits", "lieux", "proches"],
-    ecole: ["equipe", "moi", "lieux", "clients"], "grande-entreprise": ["equipe", "clients", "produits", "lieux", "moi"],
+    ecole: ["equipe", "moi", "lieux", "clients"], organisateur: ["lieux", "clients", "equipe", "moi"], "grande-entreprise": ["equipe", "clients", "produits", "lieux", "moi"],
     coach: ["moi", "clients", "lieux", "equipe"], freelance: ["moi", "mains", "clients", "produits", "lieux"],
   } },
   { id: "valeurs", kind: "mots", max: 3 },
@@ -319,6 +323,11 @@ const BASES: Record<Profil, Base> = {
     piliers: [{ titre: "Les événements", idee: "Avant, pendant, après : donner envie de venir" }, { titre: "La vie du campus", idee: "Les assos, les cours, les moments forts" }, { titre: "Les étudiants", idee: "Ceux qui font l'école, en vrai" }],
     idees: [idee("L'affiche de la prochaine soirée", "affiche", "La date en grand, au début et à la fin"), idee("L'after-movie de l'événement", "reel", "Le rythme accélère vers la fin"), idee("Une journée sur le campus", "reel", "Pour les futurs étudiants"), idee("Le compte à rebours", "story", "J-7, J-3, J-1"), idee("Présente le bureau", "carrousel", "Un visage, un rôle"), idee("Le sondage de la semaine", "story", "Fait participer")],
     regles: [...REGLES.slice(0, 3), "La date répétée au début et à la fin"], a_eviter: ["Les affiches surchargées", "Les photos floues de soirée"],
+  },
+  organisateur: {
+    piliers: [{ titre: "Le teaser", idee: "Donner envie de venir : le lieu, la foule, le prix, la date" }, { titre: "Le soir même", idee: "L'ambiance en direct, en stories" }, { titre: "L'after-movie", idee: "Les meilleurs moments, pour remplir la prochaine" }],
+    idees: [idee("Le teaser de la prochaine soirée", "reel", "Ton affiche et 5 rushes, un mot par plan"), idee("Le compte à rebours", "story", "J-7, J-3, J-1"), idee("L'affiche de l'événement", "affiche", "La date et le lieu lisibles de loin"), idee("L'after-movie", "reel", "Le rythme accélère vers la fin"), idee("Les dernières places", "story", "Le prix, le lien, l'heure limite"), idee("Présente le lieu", "reel", "Ce qui le rend unique")],
+    regles: [...REGLES.slice(0, 3), "La date, le lieu et le prix seulement s'ils sont sûrs"], a_eviter: ["Les affiches surchargées", "Les prix ou les dates inventés"],
   },
   createur: {
     piliers: [{ titre: "Ton sujet", idee: "Ce que tu sais faire mieux que les autres" }, { titre: "Ton quotidien", idee: "Les coulisses de ta création" }, { titre: "Ta communauté", idee: "Les questions, les réponses, les échanges" }],

@@ -2,6 +2,7 @@
 // 28 octobre : « que ça ne fasse jamais IA »). The consignes already forbid the clichés; this code
 // removes what slips through anyway, and says what it fixed in plain French, so the person sees it
 // in « J'ai corrigé N choses avant de te montrer » (ch. 4, relecture visible). No AI call.
+import { RECIPES } from "./recipes.ts";
 import { timelineDuration, type TimelineV1 } from "./timeline.ts";
 
 const EMOJI = /[\p{Extended_Pictographic}\u{1F1E6}-\u{1F1FF}\u{FE0F}\u{200D}]/gu;
@@ -96,7 +97,8 @@ export function naturalTimeline(t: TimelineV1, opts: { photos?: string[]; sons?:
     fixes.push("J'ai allégé les titres en duo : deux au plus, sans répéter le titre.");
   }
   // « Mots géants qui rebondissent » : about one text every 4 s, imposed texts always kept.
-  const max = Math.max(3, Math.ceil(t.duree / 4));
+  // A recipe sets its own pace (core/recipes.ts): a teaser has a word on almost every shot.
+  const max = t.recette ? RECIPES[t.recette].maxTextes(t.duree) : Math.max(3, Math.ceil(t.duree / 4));
   if (textes.length > max) {
     const free = textes.map((x, i) => (x.impose ? -1 : i)).filter(i => i >= 0);
     const extra = textes.length - max;

@@ -11,6 +11,7 @@ import { handleRetouche } from "./lib/retouche.js";
 import { handleLegende } from "./lib/legende.js";
 import { handleVisuel } from "./lib/visuel.js";
 import { handleVoix } from "./lib/voix.js";
+import { handleAffiche } from "./lib/affiche.js";
 import { handleCallback, handleInstagram } from "./lib/instagram.js";
 import { handleReseau, handleReseauCallback } from "./lib/reseaux.js";
 import { handleCompte, handleOffres, handleQuota } from "./lib/quota.js";
@@ -63,10 +64,10 @@ http.createServer(async (req, res) => {
     return handleInstagram(req, res, body);
   }
   if (url.pathname === "/api/montage" && req.method === "GET") return handleTravail(req, res, url.searchParams.get("travail"));
-  if (url.pathname === "/api/generate" || url.pathname === "/api/montage" || url.pathname === "/api/adn" || url.pathname === "/api/entretien" || url.pathname === "/api/retouche" || url.pathname === "/api/legende" || url.pathname === "/api/visuel" || url.pathname === "/api/voix") {
+  if (url.pathname === "/api/generate" || url.pathname === "/api/montage" || url.pathname === "/api/adn" || url.pathname === "/api/entretien" || url.pathname === "/api/retouche" || url.pathname === "/api/legende" || url.pathname === "/api/visuel" || url.pathname === "/api/voix" || url.pathname === "/api/affiche") {
     if (req.method !== "POST") { res.statusCode = 405; return res.end(); }
     let body;
-    try { body = await readJson(req, url.pathname === "/api/montage" ? 4_500_000 : url.pathname === "/api/adn" || url.pathname === "/api/retouche" || url.pathname === "/api/legende" ? 200_000 : url.pathname === "/api/visuel" ? 1_000_000 : undefined); } catch {
+    try { body = await readJson(req, url.pathname === "/api/montage" ? 4_500_000 : url.pathname === "/api/adn" || url.pathname === "/api/retouche" || url.pathname === "/api/legende" ? 200_000 : url.pathname === "/api/visuel" ? 1_000_000 : url.pathname === "/api/affiche" ? 1_500_000 : undefined); } catch {
       res.statusCode = 413; res.setHeader("content-type", "application/json");
       return res.end(JSON.stringify({ error: "prompt_too_large", message: "Images trop lourdes." }));
     }
@@ -76,6 +77,7 @@ http.createServer(async (req, res) => {
     if (url.pathname === "/api/legende") return handleLegende(req, res, body);
     if (url.pathname === "/api/visuel") return handleVisuel(req, res, body);
     if (url.pathname === "/api/voix") return handleVoix(req, res, body);
+    if (url.pathname === "/api/affiche") return handleAffiche(req, res, body);
     return url.pathname === "/api/montage" ? handleMontage(req, res, body) : handleGenerate(req, res, body);
   }
   let p = path.normalize(decodeURIComponent(url.pathname)).replace(/^([/\\])+/, "");

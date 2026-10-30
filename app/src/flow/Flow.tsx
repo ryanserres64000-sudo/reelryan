@@ -5,7 +5,8 @@ import { useEffect, useState, type ReactNode } from "react";
 import { fr } from "../copy/fr";
 import type { Profil } from "../../../core/brand";
 import { emptyMemory } from "../../../core/corrections";
-import { manualTimeline } from "../../../core/edit";
+import { toMusique } from "../music/musique";
+import { applyRecipe, manualTimeline, setMusic as setMusic_, toDoc } from "../../../core/edit";
 import { paywallFor } from "../../../core/plans";
 import { sanitizeTimeline } from "../../../core/timeline";
 import { aiAllowed, consent, loadConsent, setConsent } from "../consent";
@@ -67,7 +68,7 @@ type Step = "home" | "creations" | "ideas" | "player" | "brand" | "import" | "br
 // The brief's trade chips (lot 2) start from the sign-up profile.
 const TRADE_OF: Record<Profil, Trade> = {
   restaurant: "restaurant", commerce: "commerce", beaute: "commerce", coach: "coach", artisan: "artisan", freelance: "freelance",
-  "petite-entreprise": "artisan", "grande-entreprise": "freelance", ecole: "freelance", createur: "freelance", debutant: "freelance",
+  "petite-entreprise": "artisan", "grande-entreprise": "freelance", ecole: "freelance", createur: "freelance", debutant: "freelance", organisateur: "evenement",
 };
 const START_BRIEF: Brief = { text: "", trade: "restaurant", goal: null, tone: null, duration: 30, platforms: ["reels", "tiktok", "shorts"], cta: null };
 
@@ -119,6 +120,8 @@ export function Flow() {
   useEffect(() => { loadReels().then(setReels); loadRefusals().then(setRefusals); }, []);
   const [reelId, setReelId] = useState(() => Date.now().toString(36));
   const [manualMode, setManualMode] = useState(false);
+  // The music chosen from the editor (Ryan, 30 octobre : « pouvoir ajouter une musique » by hand).
+  const [musicForEditor, setMusicForEditor] = useState(false);
   const [seed, setSeed] = useState<{ brief: VisualBrief; photos: Photo[] } | null>(null);
   const toast = useToast();
   // A Reel whose videos are no longer on the iPhone says so when it opens, instead of failing later.
@@ -218,6 +221,8 @@ export function Flow() {
   const kept = chosen.map((r, i) => (r.badges.includes("blur") || r.badges.includes("dark") ? -1 : i)).filter(i => i >= 0);
 
   // The free way on: the rushes in order, then everything by hand (ch. 8 §2).
+  // The timeline open in the editor, with its unsaved retouches.
+  const editorTimeline = () => editorTl ?? result?.r.variantes[editing]?.timeline ?? null;
   const manual = () => {
     const tl = manualTimeline(chosen.map(r => ({ id: r.id, duration: r.duration, photo: r.photo })), brief.duration, (raw, c) => sanitizeTimeline(raw, c).timeline);
     setResult({ r: { variantes: [{ timeline: tl, duration: tl.duree, warnings: [] }], cout_usd: 0, temps_s: 0, manuel: true }, s: 0 }); setEditing(0); setStep("editor");
@@ -247,7 +252,14 @@ export function Flow() {
     case "import": return <ImportScreen onBack={() => setStep("home")} rushes={rushes} selected={selected} pro={!!plans?.pro} demo={demo}
       onRushes={r => { setRushes(r); setDemo(false); }} onSelect={setSelected} onNext={() => (manualMode ? manual() : setStep("brief"))} />;
     case "brief": return <BriefScreen brief={brief} onChange={b => { setBrief(b); if (b.duration !== brief.duration) setMusic(m => ({ ...m, length: b.duration })); }} onBack={() => setStep("import")} onNext={() => setStep("music")} />;
-    case "music": return <MusicScreen music={music} onChange={setMusic} briefDuration={brief.duration} incoming={incoming} onBack={() => setStep("brief")} onNext={() => {
+    case "music": return musicForEditor ? <MusicScreen music={music} onChange={setMusic} briefDuration={editorTimeline()?.duree ?? brief.duration} incoming={incoming}
+      onBack={() => { setMusicForEditor(false); setStep("editor"); }}
+      onNext={() => {
+        const tl = editorTimeline();
+        if (tl) setEditorTl(setMusic_(toDoc(tl), toMusique(music, tl.duree)).timeline);
+        setMusicForEditor(false); setStep("editor");
+      }} />
+      : <MusicScreen music={music} onChange={setMusic} briefDuration={brief.duration} incoming={incoming} onBack={() => setStep("brief")} onNext={() => {
       const v = plans && verdict(plans, "montage");
       if (plans && paywallFor("nouvelle_creation", { pro: plans.pro, seen: plans.paywallSeen, verdict: v ?? undefined }) === "bloquant") { setPaywall({ mode: "bloquant", back: "music", manual: true }); setStep("paywall"); }
       else if (!aiAllowed()) askConsent("music", () => setStep("generation"), manual);
@@ -299,6 +311,11 @@ export function Flow() {
       }} onCancel={() => setStep("music")} onManual={manual} />;
     case "result": return result ? <ResultScreen result={result.r} seconds={result.s} onBack={() => setStep("brief")} onRestart={() => { setResult(null); setEditorTl(null); clearDraft(); setStep("home"); }}
       sources={i => videoSources(result.r.variantes[i].timeline, chosen, brand ?? null, music)}
+      onRecipe={(i, id) => {
+        const tl = applyRecipe(result.r.variantes[i].timeline, id);
+        setResult({ ...result, r: { ...result.r, variantes: result.r.variantes.map((x, j) => (j === i ? { ...x, timeline: tl } : x)) } });
+        if (keptVersion === i) keepReel(tl);
+      }}
       onEdit={i => { setEditing(i); setFocusShot(0); setStep("editor"); }} onPlay={i => { setEditing(i); play("result"); }} onExport={i => { setEditing(i); keepReel(result.r.variantes[i].timeline); setStep("export"); }}
       kept={keptVersion} onKeep={i => {
         setKeptVersion(i); keepReel(result.r.variantes[i].timeline);
@@ -352,6 +369,7 @@ export function Flow() {
         // Back keeps the retouches (audit, phase 10 : « ne jamais rien perdre ») ; « Annuler » in the editor undoes them.
         onBack={() => { if (editorTl && editorTl !== v.timeline) { saveEdit(editorTl); toast({ message: fr.editor.keptOnBack }); } else { setEditorTl(null); setStep("result"); } }}
         onSave={saveEdit}
+        onMusic={() => { setMusicForEditor(true); setStep("music"); }}
         onAddMedia={async () => {
           // Added to the Reel's rushes, so they are kept with it and play in the preview at once.
           const added = await pickMedia(RUSHES.maxRushes).catch(e => { noteError("galerie", e instanceof Error ? e.message : String(e)); throw e; });

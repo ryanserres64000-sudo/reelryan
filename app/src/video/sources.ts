@@ -3,6 +3,7 @@ import type { EFFETS, TimelineV1 } from "../../../core/timeline";
 import { duoById } from "../../../core/typo";
 import type { Brand } from "../brand/types";
 import type { Music, Rush } from "../flow/types";
+import type { Font } from "../../../core/design";
 import { fontModule } from "../visual/fonts";
 import { voiceUri } from "../voice/files";
 
@@ -16,7 +17,12 @@ export type Sources = {
   effets: Record<string, string>;
   // The voice-overs and recordings (étape 5), by clip id.
   audios: Record<string, string>;
+  // The fonts texts chose for themselves (core/textlook.ts `police`), by `fontKey`.
+  polices: Record<string, string>;
 };
+
+// A text's own font file: bold for a title, regular otherwise (Overlay.swift reads the same key).
+export const fontKey = (police: string, role: string) => `${police}:${role === "titre" ? 700 : 400}`;
 
 // Synthesised in app/assets/sfx/make.sh: no licence needed.
 const SFX: Record<(typeof EFFETS)[number], number> = {
@@ -37,6 +43,10 @@ export async function videoSources(t: TimelineV1, rushes: Rush[], brand: Brand |
     fonts: duo
       ? { titre: await file(fontModule(duo.titre.police, duo.titre.poids)), accent: await file(fontModule(duo.accent.police, duo.accent.poids)), texte: await file(fontModule(duo.texte.police, duo.texte.poids)) }
       : { titre: await file(fontModule(p.titre, 700)), accent: await file(fontModule(p.texte, 400)), texte: await file(fontModule(p.texte, 400)) },
+    polices: Object.fromEntries((await Promise.all([...new Set(t.textes.flatMap(x => (x.look?.police ? [fontKey(x.look.police, x.look.role)] : [])))].map(async k => {
+      const [police, w] = k.split(":");
+      return [k, await file(fontModule(police as Font, Number(w)))] as const;
+    }))).filter((e): e is readonly [string, string] => !!e[1])),
     audios: Object.fromEntries((t.audios ?? []).flatMap(a => { const u = voiceUri(a.source); return u ? [[a.id, u]] : []; })),
     effets: Object.fromEntries((await Promise.all(used.map(async k => [k, await file(SFX[k])] as const))).filter((e): e is readonly [typeof used[number], string] => !!e[1])),
   };

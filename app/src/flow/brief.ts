@@ -1,3 +1,4 @@
+import { afficheBrief } from "../../../core/poster";
 import { fr } from "../copy/fr";
 import type { Brief } from "./types";
 
@@ -9,5 +10,7 @@ export function composeBrief(b: Brief): string {
   // Written by the person: between quotes, so it is shown word for word (imposedTexts).
   if (b.ctaText?.trim()) lines.push(`${c.cta} : « ${b.ctaText.trim()} »`);
   else if (b.cta !== null && b.cta < fr.brief.ctas.length - 1) lines.push(`${c.cta} : ${fr.brief.ctas[b.cta]}`);
+  // The poster's facts, checked by the person, with the end card they make (core/poster.ts).
+  if (b.affiche) lines.push(afficheBrief(b.affiche, new Date()));
   return lines.join("\n");
 }

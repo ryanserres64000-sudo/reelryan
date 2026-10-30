@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
 import { applyCorrection, learn, type Memory } from "../../../core/corrections";
-import { addCalque, addPassage, addTexte, addVoiceOver, changedPlans, deleteAudio, deleteCalque, deleteCle, deleteEffet, deletePlan, deleteTexte, duplicatePlan, duplicateTexte, isLocked, movePlan, planTimes, push, redo, replaceSource, setAudio, setCalque, setDuo, setLogo, setPlan, setSubtitles, setTexte, splitPlan, startHistory, toDoc, trimPlan, undo, type EditDoc, type History } from "../../../core/edit";
+import { addCalque, addPassage, addTexte, addVoiceOver, changedPlans, deleteAudio, deleteCalque, deleteCle, deleteEffet, deletePlan, deleteTexte, duplicatePlan, setMusic, setMusicFade, setRecipe, setVolume, duplicateTexte, isLocked, movePlan, planTimes, push, redo, replaceSource, setAudio, setCalque, setDuo, setLogo, setPlan, setSubtitles, setTexte, splitPlan, startHistory, toDoc, trimPlan, undo, type EditDoc, type History } from "../../../core/edit";
 import { exportPlan, placeOf } from "../../../core/export";
-import { MIN_SIZE, PLACE_LIMITS, SWATCHES, TEXT_ALIGNS, TEXT_ANIMS, TEXT_FONDS, TEXT_ROLES, defaultLook, sizeOf, type TextLook } from "../../../core/textlook";
+import { FONT_FAMILIES, MIN_SIZE, PLACE_LIMITS, SPACINGS, SWATCHES, TEXT_ALIGNS, TEXT_ANIMS, TEXT_FONDS, TEXT_FONTS, TEXT_ROLES, defaultLook, sizeOf, type FontFamily, type TextFont, type TextLook } from "../../../core/textlook";
 import { PRESETS, addKey, isOn, moveLayer, newLayer, placeAt, presetOf, type Preset } from "../../../core/layers";
 import { clock } from "../../../core/playback";
 import { ZOOM, clampZoom, lanes as laneList, type Mode } from "../../../core/tracks";
@@ -19,6 +19,8 @@ import { fr } from "../copy/fr";
 import { Button, Card, Chip, Icon, MadaSays, Screen, Sheet, Text, haptic, tokens, typeStyle, useTheme, useToast, type IconName } from "../design";
 import { aiRetouche } from "../flow/retouche";
 import { DuoTitle } from "../video/DuoTitle";
+import { face, useVisualFonts } from "../visual/fonts";
+import { RECETTES } from "../../../core/recipes";
 import { VoiceSheet } from "../voice/VoiceSheet";
 
 type Props = {
@@ -32,6 +34,8 @@ type Props = {
   // Videos and photos picked in the gallery from the editor (Ryan, 30 octobre : « ajouter d'autres
   // vidéos et photos »): Flow adds them to the Reel's rushes and gives back their ids and lengths.
   onAddMedia?: () => Promise<Clips>;
+  // Opens the music choice (MusicScreen) and comes back with the timeline's new music.
+  onMusic?: () => void;
 };
 type Panel = keyof typeof fr.editor.panels;
 type BarItem = { icon: IconName; label: string; onPress: () => void };
@@ -44,7 +48,7 @@ const LOGO_KEYS = LOGO_POSITIONS;
 // first through plain rules on the phone; only what they cannot do goes to the AI. « Atelier clair »:
 // six named tools under the frise instead of rows of tabs, one « Demander à Ma DA » field, on a dark
 // ground (Flow nests a dark theme) so the footage is judged as it will be seen.
-export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMemory, onSave, onBack, onChange, onPlay, initialShot = 0, sources, onAddMedia }: Props) {
+export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMemory, onSave, onBack, onChange, onPlay, initialShot = 0, sources, onAddMedia, onMusic }: Props) {
   const { c, layout } = useTheme();
   // The strip runs edge to edge, like in Edits: it cancels the screen's side margins.
   const { width: ww } = useWindowDimensions();
@@ -91,7 +95,8 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
   const select = (s: Selection) => {
     setSelection(s);
     setPanel(null);
-    if (s?.lane === "plans") setSel(s.index);
+    // The picture shows the shot touched, so « Diviser » and the settings act where the eye is.
+    if (s?.lane === "plans") { setSel(s.index); const at = planTimes(tl)[s.index]; if (at && (time < at.start || time >= at.end)) { setPlaying(false); seek(at.start + 0.05); } }
     if (s?.lane === "textes") setPanel("texte");
     // A layer is moved on the picture: show it.
     if (s?.lane === "calques") { const l = (tl.calques ?? [])[s.index]; if (l && !isOn(l, time)) { setPlaying(false); seek(l.t + 0.05); } }
@@ -120,8 +125,8 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
   };
   // Texts: chosen on the picture or in the list, added under the play head and chosen at once.
   const chooseText = (n: number) => { setPlaying(false); setSelection({ lane: "textes", index: n, id: d.texteIds[n] } as Selection); setPanel("texte"); };
-  const newText = () => {
-    const next = addTexte(d, t.newText, time);
+  const newText = (kind: "texte" | "nom" = "texte") => {
+    const next = addTexte(d, kind === "nom" ? fr.textEdit.nameRole : t.newText, time, kind);
     apply(next); setPlaying(false);
     const n = next.timeline.textes.length - 1;
     if (n >= 0) setSelection({ lane: "textes", index: n, id: next.texteIds[n] } as Selection);
@@ -165,7 +170,14 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
   const undoToast = (message: string) => toast({ message, action: fr.nav.undo, onAction: () => setH(x => undo(x)) });
   const open = (k: Panel) => { setPlaying(false); setPanel(k); };
   const toggleMode = () => { const m = mode === "simple" ? "complet" : "simple"; setMode(m); saveMode(m); };
-  const split = () => { const n = splitPlan(d, time); if (n !== d) { apply(n); setSelection(null); undoToast(fr.tracks.split_done); } };
+  // The shot touched, or the one under the play head; a refusal says why (Ryan, 30 octobre).
+  const split = () => {
+    const shot = selection?.lane === "plans" ? selection.index : undefined;
+    setPlaying(false);
+    const n = splitPlan(d, time, shot);
+    if (n !== d) { apply(n); setSelection(null); undoToast(fr.tracks.split_done); return; }
+    haptic("warning"); toast({ message: shot !== undefined || planTimes(tl).some(x => time - x.start > 0 && x.end - time > 0) ? fr.tracks.split_short : fr.tracks.split_nowhere });
+  };
   // Videos and photos from the gallery: after the shot in hand, or in place of the one touched.
   const addMedia = async (replace = false) => {
     if (!onAddMedia) return;
@@ -204,24 +216,27 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
       { icon: "trash", label: b.remove, onPress: removeSelected },
     ]
     : selection?.lane === "calques" ? [{ icon: "layers", label: b.edit, onPress: () => open("calque") }, { icon: "trash", label: b.remove, onPress: removeSelected }]
+    : selection?.lane === "voix" ? [{ icon: "sound", label: b.volume, onPress: () => open("audio") }, { icon: "trash", label: b.remove, onPress: removeSelected }]
+    : selection?.lane === "musique" ? [{ icon: "sound", label: b.volume, onPress: () => open("musique") }]
     : selection ? [{ icon: "trash", label: b.remove, onPress: removeSelected }]
     : [
       ...(onAddMedia ? [{ icon: "addMedia", label: b.media, onPress: () => addMedia() } as BarItem] : []),
-      { icon: "text", label: b.text, onPress: newText },
+      { icon: "text", label: b.text, onPress: () => newText() },
+      { icon: "text", label: b.nameRole, onPress: () => newText("nom") },
+      { icon: "sound", label: b.music, onPress: () => (tl.musique.mode === "aucune" && onMusic ? onMusic() : open("musique")) },
       { icon: "subtitles", label: b.subtitles, onPress: () => open("sous_titres") },
-      { icon: "sound", label: b.sound, onPress: () => open("son") },
       { icon: "mic", label: b.voice, onPress: () => { setPlaying(false); setVoicing(true); } },
       { icon: "split", label: b.split, onPress: split },
       { icon: "plan", label: b.passage, onPress: () => { setPlaying(false); setPassage(true); } },
       { icon: "layers", label: b.layer, onPress: () => { setPlaying(false); setLayering("pip"); } },
       { icon: "cutout", label: b.cutout, onPress: () => { setPlaying(false); setLayering("detoure"); } },
-      { icon: "color", label: b.color, onPress: () => open("couleur") },
       { icon: "brand", label: b.brand, onPress: () => open("marque") },
       { icon: "grid", label: mode === "simple" ? b.allTracks : b.fewTracks, onPress: toggleMode },
       { icon: "spark", label: b.ai, onPress: () => open("ia") },
     ];
   // A panel tied to what is touched closes with it.
-  const shown_ = panel === "texte" && textSel === null ? null : panel === "calque" && selection?.lane !== "calques" ? null : panel;
+  const voice = selection?.lane === "voix" ? (tl.audios ?? []).find(a => a.id === selection.id) : undefined;
+  const shown_ = panel === "texte" && textSel === null ? null : panel === "calque" && selection?.lane !== "calques" ? null : panel === "audio" && !voice ? null : panel;
   const shotPanel = shown_ === "vitesse" || shown_ === "son" || shown_ === "couleur" || shown_ === "remplacer" || shown_ === "transition" || shown_ === "ordre";
   const title = shown_ ? (shotPanel ? t.panelOf(t.panels[shown_], i + 1) : t.panels[shown_]) : "";
 
@@ -309,6 +324,24 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
                   <Chip label={t.off} selected={!p.garder_son} onPress={() => apply(setPlan(d, i, { garder_son: false }))} />
                 </Group>
                 {p.garder_son ? <Group label={fr.volume.title}>{[0.5, 1, 1.5].map(v => <Chip key={v} label={fr.volume.value(v)} selected={(p.volume ?? 1) === v} onPress={() => apply(setPlan(d, i, { volume: v }))} />)}</Group> : null}
+              </>
+            ) : null}
+            {shown_ === "audio" && voice ? (
+              <>
+                <Group label={fr.tracks.volume}>{[0.5, 1, 1.5].map(v => <Chip key={v} label={fr.volume.value(v)} selected={voice.volume === v} onPress={() => apply(setAudio(d, voice.id, { volume: v }))} />)}</Group>
+                <Group label={t.fadeIn}>{[0, 0.5, 1].map(v => <Chip key={v} label={v ? t.seconds(v) : t.noFade} selected={voice.fondu_entree === v} onPress={() => apply(setAudio(d, voice.id, { fondu_entree: v }))} />)}</Group>
+                <Group label={t.fadeOut}>{[0, 0.5, 1].map(v => <Chip key={v} label={v ? t.seconds(v) : t.noFade} selected={voice.fondu_sortie === v} onPress={() => apply(setAudio(d, voice.id, { fondu_sortie: v }))} />)}</Group>
+              </>
+            ) : null}
+            {shown_ === "musique" ? (
+              <>
+                {tl.musique.mode === "tendance" ? <Text variant="caption" tone="textMuted">{t.music.trending}</Text> : null}
+                <View style={styles.row}>
+                  {onMusic ? <Chip label={tl.musique.mode === "aucune" ? t.music.add : t.music.change} onPress={onMusic} /> : null}
+                  {tl.musique.mode !== "aucune" ? <Chip label={t.music.remove} onPress={() => remove(setMusic(d, { mode: "aucune" }), t.music.removed)} /> : null}
+                </View>
+                <Group label={fr.tracks.volume}>{[0.3, 0.5, 0.8, 1].map(v => <Chip key={v} label={fr.volume.value(v)} selected={tl.musique.volume === v} onPress={() => apply(setVolume(d, v))} />)}</Group>
+                <Group label={t.fadeOut}>{[0, 1, 2].map(v => <Chip key={v} label={v ? t.seconds(v) : t.noFade} selected={tl.musique.fondu_sortie === v} onPress={() => apply(setMusicFade(d, v))} />)}</Group>
                 <Group label={t.effets}>
                   {(tl.effets ?? []).map((e, k) => <Chip key={`${e.type}${e.t}`} label={t.effet(t.effetNames[e.type], t.seconds(e.t))} onPress={() => remove(deleteEffet(d, k), fr.toast.effetRemoved)} />)}
                 </Group>
@@ -337,11 +370,14 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
                     </View>
                   </Pressable>
                 ))}
-                <Button variant="secondary" label={fr.textEdit.add} onPress={newText} />
+                <Button variant="secondary" label={fr.textEdit.add} onPress={() => newText()} />
               </>
             ) : null}
             {shown_ === "marque" ? (
               <>
+                <Group label={fr.recipes.title}>{[...RECETTES, null].map(id => <Chip key={id ?? "aucune"} label={fr.recipes.names[id ?? "aucune"]} selected={(tl.recette ?? null) === id}
+                  onPress={() => { apply(setRecipe(d, id)); toast({ message: fr.recipes.applied(fr.recipes.names[id ?? "aucune"]) }); }} />)}</Group>
+                <Text variant="caption" tone="textMuted">{fr.recipes.why}</Text>
                 <Group label={t.logo}>{LOGO_KEYS.map(k => <Chip key={k} label={t.logoPositions[k]} selected={(tl.charte.logo?.position ?? "aucun") === k} onPress={() => apply(setLogo(d, k))} />)}</Group>
                 <Group label={t.duo}>
                   {DUOS.map(x => <Chip key={x.id} label={x.nom} selected={tl.charte.duo === x.id} onPress={() => apply(setDuo(d, x.id))} />)}
@@ -427,11 +463,19 @@ function BarButton({ icon, label, onPress }: BarItem) {
 
 // The chosen text: what it says, its font, colour, background, alignment, entrance and size. Moving,
 // pinching and turning happen on the picture (TextGrip); everything here is one tap, and undoable.
+type TextTab = "ecrire" | "police" | "style" | "apparition" | "place";
+const TEXT_TABS: TextTab[] = ["ecrire", "police", "style", "apparition", "place"];
+// The words of a text a person can put in colour: each once, without punctuation.
+const wordsOf = (s: string) => [...new Set(s.split(/\s+/).map(w => w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "")).filter(w => w.length > 1))].slice(0, 16);
+
+// The chosen text's settings, in tabs like Edits' text tools (Ryan, 30 octobre).
 function TextPanel({ x, n, timeline, locked, set }: {
   x: Texte; n: number; timeline: TimelineV1; locked: boolean;
   set: (p: Partial<Pick<Texte, "texte" | "accent" | "position" | "place" | "look">>) => void;
 }) {
   const e = fr.textEdit, look = x.look ?? defaultLook(x.style), place = x.place;
+  const [tab, setTab] = useState<TextTab>("ecrire");
+  const [family, setFamily] = useState<FontFamily | "tous">("tous");
   const setLook = (patch: Partial<TextLook>) => set({ look: { ...look, ...patch } });
   const scale = (f: number) => { const q = placeOf(x); set({ place: { ...q, s: Math.min(PLACE_LIMITS.s[1], Math.max(PLACE_LIMITS.s[0], Math.round(q.s * f * 100) / 100)) } }); };
   const brand = timeline.charte.couleurs;
@@ -440,31 +484,85 @@ function TextPanel({ x, n, timeline, locked, set }: {
     ...(brand.principale ? [[e.brandColor, brand.principale] as [string, string]] : []),
     [e.white, SWATCHES.blanc], [e.black, SWATCHES.noir],
   ];
+  const wordColors: [string, string | undefined][] = [
+    [brand.principale ? e.brandColor : e.yellow, undefined],
+    ...(brand.principale ? [[e.yellow, SWATCHES.jaune] as [string, string]] : []),
+    [e.orange, SWATCHES.orange], [e.white, SWATCHES.blanc],
+  ];
+  const fonts: readonly TextFont[] = family === "tous" ? TEXT_FONTS : FONT_FAMILIES[family];
   const title = x.style === "accroche" || x.style === "titre";
+  const words = wordsOf(x.texte);
   return (
     <View style={styles.field}>
       {x.impose || locked ? <Text variant="caption" tone="actionStrong">{t.text(n)} · {x.impose ? t.imposed : t.locked}</Text> : null}
-      <Text variant="caption" tone="textMuted">{e.gesture}</Text>
-      <TextField value={x.texte} label={t.text(n)} onDone={v => set({ texte: v })} />
-      {title ? (
-        <View style={styles.group}>
-          <Text variant="caption" tone="textMuted">{t.accent}</Text>
-          <TextField value={x.accent} label={t.accent} placeholder={t.accentPlaceholder} max={30} onDone={v => set({ accent: v })} />
-        </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.fixed} contentContainerStyle={styles.row}>
+        {TEXT_TABS.map(k => <Chip key={k} label={e.tabs[k]} selected={tab === k} onPress={() => setTab(k)} />)}
+      </ScrollView>
+      {tab === "ecrire" ? (
+        <>
+          <Text variant="caption" tone="textMuted">{e.gesture}</Text>
+          <TextField value={x.texte} label={t.text(n)} onDone={v => set({ texte: v })} />
+          {title ? (
+            <View style={styles.group}>
+              <Text variant="caption" tone="textMuted">{t.accent}</Text>
+              <TextField value={x.accent} label={t.accent} placeholder={t.accentPlaceholder} max={30} onDone={v => set({ accent: v })} />
+            </View>
+          ) : null}
+        </>
       ) : null}
-      <Group label={e.font}>{TEXT_ROLES.map(r => <Chip key={r} label={e.roles[r]} selected={look.role === r} onPress={() => setLook({ role: r })} />)}</Group>
-      <Group label={e.color}>{colors.map(([label, v]) => <Chip key={label} label={label} selected={look.couleur === v} onPress={() => setLook({ couleur: v })} />)}</Group>
-      <Group label={e.background}>{TEXT_FONDS.map(f => <Chip key={f} label={e.fonds[f]} selected={look.fond === f} onPress={() => setLook({ fond: f })} />)}</Group>
-      <Group label={e.align}>{TEXT_ALIGNS.map(a => <Chip key={a} label={e.aligns[a]} selected={look.align === a} onPress={() => setLook({ align: a })} />)}</Group>
-      <Group label={e.anim}>{TEXT_ANIMS.map(a => <Chip key={a} label={e.anims[a]} selected={look.anim === a} onPress={() => setLook({ anim: a })} />)}</Group>
-      <Group label={e.size}>
-        <Chip label={e.smaller} onPress={() => scale(1 / 1.12)} />
-        <Chip label={e.bigger} onPress={() => scale(1.12)} />
-        {place && place.r !== 0 ? <Chip label={e.straight} onPress={() => set({ place: { ...place, r: 0 } })} /> : null}
-      </Group>
+      {tab === "police" ? (
+        <>
+          <Group label={e.font}>{TEXT_ROLES.map(r => <Chip key={r} label={e.roles[r]} selected={!look.police && look.role === r} onPress={() => setLook({ role: r, police: undefined })} />)}</Group>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.fixed} contentContainerStyle={styles.row}>
+            {(["tous", ...Object.keys(FONT_FAMILIES)] as (FontFamily | "tous")[]).map(f => <Chip key={f} label={e.families[f]} selected={family === f} onPress={() => setFamily(f)} />)}
+          </ScrollView>
+          <View style={styles.row}>{fonts.map(f => <FontChip key={f} font={f} bold={look.role === "titre"} selected={look.police === f} onPress={() => setLook({ police: look.police === f ? undefined : f })} />)}</View>
+          <Group label={e.caps}>
+            <Chip label={e.capsOff} selected={!look.majuscules} onPress={() => setLook({ majuscules: undefined })} />
+            <Chip label={e.capsOn} selected={!!look.majuscules} onPress={() => setLook({ majuscules: true })} />
+          </Group>
+          <Group label={e.spacing}>{SPACINGS.map((v, k) => <Chip key={v} label={e.spacings[k]} selected={(look.espace ?? 0) === v} onPress={() => setLook({ espace: v || undefined })} />)}</Group>
+        </>
+      ) : null}
+      {tab === "style" ? (
+        <>
+          <Group label={e.color}>{colors.map(([label, v]) => <Chip key={label} label={label} selected={look.couleur === v} onPress={() => setLook({ couleur: v })} />)}</Group>
+          <Group label={e.word}>
+            <Chip label={e.wordNone} selected={!look.mot} onPress={() => setLook({ mot: undefined, motCouleur: undefined })} />
+            {words.map(w => <Chip key={w} label={w} selected={look.mot?.toLocaleLowerCase("fr-FR") === w.toLocaleLowerCase("fr-FR")} onPress={() => setLook({ mot: w })} />)}
+          </Group>
+          {look.mot ? <Group label={e.wordColor}>{wordColors.map(([label, v]) => <Chip key={label} label={label} selected={look.motCouleur === v} onPress={() => setLook({ motCouleur: v })} />)}</Group>
+            : <Text variant="caption" tone="textMuted">{e.wordWhy}</Text>}
+          <Group label={e.background}>{TEXT_FONDS.map(f => <Chip key={f} label={e.fonds[f]} selected={look.fond === f} onPress={() => setLook({ fond: f })} />)}</Group>
+          <Group label={e.align}>{TEXT_ALIGNS.map(a => <Chip key={a} label={e.aligns[a]} selected={look.align === a} onPress={() => setLook({ align: a })} />)}</Group>
+        </>
+      ) : null}
+      {tab === "apparition" ? <Group label={e.anim}>{TEXT_ANIMS.map(a => <Chip key={a} label={e.anims[a]} selected={look.anim === a} onPress={() => setLook({ anim: a })} />)}</Group> : null}
+      {tab === "place" ? (
+        <>
+          <Group label={e.size}>
+            <Chip label={e.smaller} onPress={() => scale(1 / 1.12)} />
+            <Chip label={e.bigger} onPress={() => scale(1.12)} />
+            {place && place.r !== 0 ? <Chip label={e.straight} onPress={() => set({ place: { ...place, r: 0 } })} /> : null}
+          </Group>
+          <Group label={t.position}>{TEXT_POSITIONS.map(pos => <Chip key={pos} label={t.positions[pos]} selected={!place && x.position === pos} onPress={() => set({ position: pos, place: undefined })} />)}</Group>
+        </>
+      ) : null}
       {sizeOf(x.style, place) < MIN_SIZE ? <Text variant="caption" tone="actionStrong">{e.tooSmall}</Text> : null}
-      <Group label={t.position}>{TEXT_POSITIONS.map(pos => <Chip key={pos} label={t.positions[pos]} selected={!place && x.position === pos} onPress={() => set({ position: pos, place: undefined })} />)}</Group>
     </View>
+  );
+}
+
+// A font shown in itself, like Edits' font list.
+function FontChip({ font, bold, selected, onPress }: { font: TextFont; bold: boolean; selected: boolean; onPress: () => void }) {
+  const { c, opacity } = useTheme();
+  const loaded = useVisualFonts();
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={fr.textEdit.fontOf(font)} accessibilityState={{ selected }}
+      onPress={() => { haptic("tick"); onPress(); }}
+      style={({ pressed }) => [styles.font, { borderColor: selected ? c.action : c.line, borderWidth: selected ? tokens.size.selection : tokens.size.border, opacity: pressed ? opacity.pressed : 1 }]}>
+      <Text variant="callout" style={loaded ? { fontFamily: face(font, bold ? 700 : 400) } : undefined}>{font}</Text>
+    </Pressable>
   );
 }
 
@@ -574,6 +672,7 @@ const styles = StyleSheet.create({
   start: { alignSelf: "flex-start" },
   tools: { flexDirection: "row", gap: tokens.space.xxs, borderTopWidth: tokens.size.border, paddingTop: tokens.space.xs },
   tool: { alignItems: "center", justifyContent: "center", gap: tokens.space.xxs, minWidth: tokens.size.touch * 1.4, minHeight: tokens.size.button, paddingHorizontal: tokens.space.xxs },
+  font: { minHeight: tokens.size.touch, paddingHorizontal: tokens.space.sm, borderRadius: tokens.radius.chip, alignItems: "center", justifyContent: "center" },
   panel: { borderTopWidth: tokens.size.border, paddingTop: tokens.space.xs, gap: tokens.space.xs },
   fixed: { flexGrow: 0 },
   panelBody: { gap: tokens.space.sm, paddingBottom: tokens.space.sm },

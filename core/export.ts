@@ -152,7 +152,7 @@ export function trendTip(t: TimelineV1): { bpm: number } | null {
 const PROFIL_TAGS: Record<Profil, string[]> = {
   commerce: ["#commercelocal", "#boutique"], restaurant: ["#restaurant", "#faitmaison"], beaute: ["#beaute", "#avantapres"],
   coach: ["#coaching", "#conseil"], artisan: ["#artisan", "#savoirfaire"], freelance: ["#independant", "#freelance"], "petite-entreprise": ["#entreprise", "#equipe"],
-  "grande-entreprise": ["#entreprise", "#coulisses"], ecole: ["#ecole", "#formation"], createur: ["#createur", "#contenu"], debutant: ["#nouveau", "#lancement"],
+  "grande-entreprise": ["#entreprise", "#coulisses"], ecole: ["#ecole", "#formation"], createur: ["#createur", "#contenu"], debutant: ["#nouveau", "#lancement"], organisateur: ["#soiree", "#evenement"],
 };
 export function offlineCaption(brief: string, dna: Pick<Dna, "nom" | "profil"> | null, answers: Answers = {}): TimelineV1["legende"] {
   const first = stripEmoji(brief.replace(/«|»|"/g, "").split(/\n|(?<=[.!?])\s/)[0] ?? "").replace(/\s+([.!?,])/g, "$1").trim();

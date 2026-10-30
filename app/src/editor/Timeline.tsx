@@ -4,7 +4,7 @@ import { clock } from "../../../core/playback";
 import { clampZoom, magnets, snap, type Lane, type LaneKey, type Piece } from "../../../core/tracks";
 import type { TimelineV1 } from "../../../core/timeline";
 import { fr } from "../copy/fr";
-import { Text, haptic, tokens, useTheme } from "../design";
+import { Icon, Text, haptic, tokens, useTheme } from "../design";
 import type { ColorName } from "../design/tokens";
 
 export type Selection = { lane: LaneKey; id: string; index: number } | null;
@@ -16,6 +16,8 @@ type Props = {
   onMove: (s: NonNullable<Selection>, start: number) => void;
   onReorder: (from: number, to: number) => void;
   onDragging?: (on: boolean) => void;
+  // The « + » at the end of the shots, like Edits: videos and photos from the gallery.
+  onAdd?: () => void; addLabel?: string;
 };
 const t = fr.tracks;
 const FILL: Record<LaneKey, ColorName> = { textes: "ai", calques: "text", plans: "surfaceRaised", voix: "ok", musique: "surface", effets: "danger" };
@@ -28,7 +30,7 @@ const FREE: LaneKey[] = ["textes", "calques", "voix"];
 // Touch a piece to select it; drag its white handles to trim, drag it to move it (texts, sounds,
 // layers) or to put a shot elsewhere. Edges stick to the play head, the beats and the other pieces,
 // with a tick.
-export function Timeline({ timeline, lanes, time, zoom, selection, onSeek, onZoom, onSelect, onTrim, onMove, onReorder, onDragging }: Props) {
+export function Timeline({ timeline, lanes, time, zoom, selection, onSeek, onZoom, onSelect, onTrim, onMove, onReorder, onDragging, onAdd, addLabel }: Props) {
   const { c } = useTheme();
   const [width, setWidth] = useState(0);
   const scroll = useRef<ComponentRef<typeof ScrollView>>(null);
@@ -113,7 +115,8 @@ export function Timeline({ timeline, lanes, time, zoom, selection, onSeek, onZoo
           onScroll={e => { if (auto.current) { auto.current = false; return; } onSeek(Math.max(0, Math.min(total, e.nativeEvent.contentOffset.x / pps))); }}
           onMomentumScrollEnd={() => { dragged.current = false; }}
           onScrollEndDrag={e => { if (!e.nativeEvent.velocity?.x) dragged.current = false; }}>
-          <View style={{ width: total * pps }}>
+          {/* Wide enough to hold the « + »: a touch outside its parent's frame is lost on iOS. */}
+          <View style={{ width: total * pps + (onAdd ? tokens.size.laneMain + tokens.space.xs : 0) }}>
             <View style={styles.ruler}>
               {ticks.map(s => (
                 <View key={s} style={[styles.tick, { left: s * pps }]}>
@@ -152,6 +155,12 @@ export function Timeline({ timeline, lanes, time, zoom, selection, onSeek, onZoo
                     </View>
                   );
                 })}
+                {l.key === "plans" && onAdd ? (
+                  <Pressable onPress={() => { haptic("tap"); onAdd(); }} accessibilityRole="button" accessibilityLabel={addLabel}
+                    style={[styles.add, { left: total * pps + tokens.space.xs, backgroundColor: c.text }]}>
+                    <Icon name="plus" tone="bg" />
+                  </Pressable>
+                ) : null}
                 {l.key === "plans" && slot !== null ? <View pointerEvents="none" style={[styles.slot, { left: slotX(l.pieces, slot, selection?.id) * pps, backgroundColor: c.actionStrong }]} /> : null}
               </View>
             ))}
@@ -182,6 +191,7 @@ const styles = StyleSheet.create({
   right: { right: -tokens.size.handleGrip / 2 },
   empty: { position: "absolute", left: 0, top: tokens.space.xxs },
   beat: { position: "absolute", top: "40%", width: tokens.size.beatDot / 2, height: tokens.size.beatDot / 2, borderRadius: tokens.radius.full },
+  add: { position: "absolute", top: 0, bottom: 0, width: tokens.size.laneMain, borderRadius: tokens.radius.chip, alignItems: "center", justifyContent: "center" },
   slot: { position: "absolute", top: -tokens.space.xxs, bottom: -tokens.space.xxs, width: tokens.size.playhead * 2, borderRadius: tokens.radius.full, zIndex: 3 },
   playhead: { position: "absolute", top: 0, bottom: 0, width: tokens.size.playhead, borderRadius: tokens.radius.full },
 });

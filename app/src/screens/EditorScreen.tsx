@@ -45,7 +45,10 @@ const LOGO_KEYS = LOGO_POSITIONS;
 // six named tools under the frise instead of rows of tabs, one « Demander à Ma DA » field, on a dark
 // ground (Flow nests a dark theme) so the footage is judged as it will be seen.
 export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMemory, onSave, onBack, onChange, onPlay, initialShot = 0, sources, onAddMedia }: Props) {
-  const { c } = useTheme();
+  const { c, layout } = useTheme();
+  // The strip runs edge to edge, like in Edits: it cancels the screen's side margins.
+  const { width: ww } = useWindowDimensions();
+  const gutter = ww >= layout.largePhoneWidth ? layout.gutterLarge : layout.gutter;
   const [h, setH] = useState<History>(() => startHistory(toDoc(timeline)));
   const [sel, setSel] = useState(initialShot);
   const [panel, setPanel] = useState<Panel | null>(null);
@@ -243,10 +246,12 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
           {onPlay ? <IconButton icon="expand" label={fr.player.open} onPress={() => { setPlaying(false); onPlay(tl); }} /> : null}
         </View>
       </View>
-      <Timeline timeline={tl} lanes={shown} time={time} zoom={zoom} selection={selection}
+      <View style={{ marginHorizontal: -gutter }}>
+      <Timeline timeline={tl} lanes={shown} time={time} zoom={zoom} selection={selection} onAdd={onAddMedia ? () => addMedia() : undefined} addLabel={b.media}
         onSeek={s => { setPlaying(false); setTime(s); player.current?.seek(s); }} onZoom={setZoom} onSelect={select}
         onTrim={trim} onMove={move} onDragging={setDragging}
         onReorder={(from, to) => { apply(movePlan(d, from, to)); setSel(to); setSelection(null); undoToast(fr.tracks.moved); }} />
+      </View>
 
       {shown_ ? (
         <View style={[styles.panel, { borderColor: c.line, maxHeight: wh * 0.42 }]}>

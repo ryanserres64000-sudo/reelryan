@@ -225,6 +225,9 @@ function sanitizeTextes(raw: unknown, duration: number, brief: string | undefine
   return textes;
 }
 
+// The music chosen by hand in the editor (Ryan, 30 octobre : « pouvoir ajouter une musique »).
+export const musicOf = (raw: unknown): Musique => sanitizeMusique(raw, []);
+
 function sanitizeMusique(raw: unknown, warnings: string[]): Musique {
   const m = obj(raw);
   let mode = pick(m.mode, MUSIQUE_MODES, "aucune");

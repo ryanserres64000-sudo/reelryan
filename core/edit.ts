@@ -2,7 +2,7 @@
 // limite » ; Ryan, 28 octobre : « donner la main à l'utilisateur »). Pure functions on a timeline v1:
 // the phone applies them instantly, without AI. Every shot and text gets a stable id, and what the
 // person changes by hand is locked, so a later AI retouch cannot overwrite it.
-import { LOGO_POSITIONS, sanitizeCadre, sanitizeReglages, MAX_CALQUES_SIMULTANES, TRANSITION_SECONDS, sanitizeAudios, sanitizeCalques, timelineDuration, cutsOf, type AudioClip, type Calque, type Cle, type Clips, type Plan, type Texte, type TimelineV1 } from "./timeline.ts";
+import { LOGO_POSITIONS, sanitizeCadre, sanitizeReglages, MAX_CALQUES_SIMULTANES, TRANSITION_SECONDS, sanitizeAudios, sanitizeCalques, timelineDuration, cutsOf, musicOf, type AudioClip, type Calque, type Cle, type Clips, type Plan, type Texte, type TimelineV1 } from "./timeline.ts";
 import type { DuoId } from "./typo.ts";
 import { onCuts, recipeLook, type RecetteId } from "./recipes.ts";
 import { defaultLook } from "./textlook.ts";
@@ -97,8 +97,13 @@ export function planTimes(t: Pick<TimelineV1, "plans">): { start: number; end: n
 
 // Cuts a shot in two at a moment of the edit (« Couper » under the play head). Both halves keep
 // everything; the second starts with a plain cut.
-export function splitPlan(d: EditDoc, at: number): EditDoc {
-  const times = planTimes(d.timeline), i = times.findIndex(x => at > x.start && at < x.end);
+// `shot`: the shot touched (Ryan, 30 octobre : « Diviser ne marche pas » when the play head sat on
+// another shot or on its first frame). It is cut at the play head when the head is on it, else in
+// its middle.
+export function splitPlan(d: EditDoc, at: number, shot?: number): EditDoc {
+  const times = planTimes(d.timeline);
+  if (shot !== undefined && times[shot] && !(at > times[shot].start && at < times[shot].end)) at = (times[shot].start + times[shot].end) / 2;
+  const i = shot !== undefined && times[shot] ? shot : times.findIndex(x => at > x.start && at < x.end);
   if (i < 0) return d;
   const p = d.timeline.plans[i], cut = round(p.debut + (at - times[i].start) * p.vitesse);
   if (cut - p.debut < MIN_SHOT || p.fin - cut < MIN_SHOT) return d;
@@ -263,6 +268,12 @@ export function setSubtitles(d: EditDoc, actifs: boolean): EditDoc {
 
 export function setVolume(d: EditDoc, volume: number): EditDoc {
   return { ...d, locked: lock(d, "musique"), timeline: { ...d.timeline, musique: { ...d.timeline.musique, volume: round(clamp(volume, 0, 1)) } } };
+}
+
+// Another music, or none, chosen in the editor; the volume and fade already set stay.
+export function setMusic(d: EditDoc, raw: unknown): EditDoc {
+  const m = musicOf(raw), before = d.timeline.musique;
+  return { ...d, locked: lock(d, "musique"), timeline: { ...d.timeline, musique: m.mode === "aucune" ? m : { ...m, volume: before.volume, fondu_sortie: before.fondu_sortie, ducking_voix: before.ducking_voix } } };
 }
 
 // The music's fade at the end, 0 to 3 s (Edits' « Fondu audio »).

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, TextInput, View, useWindowDimensions } from "react-native";
 import { applyCorrection, learn, type Memory } from "../../../core/corrections";
-import { addCalque, addPassage, addTexte, addVoiceOver, changedPlans, deleteAudio, deleteCalque, deleteCle, deleteEffet, deletePlan, deleteTexte, duplicatePlan, setMusicFade, setRecipe, setVolume, duplicateTexte, isLocked, movePlan, planTimes, push, redo, replaceSource, setAudio, setCalque, setDuo, setLogo, setPlan, setSubtitles, setTexte, splitPlan, startHistory, toDoc, trimPlan, undo, type EditDoc, type History } from "../../../core/edit";
+import { addCalque, addPassage, addTexte, addVoiceOver, changedPlans, deleteAudio, deleteCalque, deleteCle, deleteEffet, deletePlan, deleteTexte, duplicatePlan, setMusic, setMusicFade, setRecipe, setVolume, duplicateTexte, isLocked, movePlan, planTimes, push, redo, replaceSource, setAudio, setCalque, setDuo, setLogo, setPlan, setSubtitles, setTexte, splitPlan, startHistory, toDoc, trimPlan, undo, type EditDoc, type History } from "../../../core/edit";
 import { exportPlan, placeOf } from "../../../core/export";
 import { FONT_FAMILIES, MIN_SIZE, PLACE_LIMITS, SPACINGS, SWATCHES, TEXT_ALIGNS, TEXT_ANIMS, TEXT_FONDS, TEXT_FONTS, TEXT_ROLES, defaultLook, sizeOf, type FontFamily, type TextFont, type TextLook } from "../../../core/textlook";
 import { PRESETS, addKey, isOn, moveLayer, newLayer, placeAt, presetOf, type Preset } from "../../../core/layers";
@@ -34,6 +34,8 @@ type Props = {
   // Videos and photos picked in the gallery from the editor (Ryan, 30 octobre : « ajouter d'autres
   // vidéos et photos »): Flow adds them to the Reel's rushes and gives back their ids and lengths.
   onAddMedia?: () => Promise<Clips>;
+  // Opens the music choice (MusicScreen) and comes back with the timeline's new music.
+  onMusic?: () => void;
 };
 type Panel = keyof typeof fr.editor.panels;
 type BarItem = { icon: IconName; label: string; onPress: () => void };
@@ -46,7 +48,7 @@ const LOGO_KEYS = LOGO_POSITIONS;
 // first through plain rules on the phone; only what they cannot do goes to the AI. « Atelier clair »:
 // six named tools under the frise instead of rows of tabs, one « Demander à Ma DA » field, on a dark
 // ground (Flow nests a dark theme) so the footage is judged as it will be seen.
-export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMemory, onSave, onBack, onChange, onPlay, initialShot = 0, sources, onAddMedia }: Props) {
+export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMemory, onSave, onBack, onChange, onPlay, initialShot = 0, sources, onAddMedia, onMusic }: Props) {
   const { c, layout } = useTheme();
   // The strip runs edge to edge, like in Edits: it cancels the screen's side margins.
   const { width: ww } = useWindowDimensions();
@@ -93,7 +95,8 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
   const select = (s: Selection) => {
     setSelection(s);
     setPanel(null);
-    if (s?.lane === "plans") setSel(s.index);
+    // The picture shows the shot touched, so « Diviser » and the settings act where the eye is.
+    if (s?.lane === "plans") { setSel(s.index); const at = planTimes(tl)[s.index]; if (at && (time < at.start || time >= at.end)) { setPlaying(false); seek(at.start + 0.05); } }
     if (s?.lane === "textes") setPanel("texte");
     // A layer is moved on the picture: show it.
     if (s?.lane === "calques") { const l = (tl.calques ?? [])[s.index]; if (l && !isOn(l, time)) { setPlaying(false); seek(l.t + 0.05); } }
@@ -167,7 +170,14 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
   const undoToast = (message: string) => toast({ message, action: fr.nav.undo, onAction: () => setH(x => undo(x)) });
   const open = (k: Panel) => { setPlaying(false); setPanel(k); };
   const toggleMode = () => { const m = mode === "simple" ? "complet" : "simple"; setMode(m); saveMode(m); };
-  const split = () => { const n = splitPlan(d, time); if (n !== d) { apply(n); setSelection(null); undoToast(fr.tracks.split_done); } };
+  // The shot touched, or the one under the play head; a refusal says why (Ryan, 30 octobre).
+  const split = () => {
+    const shot = selection?.lane === "plans" ? selection.index : undefined;
+    setPlaying(false);
+    const n = splitPlan(d, time, shot);
+    if (n !== d) { apply(n); setSelection(null); undoToast(fr.tracks.split_done); return; }
+    haptic("warning"); toast({ message: shot !== undefined || planTimes(tl).some(x => time - x.start > 0 && x.end - time > 0) ? fr.tracks.split_short : fr.tracks.split_nowhere });
+  };
   // Videos and photos from the gallery: after the shot in hand, or in place of the one touched.
   const addMedia = async (replace = false) => {
     if (!onAddMedia) return;
@@ -213,14 +223,13 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
       ...(onAddMedia ? [{ icon: "addMedia", label: b.media, onPress: () => addMedia() } as BarItem] : []),
       { icon: "text", label: b.text, onPress: () => newText() },
       { icon: "text", label: b.nameRole, onPress: () => newText("nom") },
+      { icon: "sound", label: b.music, onPress: () => (tl.musique.mode === "aucune" && onMusic ? onMusic() : open("musique")) },
       { icon: "subtitles", label: b.subtitles, onPress: () => open("sous_titres") },
-      { icon: "sound", label: b.sound, onPress: () => open("son") },
       { icon: "mic", label: b.voice, onPress: () => { setPlaying(false); setVoicing(true); } },
       { icon: "split", label: b.split, onPress: split },
       { icon: "plan", label: b.passage, onPress: () => { setPlaying(false); setPassage(true); } },
       { icon: "layers", label: b.layer, onPress: () => { setPlaying(false); setLayering("pip"); } },
       { icon: "cutout", label: b.cutout, onPress: () => { setPlaying(false); setLayering("detoure"); } },
-      { icon: "color", label: b.color, onPress: () => open("couleur") },
       { icon: "brand", label: b.brand, onPress: () => open("marque") },
       { icon: "grid", label: mode === "simple" ? b.allTracks : b.fewTracks, onPress: toggleMode },
       { icon: "spark", label: b.ai, onPress: () => open("ia") },
@@ -315,10 +324,6 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
                   <Chip label={t.off} selected={!p.garder_son} onPress={() => apply(setPlan(d, i, { garder_son: false }))} />
                 </Group>
                 {p.garder_son ? <Group label={fr.volume.title}>{[0.5, 1, 1.5].map(v => <Chip key={v} label={fr.volume.value(v)} selected={(p.volume ?? 1) === v} onPress={() => apply(setPlan(d, i, { volume: v }))} />)}</Group> : null}
-                <Group label={t.effets}>
-                  {(tl.effets ?? []).map((e, k) => <Chip key={`${e.type}${e.t}`} label={t.effet(t.effetNames[e.type], t.seconds(e.t))} onPress={() => remove(deleteEffet(d, k), fr.toast.effetRemoved)} />)}
-                </Group>
-                <Text variant="caption" tone="textMuted">{(tl.effets ?? []).length ? t.effetsWhy : t.effetsNone}</Text>
               </>
             ) : null}
             {shown_ === "audio" && voice ? (
@@ -330,8 +335,17 @@ export function EditorScreen({ timeline, clips, bad, brief, style, memory, onMem
             ) : null}
             {shown_ === "musique" ? (
               <>
+                {tl.musique.mode === "tendance" ? <Text variant="caption" tone="textMuted">{t.music.trending}</Text> : null}
+                <View style={styles.row}>
+                  {onMusic ? <Chip label={tl.musique.mode === "aucune" ? t.music.add : t.music.change} onPress={onMusic} /> : null}
+                  {tl.musique.mode !== "aucune" ? <Chip label={t.music.remove} onPress={() => remove(setMusic(d, { mode: "aucune" }), t.music.removed)} /> : null}
+                </View>
                 <Group label={fr.tracks.volume}>{[0.3, 0.5, 0.8, 1].map(v => <Chip key={v} label={fr.volume.value(v)} selected={tl.musique.volume === v} onPress={() => apply(setVolume(d, v))} />)}</Group>
                 <Group label={t.fadeOut}>{[0, 1, 2].map(v => <Chip key={v} label={v ? t.seconds(v) : t.noFade} selected={tl.musique.fondu_sortie === v} onPress={() => apply(setMusicFade(d, v))} />)}</Group>
+                <Group label={t.effets}>
+                  {(tl.effets ?? []).map((e, k) => <Chip key={`${e.type}${e.t}`} label={t.effet(t.effetNames[e.type], t.seconds(e.t))} onPress={() => remove(deleteEffet(d, k), fr.toast.effetRemoved)} />)}
+                </Group>
+                <Text variant="caption" tone="textMuted">{(tl.effets ?? []).length ? t.effetsWhy : t.effetsNone}</Text>
               </>
             ) : null}
             {shown_ === "texte" && textSel !== null ? (

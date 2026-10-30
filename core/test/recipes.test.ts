@@ -64,6 +64,8 @@ test("another recipe in one gesture keeps the words and what was styled by hand"
   assert.equal(v.textes[0].look?.police, "Playfair Display");
   assert.equal(v.textes[1].look?.police, "Anton", "le texte réglé à la main ne bouge pas");
   assert.deepEqual(v.textes.map(x => x.texte), t.textes.map(x => x.texte));
+  const orange = { ...t, textes: t.textes.map((x, i) => (i === 1 ? { ...x, look: { ...x.look!, motCouleur: "#FF7A1A" } } : x)) };
+  assert.equal(applyRecipe(orange, "vlog").textes[1].look?.motCouleur, "#FF7A1A", "la couleur choisie pour le mot reste");
   const plain = applyRecipe(t, null);
   assert.equal(plain.recette, undefined);
   assert.equal(plain.textes[0].look?.police, undefined);

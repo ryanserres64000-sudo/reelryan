@@ -277,9 +277,10 @@ export function applyRecipe(t: TimelineV1, id: RecetteId | null, keep: (i: numbe
   const textes = t.textes.map((x, i) => {
     if (keep(i)) return x;
     const { look: _l, place: _p, ...plain } = x;
-    if (!id) return x.look?.mot ? { ...plain, look: { ...defaultLook(x.style), mot: x.look.mot } } : plain;
+    if (!id) return x.look?.mot ? { ...plain, look: { ...defaultLook(x.style), mot: x.look.mot, ...(x.look.motCouleur ? { motCouleur: x.look.motCouleur } : {}) } } : plain;
     const r = recipeLook(id, x.style, t.charte, x.look?.mot);
-    return { ...plain, look: r.look, ...(r.place ? { place: r.place } : {}) };
+    const motCouleur = x.look?.mot && x.look.motCouleur ? { motCouleur: x.look.motCouleur } : {};
+    return { ...plain, look: { ...r.look, ...motCouleur }, ...(r.place ? { place: r.place } : {}) };
   });
   const { recette: _r, ...rest } = t;
   return { ...rest, ...(id ? { recette: id } : {}), textes: id === "teaser" ? onCuts(textes, cutsOf(t.plans)).map(x => ({ ...x, fin: Math.min(x.fin, t.duree) })) : textes };

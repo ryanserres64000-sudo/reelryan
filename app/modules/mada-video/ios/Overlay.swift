@@ -55,7 +55,9 @@ struct Overlay {
       // A text's own font (core/textlook.ts `police`) before its brand role's; the key is fontKey in sources.ts.
       let own = look.police.flatMap { sources.polices?["\($0):\(look.role == "titre" ? 700 : 400)"] }.flatMap(registerFont)
       let name = own ?? (look.role == "titre" ? titleFont : look.role == "accent" ? (accentFont ?? textFont) : textFont)
-      let font = UIFont(name: name ?? "", size: size) ?? .systemFont(ofSize: size, weight: title ? .heavy : .semibold)
+      let named = UIFont(name: name ?? "", size: size) ?? .systemFont(ofSize: size, weight: title ? .heavy : .semibold)
+      // Capitals take lining figures: Playfair's old-style « 800 » reads « 8oo » next to capitals.
+      let font = look.majuscules == true ? UIFont(descriptor: named.fontDescriptor.addingAttributes([.featureSettings: [[UIFontDescriptor.FeatureKey.type: kNumberCaseType, UIFontDescriptor.FeatureKey.selector: kUpperCaseNumbersSelector]]]), size: size) : named
       let color = UIColor(hex: look.couleur) ?? ink
       let plate = look.fond == "plein" || look.fond == "arrondi" ? plateColor : nil
       let free = x.libre ?? false

@@ -41,7 +41,7 @@ export function TextOverlay({ x, timeline, time, k, editing }: { x: PlacedText; 
   return (
     <View pointerEvents="none" style={[styles.box, { left: x.box.x * k, top: x.box.y * k, width: x.box.w * k, height: x.box.h * k, opacity: a.opacite, transform: [{ translateY: a.dy * k }, { rotate: `${x.rotation}deg` }, { scale: a.echelle }] }]}>
       <View style={[styles.plate, { alignSelf: align === "center" ? "center" : align === "left" ? "flex-start" : "flex-end", paddingHorizontal: plate || r.fond === "contour" ? R.padX * k : 0, paddingVertical: plate || r.fond === "contour" ? R.padY * k : 0, backgroundColor: plate ?? "transparent", borderRadius: r.fond === "arrondi" ? R.radius * k : 0, borderWidth: r.fond === "contour" ? R.border * k : 0, borderColor: color }]}>
-        <Text style={[{ color, fontFamily: family, fontSize: size, lineHeight: size * R.lineHeight, textAlign: align, letterSpacing: (r.espace ?? 0) * size }, shadow]}>
+        <Text style={[{ color, fontFamily: family, fontSize: size, lineHeight: size * R.lineHeight, textAlign: align, letterSpacing: (r.espace ?? 0) * size, fontVariant: r.majuscules ? ["lining-nums"] : undefined }, shadow]}>
           {hit ? <>{written.slice(0, hit[0])}<Text style={{ color: wordColor }}>{written.slice(hit[0], hit[1])}</Text>{written.slice(hit[1])}</> : written}
         </Text>
         {accent ? <Text style={[{ color, fontFamily: loaded && duo ? face(duo.accent.police, duo.accent.poids) : undefined, fontSize: small, lineHeight: small * 1.25, marginTop: -small * 1.25 * (duo?.chevauchement ?? 0.2), textAlign: align }, shadow]}>{applyCasse(accent, duo!.accent.casse)}</Text> : null}

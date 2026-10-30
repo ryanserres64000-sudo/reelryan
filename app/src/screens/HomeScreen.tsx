@@ -11,7 +11,7 @@ import type { FlowDraft } from "../flow/draft";
 type Props = {
   brand: Brand | null; plan: PlannedIdea[]; today: PlannedIdea | null; made: string[]; recents: Creation[]; freeLeft: number | null;
   draft: Draft<FlowDraft> | null; onResume: () => void;
-  onIdea: (p: PlannedIdea | null) => void; onMoreIdeas: () => void; onBrand: () => void; onSettings: () => void;
+  onIdea: (p: PlannedIdea | null) => void; onMoreIdeas: () => void; onBrand: () => void; onSettings: () => void; onOffers: () => void;
   // Tes chiffres (étape 8): the last Reel's views when Instagram or a screenshot gave them.
   onStats?: () => void; lastViews?: number | null;
   onOpen: (c: Creation) => void; onSeeAll: () => void;
@@ -22,7 +22,7 @@ const VIDEO = new Set(["reel", "story"]);
 
 // The home answers « qu'est-ce que je poste aujourd'hui ? » (étude de la refonte, décision 2): the week
 // at a glance, the Reel in progress, today's idea with one blue button, then what was made lately.
-export function HomeScreen({ brand, plan, today, made, recents, freeLeft, draft, onResume, onIdea, onMoreIdeas, onBrand, onSettings, onOpen, onSeeAll, onStats, lastViews }: Props) {
+export function HomeScreen({ brand, plan, today, made, recents, freeLeft, draft, onResume, onIdea, onMoreIdeas, onBrand, onSettings, onOffers, onOpen, onSeeAll, onStats, lastViews }: Props) {
   const { c, layout } = useTheme();
   const { width } = useWindowDimensions();
   const gutter = width >= layout.largePhoneWidth ? layout.gutterLarge : layout.gutter;
@@ -90,7 +90,12 @@ export function HomeScreen({ brand, plan, today, made, recents, freeLeft, draft,
               <Text variant="callout" tone="actionStrong">{t.otherIdea}</Text>
             </Pressable>
           ) : <View />}
-          {freeLeft !== null ? <Text variant="caption" tone="textMuted">{fr.status.free(freeLeft)}</Text> : null}
+          {freeLeft !== null ? (
+            <Pressable onPress={onOffers} accessibilityRole="button" accessibilityHint={t.offers} hitSlop={tokens.space.xs}>
+              <Text variant="caption" tone="textMuted">{fr.status.free(freeLeft)}</Text>
+              <Text variant="caption" tone="actionStrong">{t.offers}</Text>
+            </Pressable>
+          ) : null}
         </View>
       </Card>
 

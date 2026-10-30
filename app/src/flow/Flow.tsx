@@ -130,6 +130,8 @@ export function Flow() {
   useEffect(() => { initDevice().then(loadPlans).then(p => { proHeader(p); setPlans(p); }); }, []);
   const updatePlans = (p: Plans) => { proHeader(p); setPlans(p); savePlans(p); };
   const [paywall, setPaywall] = useState<{ mode: "doux" | "bloquant"; back: Step; manual?: boolean; offline?: { brief: VisualBrief; photos: Photo[] } } | null>(null);
+  // The offers, opened by the person from Accueil or Réglages (they used to show only after an AI result).
+  const offers = (back: Step) => { if (!plans) return; setPaywall({ mode: "doux", back }); setStep("paywall"); };
   const [keptVersion, setKeptVersion] = useState<number | null>(null);
   // The AI permission (lot 9), asked where it is first needed, with where each answer leads.
   const [ask, setAsk] = useState<{ back: Step; yes: () => void; no: () => void } | null>(null);
@@ -221,7 +223,7 @@ export function Flow() {
       draft={draft} onResume={() => draft && resume(draft)}
       onIdea={p => (p ? startIdea(p.idee) : newReel())} onMoreIdeas={() => setStep("ideas")} onBrand={() => setStep("brand")}
       onStats={() => setStep("stats")} lastViews={lastViews}
-      onSettings={() => setStep("settings")} onOpen={openCreation} onSeeAll={() => setStep("creations")} />);
+      onSettings={() => setStep("settings")} onOffers={() => offers("home")} onOpen={openCreation} onSeeAll={() => setStep("creations")} />);
     case "creations": return tabs("creations", <CreationsScreen items={creations} brand={brand ?? null} onOpen={openCreation} onDuplicate={duplicate} onDelete={remove} onNew={() => newReel()} />);
     case "ideas": return tabs("ideas", <IdeasScreen plan={plan} ideas={brand?.dna?.idees ?? []} pillars={brand?.dna?.piliers ?? []} hasBrand={!!brand?.dna}
       onMake={startIdea} onBrand={() => setStep("brand")}
@@ -284,7 +286,7 @@ export function Flow() {
     case "consent": return ask ? <ConsentScreen onBack={() => setStep(ask.back)} onAnswer={ok => setConsent(ok).then(() => (ok ? ask.yes() : ask.no()))} /> : null;
     case "stats": return <StatsScreen memory={brand?.memory ?? null} reels={reels.map(r => ({ id: r.id, at: r.at, duree: r.timeline.duree }))} onBack={() => { loadCaptures().then(c => setLastViews(c.find(p => p.type === "reel")?.vues ?? lastViews)); setStep("home"); }}
       onMemory={m => { if (!brand) return; const b = { ...brand, memory: m }; setBrand(b); saveBrand(b); }} />;
-    case "settings": return <SettingsScreen plans={plans} onPlans={updatePlans} onBack={() => setStep("home")}
+    case "settings": return <SettingsScreen plans={plans} onPlans={updatePlans} onBack={() => setStep("home")} onOffers={() => offers("settings")}
       onDeleted={() => { setBrand(null); setSignedIn(false); setVisuals([]); setVisual(null); setResult(null); setStep("brand"); }} />;
     case "export": {
       const v = result?.r.variantes[editing];

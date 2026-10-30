@@ -256,6 +256,9 @@ export const fr = {
     privacy: "Confidentialité",
     close: "Fermer",
     priceLock: "Ton prix reste le même tant que tu restes abonné.",
+    // App Store règle 3.1.2 : the name, the length and the price of what is bought, next to the button.
+    summary: (label: string, price: string, per: string) => `Ma DA Pro, ${label.toLowerCase()} : ${price} ${per}, renouvelé automatiquement.`,
+    notReady: "Les offres ne sont pas encore disponibles sur l'App Store. Réessaie un peu plus tard ; rien n'a été payé.",
     autoRenew: "Abonnement renouvelé automatiquement au même prix. Résiliable à tout moment dans Réglages, Identifiant Apple, Abonnements, au plus tard 24 h avant la fin de la période. Le paiement est débité sur ton compte Apple à la confirmation.",
     buying: "J'ouvre le paiement Apple…",
     thanks: "Bienvenue en Pro. Ton style continue de s'affiner.",
@@ -290,6 +293,7 @@ export const fr = {
     plan: "Abonnement",
     planPro: "Tu es en Pro.",
     planFree: (n: number) => (n ? `Version gratuite : ${n} montages IA offerts restants.` : "Version gratuite : tes montages IA offerts sont utilisés."),
+    offers: "Voir les offres Pro",
     manage: "Gérer mon abonnement",
     restore: "Restaurer mes achats",
     docs: "Documents",
@@ -298,7 +302,7 @@ export const fr = {
     notices: "Mentions légales",
     help: "Aide et contact",
     rights: "Signaler un son (ayants droit)",
-    noSite: "Les pages légales s'ouvriront une fois le site en ligne.",
+    linkFailed: "Cette page ne s'ouvre pas. Vérifie ta connexion et réessaie ; le détail est dans le diagnostic plus bas.",
     delete: "Supprimer mon compte et mes données",
     deleteWhat: "J'efface ton carnet de style, tes visuels, tes réglages et ce que le serveur sait de tes usages. Tes vidéos dans Photos ne bougent pas.",
     deleteKept: "Je garde seulement, sans ton nom, le nombre de créations offertes déjà utilisées sur cet iPhone, pour éviter les abus.",
@@ -623,6 +627,7 @@ export const fr = {
   // The home screen (« Atelier clair », Ryan, 28 octobre 2026): the idea of the week, one button to start
   // a Reel, and what to pick up again.
   home: {
+    offers: "Voir les offres Pro",
     title: "Ton studio",
     idea: "Idée de la semaine",
     today: "Aujourd'hui",
@@ -1023,6 +1028,9 @@ export const fr = {
       timeout: "Le montage a pris trop de temps, je l'ai arrêté. Ton brief et tes rushes sont gardés : réessaie, ou garde moins de rushes.",
       credits: "L'IA de Ma DA est en pause côté serveur (crédits épuisés). Ton brief et tes rushes sont gardés : réessaie plus tard, ou monte à la main.",
       rate_limited: "L'IA est très demandée en ce moment. Réessaie dans une minute.",
+      ia_coupee: "L'IA de Ma DA est en pause pour quelques instants. Ton brief et tes rushes sont gardés : réessaie plus tard, ou monte à la main.",
+      plafond_jour: "Ma DA a beaucoup travaillé aujourd'hui : l'IA revient demain. Ton brief et tes rushes sont gardés, et le montage à la main reste ouvert.",
+      compte: "Connecte-toi à ton compte Ma DA pour monter avec l'IA. Ton brief et tes rushes sont gardés.",
       server_error: "Le serveur de l'IA a eu un problème. Ton brief et tes rushes sont gardés : réessaie.",
     },
   },

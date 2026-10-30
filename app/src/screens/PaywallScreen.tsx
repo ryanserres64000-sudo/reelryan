@@ -4,6 +4,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import type { Offre } from "../../../core/plans";
 import { fr } from "../copy/fr";
 import { Button, Paywall, tokens, useTheme } from "../design";
+import { noteError } from "../diag";
 import { LEGAL, open } from "../legal";
 import { deviceId } from "../plans/device";
 import type { Plans } from "../plans/state";
@@ -22,17 +23,27 @@ export function PaywallScreen({ plans, mode, onClose, onPro, onManual, onOffline
   const [prices, setPrices] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  useEffect(() => { products(plans.config.offres.map(o => o.produit)).then(ps => setPrices(Object.fromEntries(ps.map(p => [p.id, p.displayPrice])))).catch(() => {}); }, []);
+  // No product back from a compiled app means the subscriptions are not ready in App Store Connect:
+  // said on « Continuer » and written to the diagnostic in Réglages.
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    const ids = plans.config.offres.map(o => o.produit);
+    products(ids).then(ps => {
+      setPrices(Object.fromEntries(ps.map(p => [p.id, p.displayPrice]))); setLoaded(true);
+      if (canBuy() && !ps.length) noteError("abonnements", `aucun produit App Store pour ${ids.join(", ")}`);
+    }).catch(e => { setLoaded(true); noteError("abonnements", e instanceof Error ? e.message : String(e)); });
+  }, []);
   const used = plans.config.gratuit.montages;
 
   const buy = async (o: Offre) => {
     if (!canBuy()) { setStatus(fr.paywall.unavailable); return; }
+    if (loaded && !prices[o.produit]) { setStatus(fr.paywall.notReady); return; }
     setBusy(true); setStatus(fr.paywall.buying);
     try {
       const r = await purchase(o.produit, deviceId() ?? "");
       if (r.status === "success") { setStatus(fr.paywall.thanks); onPro({ ...plans, pro: true }); }
       else setStatus(r.status === "pending" ? fr.paywall.pending : fr.paywall.cancelled);
-    } catch { setStatus(fr.paywall.cancelled); }
+    } catch (e) { noteError("achat", e instanceof Error ? e.message : String(e)); setStatus(fr.paywall.cancelled); }
     finally { setBusy(false); }
   };
   const doRestore = async () => {

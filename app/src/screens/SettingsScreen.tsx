@@ -10,13 +10,13 @@ import { LEGAL, SUBSCRIPTIONS, open } from "../legal";
 import { verdict, type Plans } from "../plans/state";
 import { canBuy, restore } from "../plans/storekit";
 
-type Props = { plans: Plans | null; onPlans: (p: Plans) => void; onDeleted: () => void; onBack: () => void };
+type Props = { plans: Plans | null; onPlans: (p: Plans) => void; onDeleted: () => void; onBack: () => void; onOffers: () => void };
 const t = fr.settings;
 const day = (iso: string) => new Date(iso).toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" });
 
 // Réglages (lot 9 ; étude, ch. 9) : the AI permission, changeable at any time; the subscription,
 // managed by Apple; the legal pages; and deleting the account from inside the app (règle 5.1.1(v)).
-export function SettingsScreen({ plans, onPlans, onDeleted, onBack }: Props) {
+export function SettingsScreen({ plans, onPlans, onDeleted, onBack, onOffers }: Props) {
   const [ai, setAi] = useState(consent());
   const [confirm, setConfirm] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -46,7 +46,7 @@ export function SettingsScreen({ plans, onPlans, onDeleted, onBack }: Props) {
     setSay(r.server ? t.deleted : t.deleteServerError);
     onDeleted();
   };
-  const link = (label: string, url: string | null) => <Button key={label} variant="secondary" label={label} disabled={!url} onPress={() => open(url)} />;
+  const link = (label: string, url: string) => <Button key={label} variant="secondary" label={label} onPress={() => open(url).then(ok => { if (!ok) setSay(t.linkFailed); })} />;
 
   return (
     <Screen title={t.title} detail={t.detail} onBack={onBack} footer={say ? <MadaSays text={say} /> : undefined}>
@@ -64,7 +64,8 @@ export function SettingsScreen({ plans, onPlans, onDeleted, onBack }: Props) {
         <View style={styles.block}>
           <Text variant="headline">{t.plan}</Text>
           {plans ? <Text>{plans.pro ? t.planPro : t.planFree(verdict(plans, "montage").restant)}</Text> : null}
-          <Button variant="secondary" label={t.manage} onPress={() => open(SUBSCRIPTIONS)} />
+          {plans && !plans.pro ? <Button label={t.offers} onPress={onOffers} /> : null}
+          <Button variant="secondary" label={t.manage} onPress={() => open(SUBSCRIPTIONS).then(ok => { if (!ok) setSay(t.linkFailed); })} />
           <Button variant="secondary" label={t.restore} onPress={doRestore} />
         </View>
       </Card>
@@ -92,7 +93,6 @@ export function SettingsScreen({ plans, onPlans, onDeleted, onBack }: Props) {
         <View style={styles.block}>
           <Text variant="headline">{t.docs}</Text>
           {[link(t.terms, LEGAL.terms), link(t.privacy, LEGAL.privacy), link(t.notices, LEGAL.notices), link(t.help, LEGAL.support), link(t.rights, LEGAL.rights)]}
-          {!LEGAL.terms ? <Text variant="caption" tone="textMuted">{t.noSite}</Text> : null}
         </View>
       </Card>
 

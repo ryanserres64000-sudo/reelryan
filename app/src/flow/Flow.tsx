@@ -67,7 +67,7 @@ type Step = "home" | "creations" | "ideas" | "player" | "brand" | "import" | "br
 // The brief's trade chips (lot 2) start from the sign-up profile.
 const TRADE_OF: Record<Profil, Trade> = {
   restaurant: "restaurant", commerce: "commerce", beaute: "commerce", coach: "coach", artisan: "artisan", freelance: "freelance",
-  "petite-entreprise": "artisan", "grande-entreprise": "freelance", ecole: "freelance", createur: "freelance", debutant: "freelance",
+  "petite-entreprise": "artisan", "grande-entreprise": "freelance", ecole: "freelance", createur: "freelance", debutant: "freelance", organisateur: "evenement",
 };
 const START_BRIEF: Brief = { text: "", trade: "restaurant", goal: null, tone: null, duration: 30, platforms: ["reels", "tiktok", "shorts"], cta: null };
 

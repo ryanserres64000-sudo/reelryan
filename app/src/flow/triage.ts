@@ -10,6 +10,7 @@ import type { Brand } from "../brand/types";
 import { noteError } from "../diag";
 import { toMusique } from "../music/musique";
 import { composeBrief } from "./brief";
+import { withPoster } from "./affiche";
 import type { Brief, Music, Rush, Triaged } from "./types";
 import { keepMedia } from "../media/keep";
 
@@ -120,6 +121,6 @@ export async function montageBody(rushes: Rush[], brief: Brief, music: Music, br
     brief: composeBrief(brief), duree: brief.duration, variantes: 2, plateformes: brief.platforms,
     rushes: ready.map(r => rushForAi(r.triage.probed)), images,
     style: montageStyle(dna, rules), musique: toMusique(music, brief.duration),
-    charte: charteOf(dna, !!brand?.logoUri),
+    charte: withPoster(charteOf(dna, !!brand?.logoUri), brief.affiche, brief.afficheCouleurs),
   };
 }
